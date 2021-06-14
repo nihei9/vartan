@@ -1,0 +1,70 @@
+{
+	"entries": [
+		{
+			"fragment": true,
+			"kind": "lf",
+			"pattern": "\\u{000A}"
+		},
+		{
+			"fragment": true,
+			"kind": "cr",
+			"pattern": "\\u{000D}"
+		},
+		{
+			"fragment": true,
+			"kind": "ht",
+			"pattern": "\\u{0009}"
+		},
+		{
+			"fragment": true,
+			"kind": "sp",
+			"pattern": "\\u{0020}"
+		},
+		{
+			"fragment": true,
+			"kind": "newline",
+			"pattern": "\\f{lf}|\\f{cr}|\\f{cr}\\f{lf}"
+		},
+		{
+			"kind": "white_space",
+			"pattern": "(\\f{ht}|\\f{sp})+"
+		},
+		{
+			"kind": "newline",
+			"pattern": "\\f{newline}"
+		},
+		{
+			"kind": "identifier",
+			"pattern": "[A-Za-z_][0-9A-Za-z_]*"
+		},
+		{
+			"kind": "terminal_open",
+			"pattern": "\"",
+			"push": "terminal"
+		},
+		{
+			"modes": ["terminal"],
+			"kind": "pattern",
+			"pattern": "([^\"\\\\]|\\\\.)+"
+		},
+		{
+			"modes": ["terminal"],
+			"kind": "escape_symbol",
+			"pattern": "\\\\"
+		},
+		{
+			"modes": ["terminal"],
+			"kind": "terminal_close",
+			"pattern": "\"",
+			"pop": true
+		},
+		{
+			"kind": "colon",
+			"pattern": ":"
+		},
+		{
+			"kind": "semicolon",
+			"pattern": ";"
+		}
+	]
+}
