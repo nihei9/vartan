@@ -18,6 +18,7 @@ type AlternativeNode struct {
 }
 
 type ElementNode struct {
+	ID      string
 	Pattern string
 }
 
@@ -94,32 +95,49 @@ func (p *parser) parseProduction() *ProductionNode {
 		raiseSyntaxError(synErrNoColon)
 	}
 	alt := p.parseAlternative()
+	rhs := []*AlternativeNode{alt}
+	for {
+		if !p.consume(tokenKindOr) {
+			break
+		}
+		alt := p.parseAlternative()
+		rhs = append(rhs, alt)
+	}
 	if !p.consume(tokenKindSemicolon) {
 		raiseSyntaxError(synErrNoSemicolon)
 	}
 	return &ProductionNode{
 		LHS: lhs,
-		RHS: []*AlternativeNode{alt},
+		RHS: rhs,
 	}
 }
 
 func (p *parser) parseAlternative() *AlternativeNode {
-	elem := p.parseElement()
-	if elem == nil {
-		raiseSyntaxError(synErrNoElement)
+	elems := []*ElementNode{}
+	for {
+		elem := p.parseElement()
+		if elem == nil {
+			break
+		}
+		elems = append(elems, elem)
 	}
 	return &AlternativeNode{
-		Elements: []*ElementNode{elem},
+		Elements: elems,
 	}
 }
 
 func (p *parser) parseElement() *ElementNode {
-	if !p.consume(tokenKindTerminalPattern) {
-		return nil
+	switch {
+	case p.consume(tokenKindID):
+		return &ElementNode{
+			ID: p.lastTok.text,
+		}
+	case p.consume(tokenKindTerminalPattern):
+		return &ElementNode{
+			Pattern: p.lastTok.text,
+		}
 	}
-	return &ElementNode{
-		Pattern: p.lastTok.text,
-	}
+	return nil
 }
 
 func (p *parser) consume(expected tokenKind) bool {

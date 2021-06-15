@@ -28,5 +28,4 @@ var (
 	synErrNoProductionName = newSyntaxError("a production name is missing")
 	synErrNoColon          = newSyntaxError("the colon must precede alternatives")
 	synErrNoSemicolon      = newSyntaxError("the semicolon is missing at the last of an alternative")
-	synErrNoElement        = newSyntaxError("an alternative must have at least one element")
 )

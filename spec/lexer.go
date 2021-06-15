@@ -19,6 +19,7 @@ const (
 	tokenKindID              = tokenKind("id")
 	tokenKindTerminalPattern = tokenKind("terminal pattern")
 	tokenKindColon           = tokenKind(":")
+	tokenKindOr              = tokenKind("|")
 	tokenKindSemicolon       = tokenKind(";")
 	tokenKindEOF             = tokenKind("eof")
 	tokenKindInvalid         = tokenKind("invalid")
@@ -128,6 +129,8 @@ func (l *lexer) next() (*token, error) {
 			}
 		case "colon":
 			return newSymbolToken(tokenKindColon), nil
+		case "or":
+			return newSymbolToken(tokenKindOr), nil
 		case "semicolon":
 			return newSymbolToken(tokenKindSemicolon), nil
 		default:

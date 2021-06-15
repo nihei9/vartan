@@ -17,6 +17,11 @@ func TestParse(t *testing.T) {
 			Elements: elems,
 		}
 	}
+	id := func(id string) *ElementNode {
+		return &ElementNode{
+			ID: id,
+		}
+	}
 	pattern := func(p string) *ElementNode {
 		return &ElementNode{
 			Pattern: p,
@@ -41,15 +46,51 @@ func TestParse(t *testing.T) {
 		{
 			caption: "multiple productions are a valid grammar",
 			src: `
-a: "a";
-b: "b";
-c: "c";
+e: e "\+|-" t | t;
+t: t "\*|/" f | f;
+f: "\(" e ")" | id;
+id: "[A-Za-z_][0-9A-Za-z_]*";
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
-					production("a", alternative(pattern("a"))),
-					production("b", alternative(pattern("b"))),
-					production("c", alternative(pattern("c"))),
+					production("e",
+						alternative(id("e"), pattern(`\+|-`), id("t")),
+						alternative(id("t")),
+					),
+					production("t",
+						alternative(id("t"), pattern(`\*|/`), id("f")),
+						alternative(id("f")),
+					),
+					production("f",
+						alternative(pattern(`\(`), id("e"), pattern(`)`)),
+						alternative(id("id")),
+					),
+					production("id",
+						alternative(pattern(`[A-Za-z_][0-9A-Za-z_]*`)),
+					),
+				},
+			},
+		},
+		{
+			caption: "productions can contain the empty alternative",
+			src: `
+a: "foo" | ;
+b: | "bar";
+c: ;
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					production("a",
+						alternative(pattern(`foo`)),
+						alternative(),
+					),
+					production("b",
+						alternative(),
+						alternative(pattern(`bar`)),
+					),
+					production("c",
+						alternative(),
+					),
 				},
 			},
 		},
@@ -72,11 +113,6 @@ c: "c";
 			caption: "':' must precede an alternative",
 			src:     `a "a";`,
 			synErr:  synErrNoColon,
-		},
-		{
-			caption: "an alternative must have at least one element",
-			src:     `a:;`,
-			synErr:  synErrNoElement,
 		},
 		{
 			caption: "';' must follow a production",

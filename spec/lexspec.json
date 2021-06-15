@@ -63,6 +63,10 @@
 			"pattern": ":"
 		},
 		{
+			"kind": "or",
+			"pattern": "\\|"
+		},
+		{
 			"kind": "semicolon",
 			"pattern": ";"
 		}
