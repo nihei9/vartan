@@ -3,6 +3,7 @@ package grammar
 import (
 	"fmt"
 
+	mlcompiler "github.com/nihei9/maleeni/compiler"
 	mlspec "github.com/nihei9/maleeni/spec"
 	"github.com/nihei9/vartan/spec"
 )
@@ -155,4 +156,102 @@ func isLexicalProduction(prod *spec.ProductionNode) bool {
 		return true
 	}
 	return false
+}
+
+func Compile(gram *Grammar) (*spec.CompiledGrammar, error) {
+	lexSpec, err := mlcompiler.Compile(gram.lexSpec, mlcompiler.CompressionLevel(mlcompiler.CompressionLevelMax))
+	if err != nil {
+		return nil, err
+	}
+
+	kind2Term := make([][]int, len(lexSpec.Modes))
+	for modeNum, spec := range lexSpec.Specs {
+		if modeNum == 0 {
+			kind2Term[0] = nil
+			continue
+		}
+		rec := make([]int, len(spec.Kinds))
+		for n, k := range spec.Kinds {
+			if n == 0 {
+				rec[0] = symbolNil.num().Int()
+				continue
+			}
+			sym, ok := gram.symbolTable.toSymbol(k.String())
+			if !ok {
+				return nil, fmt.Errorf("terminal symbol '%v' (in '%v' mode) is not found in a symbol table", k, lexSpec.Modes[modeNum])
+			}
+			rec[n] = sym.num().Int()
+		}
+		kind2Term[modeNum] = rec
+	}
+
+	terms, err := gram.symbolTable.getTerminalTexts()
+	if err != nil {
+		return nil, err
+	}
+
+	nonTerms, err := gram.symbolTable.getNonTerminalTexts()
+	if err != nil {
+		return nil, err
+	}
+
+	firstSet, err := genFirstSet(gram.productionSet)
+	if err != nil {
+		return nil, err
+	}
+
+	followSet, err := genFollowSet(gram.productionSet, firstSet)
+	if err != nil {
+		return nil, err
+	}
+
+	lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+	if err != nil {
+		return nil, err
+	}
+
+	tab, err := genSLRParsingTable(lr0, gram.productionSet, followSet, len(terms), len(nonTerms))
+	if err != nil {
+		return nil, err
+	}
+
+	action := make([]int, len(tab.actionTable))
+	for i, e := range tab.actionTable {
+		action[i] = int(e)
+	}
+	goTo := make([]int, len(tab.goToTable))
+	for i, e := range tab.goToTable {
+		goTo[i] = int(e)
+	}
+
+	lhsSyms := make([]int, len(gram.productionSet.getAllProductions())+1)
+	altSymCounts := make([]int, len(gram.productionSet.getAllProductions())+1)
+	for _, p := range gram.productionSet.getAllProductions() {
+		lhsSyms[p.num] = p.lhs.num().Int()
+		altSymCounts[p.num] = p.rhsLen
+	}
+
+	return &spec.CompiledGrammar{
+		LexicalSpecification: &spec.LexicalSpecification{
+			Lexer: "maleeni",
+			Maleeni: &spec.Maleeni{
+				Spec:           lexSpec,
+				KindToTerminal: kind2Term,
+			},
+		},
+		ParsingTable: &spec.ParsingTable{
+			Action:                  action,
+			GoTo:                    goTo,
+			StateCount:              tab.stateCount,
+			InitialState:            tab.InitialState.Int(),
+			StartProduction:         productionNumStart.Int(),
+			LHSSymbols:              lhsSyms,
+			AlternativeSymbolCounts: altSymCounts,
+			Terminals:               terms,
+			TerminalCount:           tab.terminalCount,
+			NonTerminals:            nonTerms,
+			NonTerminalCount:        tab.nonTerminalCount,
+			EOFSymbol:               symbolEOF.num().Int(),
+		},
+	}, nil
 }
