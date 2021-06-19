@@ -105,6 +105,8 @@ func (l *lexer) next() (*token, error) {
 			continue
 		case "newline":
 			continue
+		case "line_comment":
+			continue
 		case "identifier":
 			return newIDToken(tok.Text()), nil
 		case "terminal_open":

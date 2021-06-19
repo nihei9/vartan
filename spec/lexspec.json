@@ -34,6 +34,10 @@
 			"pattern": "\\f{newline}"
 		},
 		{
+			"kind": "line_comment",
+			"pattern": "//[^\\u{000A}\\u{000D}]*"
+		},
+		{
 			"kind": "identifier",
 			"pattern": "[A-Za-z_][0-9A-Za-z_]*"
 		},

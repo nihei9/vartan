@@ -33,6 +33,21 @@ func TestLexer_Run(t *testing.T) {
 			},
 		},
 		{
+			caption: "the lexer ignores line comments",
+			src: `
+// This is the first comment.
+foo
+// This is the second comment.
+// This is the third comment.
+bar // This is the fourth comment.
+`,
+			tokens: []*token{
+				newIDToken("foo"),
+				newIDToken("bar"),
+				newEOFToken(),
+			},
+		},
+		{
 			caption: "an unclosed terminal is not a valid token",
 			src:     `"abc`,
 			err:     synErrUnclosedTerminal,
