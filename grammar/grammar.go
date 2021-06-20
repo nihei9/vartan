@@ -29,10 +29,51 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 					return nil, err
 				}
 
+				var modes []mlspec.LexModeName
+				if prod.Modifier != nil {
+					mod := prod.Modifier
+					switch mod.Name {
+					case "mode":
+						if mod.Parameter == "" {
+							return nil, fmt.Errorf("modifier 'mode' needs a parameter")
+						}
+						modes = []mlspec.LexModeName{
+							mlspec.LexModeName(mod.Parameter),
+						}
+					default:
+						return nil, fmt.Errorf("invalid modifier name '%v'", mod.Name)
+					}
+				}
+
+				alt := prod.RHS[0]
+				var push mlspec.LexModeName
+				var pop bool
+				if alt.Action != nil {
+					act := alt.Action
+					switch act.Name {
+					case "push":
+						if act.Parameter == "" {
+							return nil, fmt.Errorf("action 'push' needs a parameter")
+						}
+						push = mlspec.LexModeName(act.Parameter)
+					case "pop":
+						if act.Parameter != "" {
+							return nil, fmt.Errorf("action 'pop' needs no parameter")
+						}
+						pop = true
+					default:
+						return nil, fmt.Errorf("invalid action name '%v'", act.Name)
+					}
+				}
+
 				entries = append(entries, &mlspec.LexEntry{
+					Modes:   modes,
 					Kind:    mlspec.LexKind(prod.LHS),
-					Pattern: mlspec.LexPattern(prod.RHS[0].Elements[0].Pattern),
+					Pattern: mlspec.LexPattern(alt.Elements[0].Pattern),
+					Push:    push,
+					Pop:     pop,
 				})
+
 				continue
 			}
 

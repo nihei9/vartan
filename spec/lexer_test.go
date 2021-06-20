@@ -14,13 +14,15 @@ func TestLexer_Run(t *testing.T) {
 	}{
 		{
 			caption: "the lexer can recognize all kinds of tokens",
-			src:     `id"terminal":|;`,
+			src:     `id"terminal":|;@#`,
 			tokens: []*token{
 				newIDToken("id"),
 				newTerminalPatternToken("terminal"),
 				newSymbolToken(tokenKindColon),
 				newSymbolToken(tokenKindOr),
 				newSymbolToken(tokenKindSemicolon),
+				newSymbolToken(tokenKindModifierMarker),
+				newSymbolToken(tokenKindActionLeader),
 				newEOFToken(),
 			},
 		},

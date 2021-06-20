@@ -28,4 +28,6 @@ var (
 	synErrNoProductionName = newSyntaxError("a production name is missing")
 	synErrNoColon          = newSyntaxError("the colon must precede alternatives")
 	synErrNoSemicolon      = newSyntaxError("the semicolon is missing at the last of an alternative")
+	synErrNoModifierName   = newSyntaxError("a modifier needs a name")
+	synErrNoActionName     = newSyntaxError("an action needs a name")
 )

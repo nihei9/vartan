@@ -12,9 +12,29 @@ func TestParse(t *testing.T) {
 			RHS: alts,
 		}
 	}
+	withModifier := func(prod *ProductionNode, mod *ModifierNode) *ProductionNode {
+		prod.Modifier = mod
+		return prod
+	}
+	modifier := func(name string, param string) *ModifierNode {
+		return &ModifierNode{
+			Name:      name,
+			Parameter: param,
+		}
+	}
 	alternative := func(elems ...*ElementNode) *AlternativeNode {
 		return &AlternativeNode{
 			Elements: elems,
+		}
+	}
+	withAction := func(alt *AlternativeNode, act *ActionNode) *AlternativeNode {
+		alt.Action = act
+		return alt
+	}
+	action := func(name string, param string) *ActionNode {
+		return &ActionNode{
+			Name:      name,
+			Parameter: param,
 		}
 	}
 	id := func(id string) *ElementNode {
@@ -124,6 +144,75 @@ c: ;
 			src:     `;`,
 			synErr:  synErrNoProductionName,
 		},
+		{
+			caption: "a grammar can contain production modifiers and semantic actions",
+			src: `
+mode_tran_seq
+    : mode_tran_seq mode_tran
+    | mode_tran
+    ;
+mode_tran
+    : push_m1
+    | push_m2
+    | pop_m1
+    | pop_m2
+    ;
+push_m1: "->" # push m1;
+@mode m1
+push_m2: "-->" # push m2;
+@mode m1
+pop_m1 : "<-" # pop;
+@mode m2
+pop_m2: "<--" # pop;
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					production("mode_tran_seq",
+						alternative(id("mode_tran_seq"), id("mode_tran")),
+						alternative(id("mode_tran")),
+					),
+					production("mode_tran",
+						alternative(id("push_m1")),
+						alternative(id("push_m2")),
+						alternative(id("pop_m1")),
+						alternative(id("pop_m2")),
+					),
+					production("push_m1",
+						withAction(
+							alternative(pattern(`->`)),
+							action("push", "m1"),
+						),
+					),
+					withModifier(
+						production("push_m2",
+							withAction(
+								alternative(pattern(`-->`)),
+								action("push", "m2"),
+							),
+						),
+						modifier("mode", "m1"),
+					),
+					withModifier(
+						production("pop_m1",
+							withAction(
+								alternative(pattern(`<-`)),
+								action("pop", ""),
+							),
+						),
+						modifier("mode", "m1"),
+					),
+					withModifier(
+						production("pop_m2",
+							withAction(
+								alternative(pattern(`<--`)),
+								action("pop", ""),
+							),
+						),
+						modifier("mode", "m2"),
+					),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.caption, func(t *testing.T) {
@@ -160,6 +249,17 @@ func testRootNode(t *testing.T, root, expected *RootNode) {
 
 func testProductionNode(t *testing.T, prod, expected *ProductionNode) {
 	t.Helper()
+	if expected.Modifier == nil && prod.Modifier != nil {
+		t.Fatalf("unexpected modifier; want: nil, got: %+v", prod.Modifier)
+	}
+	if expected.Modifier != nil {
+		if prod.Modifier == nil {
+			t.Fatalf("a modifier is not set; want: %+v, got: nil", expected.Modifier)
+		}
+		if expected.Modifier.Name != prod.Modifier.Name || expected.Modifier.Parameter != prod.Modifier.Parameter {
+			t.Fatalf("unexpected modifier; want: %+v, got: %+v", expected.Modifier, prod.Modifier)
+		}
+	}
 	if prod.LHS != expected.LHS {
 		t.Fatalf("unexpected LHS; want: %v, got: %v", expected.LHS, prod.LHS)
 	}
@@ -178,6 +278,17 @@ func testAlternativeNode(t *testing.T, alt, expected *AlternativeNode) {
 	}
 	for i, elem := range alt.Elements {
 		testElementNode(t, elem, expected.Elements[i])
+	}
+	if expected.Action == nil && alt.Action != nil {
+		t.Fatalf("unexpected action; want: nil, got: %+v", alt.Action)
+	}
+	if expected.Action != nil {
+		if alt.Action == nil {
+			t.Fatalf("an action is not set; want: %+v, got: nil", expected.Action)
+		}
+		if expected.Action.Name != alt.Action.Name || expected.Action.Parameter != alt.Action.Parameter {
+			t.Fatalf("unexpected action; want: %+v, got: %+v", expected.Action, alt.Action)
+		}
 	}
 }
 

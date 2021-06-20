@@ -9,17 +9,29 @@ type RootNode struct {
 }
 
 type ProductionNode struct {
-	LHS string
-	RHS []*AlternativeNode
+	Modifier *ModifierNode
+	LHS      string
+	RHS      []*AlternativeNode
+}
+
+type ModifierNode struct {
+	Name      string
+	Parameter string
 }
 
 type AlternativeNode struct {
 	Elements []*ElementNode
+	Action   *ActionNode
 }
 
 type ElementNode struct {
 	ID      string
 	Pattern string
+}
+
+type ActionNode struct {
+	Name      string
+	Parameter string
 }
 
 func raiseSyntaxError(synErr *SyntaxError) {
@@ -87,13 +99,34 @@ func (p *parser) parseProduction() *ProductionNode {
 	if p.consume(tokenKindEOF) {
 		return nil
 	}
+
+	var mod *ModifierNode
+	if p.consume(tokenKindModifierMarker) {
+		if !p.consume(tokenKindID) {
+			raiseSyntaxError(synErrNoModifierName)
+		}
+		name := p.lastTok.text
+
+		var param string
+		if p.consume(tokenKindID) {
+			param = p.lastTok.text
+		}
+
+		mod = &ModifierNode{
+			Name:      name,
+			Parameter: param,
+		}
+	}
+
 	if !p.consume(tokenKindID) {
 		raiseSyntaxError(synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
+
 	if !p.consume(tokenKindColon) {
 		raiseSyntaxError(synErrNoColon)
 	}
+
 	alt := p.parseAlternative()
 	rhs := []*AlternativeNode{alt}
 	for {
@@ -103,12 +136,15 @@ func (p *parser) parseProduction() *ProductionNode {
 		alt := p.parseAlternative()
 		rhs = append(rhs, alt)
 	}
+
 	if !p.consume(tokenKindSemicolon) {
 		raiseSyntaxError(synErrNoSemicolon)
 	}
+
 	return &ProductionNode{
-		LHS: lhs,
-		RHS: rhs,
+		Modifier: mod,
+		LHS:      lhs,
+		RHS:      rhs,
 	}
 }
 
@@ -121,8 +157,28 @@ func (p *parser) parseAlternative() *AlternativeNode {
 		}
 		elems = append(elems, elem)
 	}
+
+	var act *ActionNode
+	if p.consume(tokenKindActionLeader) {
+		if !p.consume(tokenKindID) {
+			raiseSyntaxError(synErrNoActionName)
+		}
+		name := p.lastTok.text
+
+		var param string
+		if p.consume(tokenKindID) {
+			param = p.lastTok.text
+		}
+
+		act = &ActionNode{
+			Name:      name,
+			Parameter: param,
+		}
+	}
+
 	return &AlternativeNode{
 		Elements: elems,
+		Action:   act,
 	}
 }
 

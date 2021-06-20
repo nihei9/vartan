@@ -21,6 +21,8 @@ const (
 	tokenKindColon           = tokenKind(":")
 	tokenKindOr              = tokenKind("|")
 	tokenKindSemicolon       = tokenKind(";")
+	tokenKindModifierMarker  = tokenKind("@")
+	tokenKindActionLeader    = tokenKind("#")
 	tokenKindEOF             = tokenKind("eof")
 	tokenKindInvalid         = tokenKind("invalid")
 )
@@ -135,6 +137,10 @@ func (l *lexer) next() (*token, error) {
 			return newSymbolToken(tokenKindOr), nil
 		case "semicolon":
 			return newSymbolToken(tokenKindSemicolon), nil
+		case "modifier_marker":
+			return newSymbolToken(tokenKindModifierMarker), nil
+		case "action_leader":
+			return newSymbolToken(tokenKindActionLeader), nil
 		default:
 			return newInvalidToken(tok.Text()), nil
 		}

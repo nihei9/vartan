@@ -73,6 +73,14 @@
 		{
 			"kind": "semicolon",
 			"pattern": ";"
+		},
+		{
+			"kind": "modifier_marker",
+			"pattern": "@"
+		},
+		{
+			"kind": "action_leader",
+			"pattern": "#"
 		}
 	]
 }
