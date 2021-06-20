@@ -6,6 +6,7 @@ import (
 
 type RootNode struct {
 	Productions []*ProductionNode
+	Fragments   []*FragmentNode
 }
 
 type ProductionNode struct {
@@ -32,6 +33,11 @@ type ElementNode struct {
 type ActionNode struct {
 	Name      string
 	Parameter string
+}
+
+type FragmentNode struct {
+	LHS string
+	RHS string
 }
 
 func raiseSyntaxError(synErr *SyntaxError) {
@@ -78,21 +84,60 @@ func (p *parser) parse() (root *RootNode, retErr error) {
 }
 
 func (p *parser) parseRoot() *RootNode {
-	prod := p.parseProduction()
-	if prod == nil {
+	var prods []*ProductionNode
+	var fragments []*FragmentNode
+	for {
+		fragment := p.parseFragment()
+		if fragment != nil {
+			fragments = append(fragments, fragment)
+			continue
+		}
+
+		prod := p.parseProduction()
+		if prod != nil {
+			prods = append(prods, prod)
+			continue
+		}
+
+		break
+	}
+	if len(prods) == 0 {
 		raiseSyntaxError(synErrNoProduction)
 	}
-	root := &RootNode{
-		Productions: []*ProductionNode{prod},
+
+	return &RootNode{
+		Productions: prods,
+		Fragments:   fragments,
 	}
-	for {
-		prod := p.parseProduction()
-		if prod == nil {
-			break
-		}
-		root.Productions = append(root.Productions, prod)
+}
+
+func (p *parser) parseFragment() *FragmentNode {
+	if !p.consume(tokenKindKWFragment) {
+		return nil
 	}
-	return root
+
+	if !p.consume(tokenKindID) {
+		raiseSyntaxError(synErrNoProductionName)
+	}
+	lhs := p.lastTok.text
+
+	if !p.consume(tokenKindColon) {
+		raiseSyntaxError(synErrNoColon)
+	}
+
+	if !p.consume(tokenKindTerminalPattern) {
+		raiseSyntaxError(synErrFragmentNoPattern)
+	}
+	rhs := p.lastTok.text
+
+	if !p.consume(tokenKindSemicolon) {
+		raiseSyntaxError(synErrNoSemicolon)
+	}
+
+	return &FragmentNode{
+		LHS: lhs,
+		RHS: rhs,
+	}
 }
 
 func (p *parser) parseProduction() *ProductionNode {

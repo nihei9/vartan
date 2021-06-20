@@ -16,6 +16,7 @@ import (
 type tokenKind string
 
 const (
+	tokenKindKWFragment      = tokenKind("fragment")
 	tokenKindID              = tokenKind("id")
 	tokenKindTerminalPattern = tokenKind("terminal pattern")
 	tokenKindColon           = tokenKind(":")
@@ -109,6 +110,8 @@ func (l *lexer) next() (*token, error) {
 			continue
 		case "line_comment":
 			continue
+		case "kw_fragment":
+			return newSymbolToken(tokenKindKWFragment), nil
 		case "identifier":
 			return newIDToken(tok.Text()), nil
 		case "terminal_open":

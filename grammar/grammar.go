@@ -103,6 +103,7 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 				}
 			}
 		}
+
 		for i, p := range anonPats {
 			kind := fmt.Sprintf("__%v__", i+1)
 
@@ -115,6 +116,14 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 			entries = append(entries, &mlspec.LexEntry{
 				Kind:    mlspec.LexKind(kind),
 				Pattern: mlspec.LexPattern(p),
+			})
+		}
+
+		for _, fragment := range root.Fragments {
+			entries = append(entries, &mlspec.LexEntry{
+				Fragment: true,
+				Kind:     mlspec.LexKind(fragment.LHS),
+				Pattern:  mlspec.LexPattern(fragment.RHS),
 			})
 		}
 

@@ -76,6 +76,17 @@ white_space: "[\u{0009}\u{0020}]+" # skip;
 `,
 			src: `foo bar`,
 		},
+		// A grammar can contain fragments.
+		{
+			specSrc: `
+s
+    : tagline
+    ;
+tagline: "\f{words} IS OUT THERE.";
+fragment words: "[A-Za-z\u{0020}]+";
+`,
+			src: `THE TRUTH IS OUT THERE.`,
+		},
 	}
 	for _, tt := range tests {
 		ast, err := spec.Parse(strings.NewReader(tt.specSrc))

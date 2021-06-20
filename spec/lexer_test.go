@@ -27,6 +27,14 @@ func TestLexer_Run(t *testing.T) {
 			},
 		},
 		{
+			caption: "the lexer can recognize keywords",
+			src:     `fragment`,
+			tokens: []*token{
+				newSymbolToken(tokenKindKWFragment),
+				newEOFToken(),
+			},
+		},
+		{
 			caption: "the lexer can recognize character sequences and escape sequences in terminal",
 			src:     `"abc\"\\"`,
 			tokens: []*token{

@@ -38,6 +38,10 @@
 			"pattern": "//[^\\u{000A}\\u{000D}]*"
 		},
 		{
+			"kind": "kw_fragment",
+			"pattern": "fragment"
+		},
+		{
 			"kind": "identifier",
 			"pattern": "[A-Za-z_][0-9A-Za-z_]*"
 		},

@@ -47,6 +47,12 @@ func TestParse(t *testing.T) {
 			Pattern: p,
 		}
 	}
+	fragment := func(lhs string, rhs string) *FragmentNode {
+		return &FragmentNode{
+			LHS: lhs,
+			RHS: rhs,
+		}
+	}
 
 	tests := []struct {
 		caption string
@@ -143,6 +149,29 @@ c: ;
 			caption: "';' can only appear at the end of a production",
 			src:     `;`,
 			synErr:  synErrNoProductionName,
+		},
+		{
+			caption: "a grammar can contain fragments",
+			src: `
+s
+    : tagline
+    ;
+tagline: "\f{words} IS OUT THERE.";
+fragment words: "[A-Za-z\u{0020}]+";
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					production("s",
+						alternative(id("tagline")),
+					),
+					production("tagline",
+						alternative(pattern(`\f{words} IS OUT THERE.`)),
+					),
+				},
+				Fragments: []*FragmentNode{
+					fragment("words", `[A-Za-z\u{0020}]+`),
+				},
+			},
 		},
 		{
 			caption: "a grammar can contain production modifiers and semantic actions",
