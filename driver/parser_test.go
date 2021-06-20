@@ -64,6 +64,18 @@ bar: "bar";
 `,
 			src: `foobar`,
 		},
+		// The parser can skips specified tokens.
+		{
+			specSrc: `
+s
+    : foo bar
+    ;
+foo: "foo";
+bar: "bar";
+white_space: "[\u{0009}\u{0020}]+" # skip;
+`,
+			src: `foo bar`,
+		},
 	}
 	for _, tt := range tests {
 		ast, err := spec.Parse(strings.NewReader(tt.specSrc))

@@ -57,12 +57,9 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader) (*Parser, error) {
 func (p *Parser) Parse() error {
 	termCount := p.gram.ParsingTable.TerminalCount
 	p.push(p.gram.ParsingTable.InitialState)
-	tok, err := p.lex.Next()
+	tok, err := p.nextToken()
 	if err != nil {
 		return err
-	}
-	if tok.Invalid {
-		return fmt.Errorf("invalid token: %+v", tok)
 	}
 	for {
 		var tsym int
@@ -113,16 +110,28 @@ func (p *Parser) Parse() error {
 	}
 }
 
+func (p *Parser) nextToken() (*mldriver.Token, error) {
+	skip := p.gram.LexicalSpecification.Maleeni.Skip
+	for {
+		tok, err := p.lex.Next()
+		if err != nil {
+			return nil, err
+		}
+		if tok.Invalid {
+			return nil, fmt.Errorf("invalid token: %+v", tok)
+		}
+
+		if skip[tok.Mode.Int()][tok.Kind] > 0 {
+			continue
+		}
+
+		return tok, nil
+	}
+}
+
 func (p *Parser) shift(nextState int) (*mldriver.Token, error) {
 	p.push(nextState)
-	tok, err := p.lex.Next()
-	if err != nil {
-		return nil, err
-	}
-	if tok.Invalid {
-		return nil, fmt.Errorf("invalid token: %+v", tok)
-	}
-	return tok, nil
+	return p.nextToken()
 }
 
 func (p *Parser) reduce(prodNum int) bool {
