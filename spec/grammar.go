@@ -5,6 +5,7 @@ import mlspec "github.com/nihei9/maleeni/spec"
 type CompiledGrammar struct {
 	LexicalSpecification *LexicalSpecification `json:"lexical_specification"`
 	ParsingTable         *ParsingTable         `json:"parsing_table"`
+	ASTAction            *ASTAction            `json:"ast_action"`
 }
 
 type LexicalSpecification struct {
@@ -31,4 +32,8 @@ type ParsingTable struct {
 	NonTerminals            []string `json:"non_terminals"`
 	NonTerminalCount        int      `json:"non_terminal_count"`
 	EOFSymbol               int      `json:"eof_symbol"`
+}
+
+type ASTAction struct {
+	Entries [][]int `json:"entries"`
 }

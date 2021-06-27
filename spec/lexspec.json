@@ -85,6 +85,22 @@
 		{
 			"kind": "action_leader",
 			"pattern": "#"
+		},
+		{
+			"kind": "tree_node_open",
+			"pattern": "'\\("
+		},
+		{
+			"kind": "tree_node_close",
+			"pattern": "\\)"
+		},
+		{
+			"kind": "position",
+			"pattern": "$(0|[1-9][0-9]*)"
+		},
+		{
+			"kind": "expansion",
+			"pattern": "\\.\\.\\."
 		}
 	]
 }

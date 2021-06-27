@@ -14,7 +14,7 @@ func TestLexer_Run(t *testing.T) {
 	}{
 		{
 			caption: "the lexer can recognize all kinds of tokens",
-			src:     `id"terminal":|;@#`,
+			src:     `id"terminal":|;@#'()$1...`,
 			tokens: []*token{
 				newIDToken("id"),
 				newTerminalPatternToken("terminal"),
@@ -23,6 +23,10 @@ func TestLexer_Run(t *testing.T) {
 				newSymbolToken(tokenKindSemicolon),
 				newSymbolToken(tokenKindModifierMarker),
 				newSymbolToken(tokenKindActionLeader),
+				newSymbolToken(tokenKindTreeNodeOpen),
+				newSymbolToken(tokenKindTreeNodeClose),
+				newPositionToken(1),
+				newSymbolToken(tokenKindExpantion),
 				newEOFToken(),
 			},
 		},
@@ -66,6 +70,11 @@ bar // This is the fourth comment.
 			caption: "an incompleted terminal is not a valid token",
 			src:     `"\`,
 			err:     synErrIncompletedEscSeq,
+		},
+		{
+			caption: "a position must be greater than or equal to 1",
+			src:     `$0`,
+			err:     synErrZeroPos,
 		},
 		{
 			caption: "the lexer can recognize valid tokens following an invalid token",
@@ -123,7 +132,7 @@ bar // This is the fourth comment.
 
 func testToken(t *testing.T, tok, expected *token) {
 	t.Helper()
-	if tok.kind != expected.kind || tok.text != expected.text {
+	if tok.kind != expected.kind || tok.text != expected.text || tok.num != expected.num {
 		t.Fatalf("unexpected token; want: %+v, got: %+v", expected, tok)
 	}
 }

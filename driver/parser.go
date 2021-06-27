@@ -8,28 +8,29 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
-type CST struct {
+type Node struct {
 	KindName string
 	Text     string
-	Children []*CST
+	Children []*Node
 }
 
-func printCST(cst *CST, depth int) {
+func PrintTree(node *Node, depth int) {
 	for i := 0; i < depth; i++ {
 		fmt.Printf("    ")
 	}
-	fmt.Printf("%v", cst.KindName)
-	if cst.Text != "" {
-		fmt.Printf(` "%v"`, cst.Text)
+	fmt.Printf("%v", node.KindName)
+	if node.Text != "" {
+		fmt.Printf(` "%v"`, node.Text)
 	}
 	fmt.Printf("\n")
-	for _, c := range cst.Children {
-		printCST(c, depth+1)
+	for _, c := range node.Children {
+		PrintTree(c, depth+1)
 	}
 }
 
 type semanticFrame struct {
-	cst *CST
+	cst *Node
+	ast *Node
 }
 
 type Parser struct {
@@ -37,7 +38,8 @@ type Parser struct {
 	lex        *mldriver.Lexer
 	stateStack []int
 	semStack   []*semanticFrame
-	cst        *CST
+	cst        *Node
+	ast        *Node
 }
 
 func NewParser(gram *spec.CompiledGrammar, src io.Reader) (*Parser, error) {
@@ -76,9 +78,14 @@ func (p *Parser) Parse() error {
 			if err != nil {
 				return err
 			}
+
 			// semantic action
 			p.semStack = append(p.semStack, &semanticFrame{
-				cst: &CST{
+				cst: &Node{
+					KindName: p.gram.ParsingTable.Terminals[tsym],
+					Text:     tokText,
+				},
+				ast: &Node{
 					KindName: p.gram.ParsingTable.Terminals[tsym],
 					Text:     tokText,
 				},
@@ -86,23 +93,63 @@ func (p *Parser) Parse() error {
 		case act > 0: // Reduce
 			accepted := p.reduce(act)
 			if accepted {
-				p.cst = p.semStack[len(p.semStack)-1].cst
+				top := p.semStack[len(p.semStack)-1]
+				p.cst = top.cst
+				p.ast = top.ast
 				return nil
 			}
+
 			// semantic action
 			prodNum := act
 			lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
 			n := p.gram.ParsingTable.AlternativeSymbolCounts[prodNum]
-			children := []*CST{}
-			for _, f := range p.semStack[len(p.semStack)-n:] {
-				children = append(children, f.cst)
-			}
-			p.semStack = p.semStack[:len(p.semStack)-n]
-			p.semStack = append(p.semStack, &semanticFrame{
-				cst: &CST{
+			handle := p.semStack[len(p.semStack)-n:]
+
+			var cst *Node
+			{
+				children := make([]*Node, len(handle))
+				for i, f := range handle {
+					children[i] = f.cst
+				}
+				cst = &Node{
 					KindName: p.gram.ParsingTable.NonTerminals[lhs],
 					Children: children,
-				},
+				}
+			}
+
+			var ast *Node
+			{
+				act := p.gram.ASTAction.Entries[prodNum]
+				children := []*Node{}
+				if act != nil {
+					for _, e := range act {
+						if e > 0 {
+							offset := e - 1
+							children = append(children, handle[offset].ast)
+						} else {
+							offset := e*-1 - 1
+							for _, c := range handle[offset].ast.Children {
+								children = append(children, c)
+							}
+						}
+					}
+				} else {
+					// If an alternative has no AST action, a driver generates
+					// a node with the same structure as a CST.
+					for _, f := range handle {
+						children = append(children, f.ast)
+					}
+				}
+				ast = &Node{
+					KindName: p.gram.ParsingTable.NonTerminals[lhs],
+					Children: children,
+				}
+			}
+
+			p.semStack = p.semStack[:len(p.semStack)-n]
+			p.semStack = append(p.semStack, &semanticFrame{
+				cst: cst,
+				ast: ast,
 			})
 		default:
 			return fmt.Errorf("unexpected token: %v", tok)
@@ -159,6 +206,10 @@ func (p *Parser) pop(n int) {
 	p.stateStack = p.stateStack[:len(p.stateStack)-n]
 }
 
-func (p *Parser) GetCST() *CST {
+func (p *Parser) CST() *Node {
 	return p.cst
+}
+
+func (p *Parser) AST() *Node {
+	return p.ast
 }

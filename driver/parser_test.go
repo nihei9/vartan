@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ func TestParser_Parse(t *testing.T) {
 	tests := []struct {
 		specSrc string
 		src     string
+		specErr bool
 	}{
 		{
 			specSrc: `
@@ -87,29 +89,92 @@ fragment words: "[A-Za-z\u{0020}]+";
 `,
 			src: `THE TRUTH IS OUT THERE.`,
 		},
+		// A grammar can contain ast actions.
+		{
+			specSrc: `
+list
+    : "\[" elems "]" # ast '(list $2...)
+    ;
+elems
+    : elems "," id # ast '(elems $1... $3)
+    | id
+    ;
+whitespace: "\u{0020}+" # skip;
+id: "[A-Za-z]+";
+`,
+			src: `[Byers, Frohike, Langly]`,
+		},
+		// The first element of a tree structure must be the same ID as an LHS of a production.
+		{
+			specSrc: `
+s
+    : foo # ast '(start $1)
+    ;
+foo
+    : bar
+    ;
+bar: "bar";
+`,
+			specErr: true,
+		},
+		// An ast action cannot be applied to a terminal symbol.
+		{
+			specSrc: `
+s
+    : "foo" # ast '(s $1...)
+    ;
+`,
+			specErr: true,
+		},
+		// The expansion cannot be applied to a terminal symbol.
+		{
+			specSrc: `
+s
+    : foo # ast '(s $1...)
+    ;
+foo: "foo";
+`,
+			specErr: true,
+		},
 	}
-	for _, tt := range tests {
-		ast, err := spec.Parse(strings.NewReader(tt.specSrc))
-		if err != nil {
-			t.Fatal(err)
-		}
-		g, err := grammar.NewGrammar(ast)
-		if err != nil {
-			t.Fatal(err)
-		}
-		gram, err := grammar.Compile(g)
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := NewParser(gram, strings.NewReader(tt.src))
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = p.Parse()
-		if err != nil {
-			t.Fatal(err)
-		}
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
+			ast, err := spec.Parse(strings.NewReader(tt.specSrc))
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		printCST(p.GetCST(), 0)
+			g, err := grammar.NewGrammar(ast)
+			if tt.specErr {
+				if err == nil {
+					t.Fatal("an expected error didn't occur")
+				}
+				fmt.Printf("error: %v\n", err)
+				return
+			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			gram, err := grammar.Compile(g)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			p, err := NewParser(gram, strings.NewReader(tt.src))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = p.Parse()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			fmt.Println("CST:")
+			PrintTree(p.CST(), 0)
+			fmt.Println("AST:")
+			PrintTree(p.AST(), 0)
+		})
 	}
 }

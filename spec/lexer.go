@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	mldriver "github.com/nihei9/maleeni/driver"
@@ -24,6 +25,10 @@ const (
 	tokenKindSemicolon       = tokenKind(";")
 	tokenKindModifierMarker  = tokenKind("@")
 	tokenKindActionLeader    = tokenKind("#")
+	tokenKindTreeNodeOpen    = tokenKind("'(")
+	tokenKindTreeNodeClose   = tokenKind(")")
+	tokenKindPosition        = tokenKind("$")
+	tokenKindExpantion       = tokenKind("...")
 	tokenKindEOF             = tokenKind("eof")
 	tokenKindInvalid         = tokenKind("invalid")
 )
@@ -31,6 +36,7 @@ const (
 type token struct {
 	kind tokenKind
 	text string
+	num  int
 }
 
 func newSymbolToken(kind tokenKind) *token {
@@ -50,6 +56,13 @@ func newTerminalPatternToken(text string) *token {
 	return &token{
 		kind: tokenKindTerminalPattern,
 		text: text,
+	}
+}
+
+func newPositionToken(num int) *token {
+	return &token{
+		kind: tokenKindPosition,
+		num:  num,
 	}
 }
 
@@ -144,6 +157,22 @@ func (l *lexer) next() (*token, error) {
 			return newSymbolToken(tokenKindModifierMarker), nil
 		case "action_leader":
 			return newSymbolToken(tokenKindActionLeader), nil
+		case "tree_node_open":
+			return newSymbolToken(tokenKindTreeNodeOpen), nil
+		case "tree_node_close":
+			return newSymbolToken(tokenKindTreeNodeClose), nil
+		case "position":
+			// Remove '$' character and convert to an integer.
+			num, err := strconv.Atoi(tok.Text()[1:])
+			if err != nil {
+				return nil, err
+			}
+			if num == 0 {
+				return nil, synErrZeroPos
+			}
+			return newPositionToken(num), nil
+		case "expansion":
+			return newSymbolToken(tokenKindExpantion), nil
 		default:
 			return newInvalidToken(tok.Text()), nil
 		}

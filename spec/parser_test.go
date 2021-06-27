@@ -31,11 +31,33 @@ func TestParse(t *testing.T) {
 		alt.Action = act
 		return alt
 	}
-	action := func(name string, param string) *ActionNode {
+	action := func(name string, param *ParameterNode) *ActionNode {
 		return &ActionNode{
 			Name:      name,
 			Parameter: param,
 		}
+	}
+	idParameter := func(id string) *ParameterNode {
+		return &ParameterNode{
+			ID: id,
+		}
+	}
+	treeParameter := func(name string, children ...*TreeChildNode) *ParameterNode {
+		return &ParameterNode{
+			Tree: &TreeStructNode{
+				Name:     name,
+				Children: children,
+			},
+		}
+	}
+	positionChild := func(pos int) *TreeChildNode {
+		return &TreeChildNode{
+			Position: pos,
+		}
+	}
+	expandChildren := func(c *TreeChildNode) *TreeChildNode {
+		c.Expansion = true
+		return c
 	}
 	id := func(id string) *ElementNode {
 		return &ElementNode{
@@ -209,14 +231,14 @@ pop_m2: "<--" # pop;
 					production("push_m1",
 						withAction(
 							alternative(pattern(`->`)),
-							action("push", "m1"),
+							action("push", idParameter("m1")),
 						),
 					),
 					withModifier(
 						production("push_m2",
 							withAction(
 								alternative(pattern(`-->`)),
-								action("push", "m2"),
+								action("push", idParameter("m2")),
 							),
 						),
 						modifier("mode", "m1"),
@@ -225,7 +247,7 @@ pop_m2: "<--" # pop;
 						production("pop_m1",
 							withAction(
 								alternative(pattern(`<-`)),
-								action("pop", ""),
+								action("pop", nil),
 							),
 						),
 						modifier("mode", "m1"),
@@ -234,13 +256,73 @@ pop_m2: "<--" # pop;
 						production("pop_m2",
 							withAction(
 								alternative(pattern(`<--`)),
-								action("pop", ""),
+								action("pop", nil),
 							),
 						),
 						modifier("mode", "m2"),
 					),
 				},
 			},
+		},
+		{
+			caption: "a grammar can contain 'ast' actions",
+			src: `
+s
+    : foo bar_list # ast '(s $1 $2)
+    ;
+bar_list
+    : bar_list bar # ast '(bar_list $1... $2)
+    | bar          # ast '(bar_list $1)
+    ;
+foo: "foo";
+bar: "bar";
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					production("s",
+						withAction(
+							alternative(id("foo"), id("bar_list")),
+							action("ast", treeParameter("s", positionChild(1), positionChild(2))),
+						),
+					),
+					production("bar_list",
+						withAction(
+							alternative(id("bar_list"), id("bar")),
+							action("ast", treeParameter("bar_list", expandChildren(positionChild(1)), positionChild(2))),
+						),
+						withAction(
+							alternative(id("bar")),
+							action("ast", treeParameter("bar_list", positionChild(1))),
+						),
+					),
+					production("foo",
+						alternative(pattern("foo")),
+					),
+					production("bar",
+						alternative(pattern("bar")),
+					),
+				},
+			},
+		},
+		{
+			caption: "the first element of a tree structure must be an ID",
+			src: `
+s
+    : foo # ast '($1)
+    ;
+foo: "foo";
+`,
+			synErr: synErrTreeInvalidFirstElem,
+		},
+		{
+			caption: "a tree structure must be closed by ')'",
+			src: `
+s
+    : foo # ast '(s $1
+    ;
+foo: "foo";
+`,
+			synErr: synErrTreeUnclosed,
 		},
 	}
 	for _, tt := range tests {
@@ -315,9 +397,7 @@ func testAlternativeNode(t *testing.T, alt, expected *AlternativeNode) {
 		if alt.Action == nil {
 			t.Fatalf("an action is not set; want: %+v, got: nil", expected.Action)
 		}
-		if expected.Action.Name != alt.Action.Name || expected.Action.Parameter != alt.Action.Parameter {
-			t.Fatalf("unexpected action; want: %+v, got: %+v", expected.Action, alt.Action)
-		}
+		testAction(t, alt.Action, expected.Action)
 	}
 }
 
@@ -325,5 +405,48 @@ func testElementNode(t *testing.T, elem, expected *ElementNode) {
 	t.Helper()
 	if elem.Pattern != expected.Pattern {
 		t.Fatalf("unexpected pattern; want: %v, got: %v", expected.Pattern, elem.Pattern)
+	}
+}
+
+func testAction(t *testing.T, act, expected *ActionNode) {
+	t.Helper()
+	if expected.Name != act.Name {
+		t.Fatalf("unexpected action name; want: %+v, got: %+v", expected.Name, act.Name)
+	}
+	if expected.Parameter == nil && act.Parameter != nil {
+		t.Fatalf("unexpected action parameter; want: nil, got: %+v", act.Parameter)
+	}
+	if expected.Parameter != nil {
+		if act.Parameter == nil {
+			t.Fatalf("unexpected action parameter; want: %+v, got: nil", expected.Parameter)
+		}
+		testParameter(t, act.Parameter, expected.Parameter)
+	}
+}
+
+func testParameter(t *testing.T, param, expected *ParameterNode) {
+	t.Helper()
+	if param.ID != expected.ID {
+		t.Fatalf("unexpected ID parameter; want: %v, got: %v", expected.ID, param.ID)
+	}
+	if expected.Tree == nil && param.Tree != nil {
+		t.Fatalf("unexpected tree parameter; want: nil, got: %+v", param.Tree)
+	}
+	if expected.Tree != nil {
+		if param.Tree == nil {
+			t.Fatalf("unexpected tree parameter; want: %+v, got: nil", expected.Tree)
+		}
+		if param.Tree.Name != expected.Tree.Name {
+			t.Fatalf("unexpected node name; want: %v, got: %v", expected.Tree.Name, param.Tree.Name)
+		}
+		if len(param.Tree.Children) != len(expected.Tree.Children) {
+			t.Fatalf("unexpected children; want: %v, got: %v", expected.Tree.Children, param.Tree.Children)
+		}
+		for i, c := range param.Tree.Children {
+			e := expected.Tree.Children[i]
+			if c.Position != e.Position || c.Expansion != e.Expansion {
+				t.Fatalf("unexpected child; want: %+v, got: %+v", e, c)
+			}
+		}
 	}
 }

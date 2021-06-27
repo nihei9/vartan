@@ -8,12 +8,18 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
+type astActionEntry struct {
+	position  int
+	expansion bool
+}
+
 type Grammar struct {
 	lexSpec              *mlspec.LexSpec
 	skipLexKinds         []mlspec.LexKind
 	productionSet        *productionSet
 	augmentedStartSymbol symbol
 	symbolTable          *symbolTable
+	astActions           map[productionID][]*astActionEntry
 }
 
 func NewGrammar(root *spec.RootNode) (*Grammar, error) {
@@ -54,17 +60,20 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 					act := alt.Action
 					switch act.Name {
 					case "skip":
-						if act.Parameter != "" {
+						param := act.Parameter
+						if param != nil {
 							return nil, fmt.Errorf("action 'skip' needs no parameter")
 						}
 						skip = append(skip, mlspec.LexKind(prod.LHS))
 					case "push":
-						if act.Parameter == "" {
-							return nil, fmt.Errorf("action 'push' needs a parameter")
+						param := act.Parameter
+						if param == nil || param.ID == "" {
+							return nil, fmt.Errorf("action 'push' needs an ID parameter")
 						}
-						push = mlspec.LexModeName(act.Parameter)
+						push = mlspec.LexModeName(param.ID)
 					case "pop":
-						if act.Parameter != "" {
+						param := act.Parameter
+						if param != nil {
 							return nil, fmt.Errorf("action 'pop' needs no parameter")
 						}
 						pop = true
@@ -134,6 +143,7 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 
 	prods := newProductionSet()
 	var augStartSym symbol
+	astActs := map[productionID][]*astActionEntry{}
 	{
 		startProd := root.Productions[0]
 		augStartText := fmt.Sprintf("%s'", startProd.LHS)
@@ -196,6 +206,51 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 					return nil, err
 				}
 				prods.append(p)
+
+				if alt.Action != nil {
+					act := alt.Action
+					switch act.Name {
+					case "ast":
+						param := act.Parameter
+						if param == nil || param.Tree == nil {
+							return nil, fmt.Errorf("action 'push' needs a tree parameter")
+						}
+						lhsText, ok := symTab.toText(p.lhs)
+						if !ok || param.Tree.Name != lhsText {
+							return nil, fmt.Errorf("a name of a tree structure must be the same ID as an LHS of a production; LHS: %v", lhsText)
+						}
+						astAct := make([]*astActionEntry, len(param.Tree.Children))
+						for i, c := range param.Tree.Children {
+							if c.Position > len(alt.Elements) {
+								return nil, fmt.Errorf("a position must be less than or equal to the length of an alternative; alternative length: %v", len(alt.Elements))
+							}
+
+							if c.Expansion {
+								offset := c.Position - 1
+								elem := alt.Elements[offset]
+								if elem.Pattern != "" {
+									return nil, fmt.Errorf("the expansion symbol cannot be applied to a pattern ($%v: %v)", c.Position, elem.Pattern)
+								}
+								elemSym, ok := symTab.toSymbol(elem.ID)
+								if !ok {
+									// If the symbol was not found, it's a bug.
+									return nil, fmt.Errorf("a symbol corresponding to a position ($%v: %v) was not found", c.Position, elem.ID)
+								}
+								if elemSym.isTerminal() {
+									return nil, fmt.Errorf("the expansion symbol cannot be applied to a terminal symbol ($%v: %v)", c.Position, elem.ID)
+								}
+							}
+
+							astAct[i] = &astActionEntry{
+								position:  c.Position,
+								expansion: c.Expansion,
+							}
+						}
+						astActs[p.id] = astAct
+					default:
+						return nil, fmt.Errorf("invalid action name '%v'", act.Name)
+					}
+				}
 			}
 		}
 	}
@@ -206,6 +261,7 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 		productionSet:        prods,
 		augmentedStartSymbol: augStartSym,
 		symbolTable:          symTab,
+		astActions:           astActs,
 	}, nil
 }
 
@@ -297,9 +353,24 @@ func Compile(gram *Grammar) (*spec.CompiledGrammar, error) {
 
 	lhsSyms := make([]int, len(gram.productionSet.getAllProductions())+1)
 	altSymCounts := make([]int, len(gram.productionSet.getAllProductions())+1)
+	astActEnties := make([][]int, len(gram.productionSet.getAllProductions())+1)
 	for _, p := range gram.productionSet.getAllProductions() {
 		lhsSyms[p.num] = p.lhs.num().Int()
 		altSymCounts[p.num] = p.rhsLen
+
+		astAct, ok := gram.astActions[p.id]
+		if !ok {
+			continue
+		}
+		astActEntry := make([]int, len(astAct))
+		for i, e := range astAct {
+			if e.expansion {
+				astActEntry[i] = e.position * -1
+			} else {
+				astActEntry[i] = e.position
+			}
+		}
+		astActEnties[p.num] = astActEntry
 	}
 
 	return &spec.CompiledGrammar{
@@ -324,6 +395,9 @@ func Compile(gram *Grammar) (*spec.CompiledGrammar, error) {
 			NonTerminals:            nonTerms,
 			NonTerminalCount:        tab.nonTerminalCount,
 			EOFSymbol:               symbolEOF.num().Int(),
+		},
+		ASTAction: &spec.ASTAction{
+			Entries: astActEnties,
 		},
 	}, nil
 }

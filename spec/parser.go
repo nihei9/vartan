@@ -32,7 +32,22 @@ type ElementNode struct {
 
 type ActionNode struct {
 	Name      string
-	Parameter string
+	Parameter *ParameterNode
+}
+
+type ParameterNode struct {
+	ID   string
+	Tree *TreeStructNode
+}
+
+type TreeStructNode struct {
+	Name     string
+	Children []*TreeChildNode
+}
+
+type TreeChildNode struct {
+	Position  int
+	Expansion bool
 }
 
 type FragmentNode struct {
@@ -203,23 +218,7 @@ func (p *parser) parseAlternative() *AlternativeNode {
 		elems = append(elems, elem)
 	}
 
-	var act *ActionNode
-	if p.consume(tokenKindActionLeader) {
-		if !p.consume(tokenKindID) {
-			raiseSyntaxError(synErrNoActionName)
-		}
-		name := p.lastTok.text
-
-		var param string
-		if p.consume(tokenKindID) {
-			param = p.lastTok.text
-		}
-
-		act = &ActionNode{
-			Name:      name,
-			Parameter: param,
-		}
-	}
+	act := p.parseAction()
 
 	return &AlternativeNode{
 		Elements: elems,
@@ -239,6 +238,62 @@ func (p *parser) parseElement() *ElementNode {
 		}
 	}
 	return nil
+}
+
+func (p *parser) parseAction() *ActionNode {
+	if !p.consume(tokenKindActionLeader) {
+		return nil
+	}
+
+	if !p.consume(tokenKindID) {
+		raiseSyntaxError(synErrNoActionName)
+	}
+	name := p.lastTok.text
+
+	var param *ParameterNode
+	switch {
+	case p.consume(tokenKindID):
+		param = &ParameterNode{
+			ID: p.lastTok.text,
+		}
+	case p.consume(tokenKindTreeNodeOpen):
+		if !p.consume(tokenKindID) {
+			raiseSyntaxError(synErrTreeInvalidFirstElem)
+		}
+		name := p.lastTok.text
+
+		var children []*TreeChildNode
+		for {
+			if !p.consume(tokenKindPosition) {
+				break
+			}
+
+			child := &TreeChildNode{
+				Position: p.lastTok.num,
+			}
+			if p.consume(tokenKindExpantion) {
+				child.Expansion = true
+			}
+
+			children = append(children, child)
+		}
+
+		if !p.consume(tokenKindTreeNodeClose) {
+			raiseSyntaxError(synErrTreeUnclosed)
+		}
+
+		param = &ParameterNode{
+			Tree: &TreeStructNode{
+				Name:     name,
+				Children: children,
+			},
+		}
+	}
+
+	return &ActionNode{
+		Name:      name,
+		Parameter: param,
+	}
 }
 
 func (p *parser) consume(expected tokenKind) bool {
