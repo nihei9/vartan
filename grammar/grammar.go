@@ -113,6 +113,7 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 			}
 		}
 
+		var anonEntries []*mlspec.LexEntry
 		for i, p := range anonPats {
 			kind := fmt.Sprintf("__%v__", i+1)
 
@@ -122,11 +123,13 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 			}
 			anonPat2Sym[p] = sym
 
-			entries = append(entries, &mlspec.LexEntry{
+			anonEntries = append(anonEntries, &mlspec.LexEntry{
 				Kind:    mlspec.LexKind(kind),
 				Pattern: mlspec.LexPattern(p),
 			})
 		}
+		// Anonymous patterns take precedence over explicitly defined lexical specifications.
+		entries = append(anonEntries, entries...)
 
 		for _, fragment := range root.Fragments {
 			entries = append(entries, &mlspec.LexEntry{
