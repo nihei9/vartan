@@ -10,9 +10,26 @@ import (
 )
 
 func TestParser_Parse(t *testing.T) {
+	termNode := func(kind string, text string, children ...*Node) *Node {
+		return &Node{
+			KindName: kind,
+			Text:     text,
+			Children: children,
+		}
+	}
+
+	nonTermNode := func(kind string, children ...*Node) *Node {
+		return &Node{
+			KindName: kind,
+			Children: children,
+		}
+	}
+
 	tests := []struct {
 		specSrc string
 		src     string
+		cst     *Node
+		ast     *Node
 		specErr bool
 	}{
 		{
@@ -32,6 +49,59 @@ factor
 id: "[A-Za-z_][0-9A-Za-z_]*";
 `,
 			src: `(a+(b+c))*d+e`,
+			cst: nonTermNode("expr",
+				nonTermNode("expr",
+					nonTermNode("term",
+						nonTermNode("term",
+							nonTermNode("factor",
+								termNode("__3__", "("),
+								nonTermNode("expr",
+									nonTermNode("expr",
+										nonTermNode("term",
+											nonTermNode("factor",
+												termNode("id", "a"),
+											),
+										),
+									),
+									termNode("__1__", "+"),
+									nonTermNode("term",
+										nonTermNode("factor",
+											termNode("__3__", "("),
+											nonTermNode("expr",
+												nonTermNode("expr",
+													nonTermNode("term",
+														nonTermNode("factor",
+															termNode("id", "b"),
+														),
+													),
+												),
+												termNode("__1__", "+"),
+												nonTermNode("term",
+													nonTermNode("factor",
+														termNode("id", "c"),
+													),
+												),
+											),
+											termNode("__4__", ")"),
+										),
+									),
+								),
+								termNode("__4__", ")"),
+							),
+						),
+						termNode("__2__", "*"),
+						nonTermNode("factor",
+							termNode("id", "d"),
+						),
+					),
+				),
+				termNode("__1__", "+"),
+				nonTermNode("term",
+					nonTermNode("factor",
+						termNode("id", "e"),
+					),
+				),
+			),
 		},
 		{
 			specSrc: `
@@ -103,6 +173,26 @@ whitespace: "\u{0020}+" # skip;
 id: "[A-Za-z]+";
 `,
 			src: `[Byers, Frohike, Langly]`,
+			cst: nonTermNode("list",
+				termNode("__1__", "["),
+				nonTermNode("elems",
+					nonTermNode("elems",
+						nonTermNode("elems",
+							termNode("id", "Byers"),
+						),
+						termNode("__3__", ","),
+						termNode("id", "Frohike"),
+					),
+					termNode("__3__", ","),
+					termNode("id", "Langly"),
+				),
+				termNode("__2__", "]"),
+			),
+			ast: nonTermNode("list",
+				termNode("id", "Byers"),
+				termNode("id", "Frohike"),
+				termNode("id", "Langly"),
+			),
 		},
 		// The first element of a tree structure must be the same ID as an LHS of a production.
 		{
@@ -149,7 +239,7 @@ foo: "foo";
 				if err == nil {
 					t.Fatal("an expected error didn't occur")
 				}
-				fmt.Printf("error: %v\n", err)
+				// fmt.Printf("error: %v\n", err)
 				return
 			} else {
 				if err != nil {
@@ -166,9 +256,18 @@ foo: "foo";
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			err = p.Parse()
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			if tt.cst != nil {
+				testTree(t, p.CST(), tt.cst)
+			}
+
+			if tt.ast != nil {
+				testTree(t, p.AST(), tt.ast)
 			}
 
 			fmt.Println("CST:")
@@ -176,5 +275,19 @@ foo: "foo";
 			fmt.Println("AST:")
 			PrintTree(p.AST(), 0)
 		})
+	}
+}
+
+func testTree(t *testing.T, node, expected *Node) {
+	t.Helper()
+
+	if node.KindName != expected.KindName || node.Text != expected.Text {
+		t.Fatalf("unexpected node; want: %+v, got: %+v", expected, node)
+	}
+	if len(node.Children) != len(expected.Children) {
+		t.Fatalf("unexpected children; want: %v, got: %v", len(expected.Children), len(node.Children))
+	}
+	for i, c := range node.Children {
+		testTree(t, c, expected.Children[i])
 	}
 }
