@@ -23,12 +23,12 @@ const (
 	tokenKindColon           = tokenKind(":")
 	tokenKindOr              = tokenKind("|")
 	tokenKindSemicolon       = tokenKind(";")
-	tokenKindModifierMarker  = tokenKind("@")
-	tokenKindActionLeader    = tokenKind("#")
+	tokenKindDirectiveMarker = tokenKind("#")
 	tokenKindTreeNodeOpen    = tokenKind("'(")
 	tokenKindTreeNodeClose   = tokenKind(")")
 	tokenKindPosition        = tokenKind("$")
 	tokenKindExpantion       = tokenKind("...")
+	tokenKindNewline         = tokenKind("newline")
 	tokenKindEOF             = tokenKind("eof")
 	tokenKindInvalid         = tokenKind("invalid")
 )
@@ -80,9 +80,9 @@ func newInvalidToken(text string) *token {
 }
 
 type lexer struct {
-	s      *mlspec.CompiledLexSpec
-	d      *mldriver.Lexer
-	dufTok *token
+	s   *mlspec.CompiledLexSpec
+	d   *mldriver.Lexer
+	buf *token
 }
 
 //go:embed clexspec.json
@@ -105,8 +105,36 @@ func newLexer(src io.Reader) (*lexer, error) {
 }
 
 func (l *lexer) next() (*token, error) {
+	if l.buf != nil {
+		tok := l.buf
+		l.buf = nil
+		return tok, nil
+	}
+
+	newline := false
 	for {
-		tok, err := l.d.Next()
+		tok, err := l.lexAndSkipWSs()
+		if err != nil {
+			return nil, err
+		}
+		if tok.kind == tokenKindNewline {
+			newline = true
+			continue
+		}
+
+		if newline {
+			l.buf = tok
+			return newSymbolToken(tokenKindNewline), nil
+		}
+		return tok, nil
+	}
+}
+
+func (l *lexer) lexAndSkipWSs() (*token, error) {
+	var tok *mldriver.Token
+	for {
+		var err error
+		tok, err = l.d.Next()
 		if err != nil {
 			return nil, err
 		}
@@ -119,62 +147,65 @@ func (l *lexer) next() (*token, error) {
 		switch tok.KindName {
 		case "white_space":
 			continue
-		case "newline":
-			continue
 		case "line_comment":
 			continue
-		case "kw_fragment":
-			return newSymbolToken(tokenKindKWFragment), nil
-		case "identifier":
-			return newIDToken(tok.Text()), nil
-		case "terminal_open":
-			var b strings.Builder
-			for {
-				tok, err := l.d.Next()
-				if err != nil {
-					return nil, err
-				}
-				if tok.EOF {
-					return nil, synErrUnclosedTerminal
-				}
-				switch tok.KindName {
-				case "pattern":
-					// Remove '\' character.
-					fmt.Fprintf(&b, strings.ReplaceAll(tok.Text(), `\"`, `"`))
-				case "escape_symbol":
-					return nil, synErrIncompletedEscSeq
-				case "terminal_close":
-					return newTerminalPatternToken(b.String()), nil
-				}
-			}
-		case "colon":
-			return newSymbolToken(tokenKindColon), nil
-		case "or":
-			return newSymbolToken(tokenKindOr), nil
-		case "semicolon":
-			return newSymbolToken(tokenKindSemicolon), nil
-		case "modifier_marker":
-			return newSymbolToken(tokenKindModifierMarker), nil
-		case "action_leader":
-			return newSymbolToken(tokenKindActionLeader), nil
-		case "tree_node_open":
-			return newSymbolToken(tokenKindTreeNodeOpen), nil
-		case "tree_node_close":
-			return newSymbolToken(tokenKindTreeNodeClose), nil
-		case "position":
-			// Remove '$' character and convert to an integer.
-			num, err := strconv.Atoi(tok.Text()[1:])
+		}
+
+		break
+	}
+
+	switch tok.KindName {
+	case "newline":
+		return newSymbolToken(tokenKindNewline), nil
+	case "kw_fragment":
+		return newSymbolToken(tokenKindKWFragment), nil
+	case "identifier":
+		return newIDToken(tok.Text()), nil
+	case "terminal_open":
+		var b strings.Builder
+		for {
+			tok, err := l.d.Next()
 			if err != nil {
 				return nil, err
 			}
-			if num == 0 {
-				return nil, synErrZeroPos
+			if tok.EOF {
+				return nil, synErrUnclosedTerminal
 			}
-			return newPositionToken(num), nil
-		case "expansion":
-			return newSymbolToken(tokenKindExpantion), nil
-		default:
-			return newInvalidToken(tok.Text()), nil
+			switch tok.KindName {
+			case "pattern":
+				// Remove '\' character.
+				fmt.Fprintf(&b, strings.ReplaceAll(tok.Text(), `\"`, `"`))
+			case "escape_symbol":
+				return nil, synErrIncompletedEscSeq
+			case "terminal_close":
+				return newTerminalPatternToken(b.String()), nil
+			}
 		}
+	case "colon":
+		return newSymbolToken(tokenKindColon), nil
+	case "or":
+		return newSymbolToken(tokenKindOr), nil
+	case "semicolon":
+		return newSymbolToken(tokenKindSemicolon), nil
+	case "directive_marker":
+		return newSymbolToken(tokenKindDirectiveMarker), nil
+	case "tree_node_open":
+		return newSymbolToken(tokenKindTreeNodeOpen), nil
+	case "tree_node_close":
+		return newSymbolToken(tokenKindTreeNodeClose), nil
+	case "position":
+		// Remove '$' character and convert to an integer.
+		num, err := strconv.Atoi(tok.Text()[1:])
+		if err != nil {
+			return nil, err
+		}
+		if num == 0 {
+			return nil, synErrZeroPos
+		}
+		return newPositionToken(num), nil
+	case "expansion":
+		return newSymbolToken(tokenKindExpantion), nil
+	default:
+		return newInvalidToken(tok.Text()), nil
 	}
 }

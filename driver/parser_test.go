@@ -115,13 +115,13 @@ mode_tran
     | pop_m1
     | pop_m2
     ;
-push_m1: "->" # push m1;
-@mode m1
-push_m2: "-->" # push m2;
-@mode m1
-pop_m1 : "<-" # pop;
-@mode m2
-pop_m2: "<--" # pop;
+push_m1: "->" #push m1;
+#mode m1
+push_m2: "-->" #push m2;
+#mode m1
+pop_m1 : "<-" #pop;
+#mode m2
+pop_m2: "<--" #pop;
 `,
 			src: `->--><--<-`,
 		},
@@ -131,7 +131,7 @@ s
     : foo bar
     ;
 foo: "foo";
-@mode default
+#mode default
 bar: "bar";
 `,
 			src: `foobar`,
@@ -144,7 +144,7 @@ s
     ;
 foo: "foo";
 bar: "bar";
-white_space: "[\u{0009}\u{0020}]+" # skip;
+white_space: "[\u{0009}\u{0020}]+" #skip;
 `,
 			src: `foo bar`,
 		},
@@ -163,13 +163,13 @@ fragment words: "[A-Za-z\u{0020}]+";
 		{
 			specSrc: `
 list
-    : "\[" elems "]" # ast '(list $2...)
+    : "\[" elems "]" #ast '(list $2...)
     ;
 elems
-    : elems "," id # ast '(elems $1... $3)
+    : elems "," id #ast '(elems $1... $3)
     | id
     ;
-whitespace: "\u{0020}+" # skip;
+whitespace: "\u{0020}+" #skip;
 id: "[A-Za-z]+";
 `,
 			src: `[Byers, Frohike, Langly]`,
@@ -198,7 +198,7 @@ id: "[A-Za-z]+";
 		{
 			specSrc: `
 s
-    : foo # ast '(start $1)
+    : foo #ast '(start $1)
     ;
 foo
     : bar
@@ -211,7 +211,7 @@ bar: "bar";
 		{
 			specSrc: `
 s
-    : "foo" # ast '(s $1...)
+    : "foo" #ast '(s $1...)
     ;
 `,
 			specErr: true,
@@ -220,7 +220,7 @@ s
 		{
 			specSrc: `
 s
-    : foo # ast '(s $1...)
+    : foo #ast '(s $1...)
     ;
 foo: "foo";
 `,

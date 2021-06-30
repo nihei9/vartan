@@ -6,43 +6,37 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	production := func(lhs string, alts ...*AlternativeNode) *ProductionNode {
+	prod := func(lhs string, alts ...*AlternativeNode) *ProductionNode {
 		return &ProductionNode{
 			LHS: lhs,
 			RHS: alts,
 		}
 	}
-	withModifier := func(prod *ProductionNode, mod *ModifierNode) *ProductionNode {
-		prod.Modifier = mod
+	withProdDir := func(prod *ProductionNode, dir *DirectiveNode) *ProductionNode {
+		prod.Directive = dir
 		return prod
 	}
-	modifier := func(name string, param string) *ModifierNode {
-		return &ModifierNode{
-			Name:      name,
-			Parameter: param,
-		}
-	}
-	alternative := func(elems ...*ElementNode) *AlternativeNode {
+	alt := func(elems ...*ElementNode) *AlternativeNode {
 		return &AlternativeNode{
 			Elements: elems,
 		}
 	}
-	withAction := func(alt *AlternativeNode, act *ActionNode) *AlternativeNode {
-		alt.Action = act
+	withAltDir := func(alt *AlternativeNode, dir *DirectiveNode) *AlternativeNode {
+		alt.Directive = dir
 		return alt
 	}
-	action := func(name string, param *ParameterNode) *ActionNode {
-		return &ActionNode{
+	dir := func(name string, param *ParameterNode) *DirectiveNode {
+		return &DirectiveNode{
 			Name:      name,
 			Parameter: param,
 		}
 	}
-	idParameter := func(id string) *ParameterNode {
+	idParam := func(id string) *ParameterNode {
 		return &ParameterNode{
 			ID: id,
 		}
 	}
-	treeParameter := func(name string, children ...*TreeChildNode) *ParameterNode {
+	treeParam := func(name string, children ...*TreeChildNode) *ParameterNode {
 		return &ParameterNode{
 			Tree: &TreeStructNode{
 				Name:     name,
@@ -50,12 +44,12 @@ func TestParse(t *testing.T) {
 			},
 		}
 	}
-	positionChild := func(pos int) *TreeChildNode {
+	pos := func(pos int) *TreeChildNode {
 		return &TreeChildNode{
 			Position: pos,
 		}
 	}
-	expandChildren := func(c *TreeChildNode) *TreeChildNode {
+	exp := func(c *TreeChildNode) *TreeChildNode {
 		c.Expansion = true
 		return c
 	}
@@ -64,12 +58,12 @@ func TestParse(t *testing.T) {
 			ID: id,
 		}
 	}
-	pattern := func(p string) *ElementNode {
+	pat := func(p string) *ElementNode {
 		return &ElementNode{
 			Pattern: p,
 		}
 	}
-	fragment := func(lhs string, rhs string) *FragmentNode {
+	frag := func(lhs string, rhs string) *FragmentNode {
 		return &FragmentNode{
 			LHS: lhs,
 			RHS: rhs,
@@ -87,7 +81,7 @@ func TestParse(t *testing.T) {
 			src:     `a: "a";`,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
-					production("a", alternative(pattern("a"))),
+					prod("a", alt(pat("a"))),
 				},
 			},
 		},
@@ -101,20 +95,20 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
-					production("e",
-						alternative(id("e"), pattern(`\+|-`), id("t")),
-						alternative(id("t")),
+					prod("e",
+						alt(id("e"), pat(`\+|-`), id("t")),
+						alt(id("t")),
 					),
-					production("t",
-						alternative(id("t"), pattern(`\*|/`), id("f")),
-						alternative(id("f")),
+					prod("t",
+						alt(id("t"), pat(`\*|/`), id("f")),
+						alt(id("f")),
 					),
-					production("f",
-						alternative(pattern(`\(`), id("e"), pattern(`)`)),
-						alternative(id("id")),
+					prod("f",
+						alt(pat(`\(`), id("e"), pat(`)`)),
+						alt(id("id")),
 					),
-					production("id",
-						alternative(pattern(`[A-Za-z_][0-9A-Za-z_]*`)),
+					prod("id",
+						alt(pat(`[A-Za-z_][0-9A-Za-z_]*`)),
 					),
 				},
 			},
@@ -128,16 +122,16 @@ c: ;
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
-					production("a",
-						alternative(pattern(`foo`)),
-						alternative(),
+					prod("a",
+						alt(pat(`foo`)),
+						alt(),
 					),
-					production("b",
-						alternative(),
-						alternative(pattern(`bar`)),
+					prod("b",
+						alt(),
+						alt(pat(`bar`)),
 					),
-					production("c",
-						alternative(),
+					prod("c",
+						alt(),
 					),
 				},
 			},
@@ -183,20 +177,20 @@ fragment words: "[A-Za-z\u{0020}]+";
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
-					production("s",
-						alternative(id("tagline")),
+					prod("s",
+						alt(id("tagline")),
 					),
-					production("tagline",
-						alternative(pattern(`\f{words} IS OUT THERE.`)),
+					prod("tagline",
+						alt(pat(`\f{words} IS OUT THERE.`)),
 					),
 				},
 				Fragments: []*FragmentNode{
-					fragment("words", `[A-Za-z\u{0020}]+`),
+					frag("words", `[A-Za-z\u{0020}]+`),
 				},
 			},
 		},
 		{
-			caption: "a grammar can contain production modifiers and semantic actions",
+			caption: "a grammar can contain production directives and alternative directives",
 			src: `
 mode_tran_seq
     : mode_tran_seq mode_tran
@@ -208,98 +202,112 @@ mode_tran
     | pop_m1
     | pop_m2
     ;
-push_m1: "->" # push m1;
-@mode m1
-push_m2: "-->" # push m2;
-@mode m1
-pop_m1 : "<-" # pop;
-@mode m2
-pop_m2: "<--" # pop;
+push_m1: "->" #push m1;
+#mode m1
+push_m2: "-->" #push m2;
+#mode m1
+pop_m1 : "<-" #pop;
+#mode m2
+pop_m2: "<--" #pop;
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
-					production("mode_tran_seq",
-						alternative(id("mode_tran_seq"), id("mode_tran")),
-						alternative(id("mode_tran")),
+					prod("mode_tran_seq",
+						alt(id("mode_tran_seq"), id("mode_tran")),
+						alt(id("mode_tran")),
 					),
-					production("mode_tran",
-						alternative(id("push_m1")),
-						alternative(id("push_m2")),
-						alternative(id("pop_m1")),
-						alternative(id("pop_m2")),
+					prod("mode_tran",
+						alt(id("push_m1")),
+						alt(id("push_m2")),
+						alt(id("pop_m1")),
+						alt(id("pop_m2")),
 					),
-					production("push_m1",
-						withAction(
-							alternative(pattern(`->`)),
-							action("push", idParameter("m1")),
+					prod("push_m1",
+						withAltDir(
+							alt(pat(`->`)),
+							dir("push", idParam("m1")),
 						),
 					),
-					withModifier(
-						production("push_m2",
-							withAction(
-								alternative(pattern(`-->`)),
-								action("push", idParameter("m2")),
+					withProdDir(
+						prod("push_m2",
+							withAltDir(
+								alt(pat(`-->`)),
+								dir("push", idParam("m2")),
 							),
 						),
-						modifier("mode", "m1"),
+						dir("mode", idParam("m1")),
 					),
-					withModifier(
-						production("pop_m1",
-							withAction(
-								alternative(pattern(`<-`)),
-								action("pop", nil),
+					withProdDir(
+						prod("pop_m1",
+							withAltDir(
+								alt(pat(`<-`)),
+								dir("pop", nil),
 							),
 						),
-						modifier("mode", "m1"),
+						dir("mode", idParam("m1")),
 					),
-					withModifier(
-						production("pop_m2",
-							withAction(
-								alternative(pattern(`<--`)),
-								action("pop", nil),
+					withProdDir(
+						prod("pop_m2",
+							withAltDir(
+								alt(pat(`<--`)),
+								dir("pop", nil),
 							),
 						),
-						modifier("mode", "m2"),
+						dir("mode", idParam("m2")),
 					),
 				},
 			},
 		},
 		{
-			caption: "a grammar can contain 'ast' actions",
+			caption: "a production directive must be followed by a newline",
+			src: `
+#mode foo;
+`,
+			synErr: synErrProdDirNoNewline,
+		},
+		{
+			caption: "a production must be followed by a newline",
+			src: `
+s: foo; foo: "foo";
+`,
+			synErr: synErrSemicolonNoNewline,
+		},
+		{
+			caption: "a grammar can contain 'ast' directives",
 			src: `
 s
-    : foo bar_list # ast '(s $1 $2)
+    : foo bar_list #ast '(s $1 $2)
     ;
 bar_list
-    : bar_list bar # ast '(bar_list $1... $2)
-    | bar          # ast '(bar_list $1)
+    : bar_list bar #ast '(bar_list $1... $2)
+    | bar          #ast '(bar_list $1)
     ;
 foo: "foo";
 bar: "bar";
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
-					production("s",
-						withAction(
-							alternative(id("foo"), id("bar_list")),
-							action("ast", treeParameter("s", positionChild(1), positionChild(2))),
+					prod("s",
+						withAltDir(
+							alt(id("foo"), id("bar_list")),
+							dir("ast", treeParam("s", pos(1), pos(2))),
 						),
 					),
-					production("bar_list",
-						withAction(
-							alternative(id("bar_list"), id("bar")),
-							action("ast", treeParameter("bar_list", expandChildren(positionChild(1)), positionChild(2))),
+					prod("bar_list",
+						withAltDir(
+							alt(id("bar_list"), id("bar")),
+							dir("ast", treeParam("bar_list", exp(pos(1)), pos(2))),
 						),
-						withAction(
-							alternative(id("bar")),
-							action("ast", treeParameter("bar_list", positionChild(1))),
+						withAltDir(
+							alt(id("bar")),
+							dir("ast", treeParam("bar_list", pos(1))),
 						),
 					),
-					production("foo",
-						alternative(pattern("foo")),
+					prod("foo",
+						alt(pat("foo")),
 					),
-					production("bar",
-						alternative(pattern("bar")),
+					prod("bar",
+						alt(pat("bar")),
 					),
 				},
 			},
@@ -308,7 +316,7 @@ bar: "bar";
 			caption: "the first element of a tree structure must be an ID",
 			src: `
 s
-    : foo # ast '($1)
+    : foo #ast '($1)
     ;
 foo: "foo";
 `,
@@ -318,7 +326,7 @@ foo: "foo";
 			caption: "a tree structure must be closed by ')'",
 			src: `
 s
-    : foo # ast '(s $1
+    : foo #ast '(s $1
     ;
 foo: "foo";
 `,
@@ -360,16 +368,14 @@ func testRootNode(t *testing.T, root, expected *RootNode) {
 
 func testProductionNode(t *testing.T, prod, expected *ProductionNode) {
 	t.Helper()
-	if expected.Modifier == nil && prod.Modifier != nil {
-		t.Fatalf("unexpected modifier; want: nil, got: %+v", prod.Modifier)
+	if expected.Directive == nil && prod.Directive != nil {
+		t.Fatalf("unexpected directive; want: nil, got: %+v", prod.Directive)
 	}
-	if expected.Modifier != nil {
-		if prod.Modifier == nil {
-			t.Fatalf("a modifier is not set; want: %+v, got: nil", expected.Modifier)
+	if expected.Directive != nil {
+		if prod.Directive == nil {
+			t.Fatalf("a directive is not set; want: %+v, got: nil", expected.Directive)
 		}
-		if expected.Modifier.Name != prod.Modifier.Name || expected.Modifier.Parameter != prod.Modifier.Parameter {
-			t.Fatalf("unexpected modifier; want: %+v, got: %+v", expected.Modifier, prod.Modifier)
-		}
+		testDirective(t, prod.Directive, expected.Directive)
 	}
 	if prod.LHS != expected.LHS {
 		t.Fatalf("unexpected LHS; want: %v, got: %v", expected.LHS, prod.LHS)
@@ -390,14 +396,14 @@ func testAlternativeNode(t *testing.T, alt, expected *AlternativeNode) {
 	for i, elem := range alt.Elements {
 		testElementNode(t, elem, expected.Elements[i])
 	}
-	if expected.Action == nil && alt.Action != nil {
-		t.Fatalf("unexpected action; want: nil, got: %+v", alt.Action)
+	if expected.Directive == nil && alt.Directive != nil {
+		t.Fatalf("unexpected directive; want: nil, got: %+v", alt.Directive)
 	}
-	if expected.Action != nil {
-		if alt.Action == nil {
-			t.Fatalf("an action is not set; want: %+v, got: nil", expected.Action)
+	if expected.Directive != nil {
+		if alt.Directive == nil {
+			t.Fatalf("a directive is not set; want: %+v, got: nil", expected.Directive)
 		}
-		testAction(t, alt.Action, expected.Action)
+		testDirective(t, alt.Directive, expected.Directive)
 	}
 }
 
@@ -408,19 +414,19 @@ func testElementNode(t *testing.T, elem, expected *ElementNode) {
 	}
 }
 
-func testAction(t *testing.T, act, expected *ActionNode) {
+func testDirective(t *testing.T, dir, expected *DirectiveNode) {
 	t.Helper()
-	if expected.Name != act.Name {
-		t.Fatalf("unexpected action name; want: %+v, got: %+v", expected.Name, act.Name)
+	if expected.Name != dir.Name {
+		t.Fatalf("unexpected directive name; want: %+v, got: %+v", expected.Name, dir.Name)
 	}
-	if expected.Parameter == nil && act.Parameter != nil {
-		t.Fatalf("unexpected action parameter; want: nil, got: %+v", act.Parameter)
+	if expected.Parameter == nil && dir.Parameter != nil {
+		t.Fatalf("unexpected directive parameter; want: nil, got: %+v", dir.Parameter)
 	}
 	if expected.Parameter != nil {
-		if act.Parameter == nil {
-			t.Fatalf("unexpected action parameter; want: %+v, got: nil", expected.Parameter)
+		if dir.Parameter == nil {
+			t.Fatalf("unexpected directive parameter; want: %+v, got: nil", expected.Parameter)
 		}
-		testParameter(t, act.Parameter, expected.Parameter)
+		testParameter(t, dir.Parameter, expected.Parameter)
 	}
 }
 

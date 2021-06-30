@@ -14,15 +14,14 @@ func TestLexer_Run(t *testing.T) {
 	}{
 		{
 			caption: "the lexer can recognize all kinds of tokens",
-			src:     `id"terminal":|;@#'()$1...`,
+			src:     `id"terminal":|;#'()$1...`,
 			tokens: []*token{
 				newIDToken("id"),
 				newTerminalPatternToken("terminal"),
 				newSymbolToken(tokenKindColon),
 				newSymbolToken(tokenKindOr),
 				newSymbolToken(tokenKindSemicolon),
-				newSymbolToken(tokenKindModifierMarker),
-				newSymbolToken(tokenKindActionLeader),
+				newSymbolToken(tokenKindDirectiveMarker),
 				newSymbolToken(tokenKindTreeNodeOpen),
 				newSymbolToken(tokenKindTreeNodeClose),
 				newPositionToken(1),
@@ -47,6 +46,20 @@ func TestLexer_Run(t *testing.T) {
 			},
 		},
 		{
+			caption: "the lexer can recognize newlines and combine consecutive newlines into one",
+			src:     "\u000A | \u000D | \u000D\u000A | \u000A\u000A \u000D\u000D \u000D\u000A\u000D\u000A",
+			tokens: []*token{
+				newSymbolToken(tokenKindNewline),
+				newSymbolToken(tokenKindOr),
+				newSymbolToken(tokenKindNewline),
+				newSymbolToken(tokenKindOr),
+				newSymbolToken(tokenKindNewline),
+				newSymbolToken(tokenKindOr),
+				newSymbolToken(tokenKindNewline),
+				newEOFToken(),
+			},
+		},
+		{
 			caption: "the lexer ignores line comments",
 			src: `
 // This is the first comment.
@@ -56,8 +69,11 @@ foo
 bar // This is the fourth comment.
 `,
 			tokens: []*token{
+				newSymbolToken(tokenKindNewline),
 				newIDToken("foo"),
+				newSymbolToken(tokenKindNewline),
 				newIDToken("bar"),
+				newSymbolToken(tokenKindNewline),
 				newEOFToken(),
 			},
 		},
@@ -89,17 +105,12 @@ bar // This is the fourth comment.
 		{
 			caption: "the lexer skips white spaces",
 			// \u0009: HT
-			// \u000A: LF
-			// \u000D: CR
 			// \u0020: SP
-			src: "a\u0020b\u000Ac\u000Dd\u000D\u000Ae\u0009f",
+			src: "a\u0009b\u0020c",
 			tokens: []*token{
 				newIDToken("a"),
 				newIDToken("b"),
 				newIDToken("c"),
-				newIDToken("d"),
-				newIDToken("e"),
-				newIDToken("f"),
 				newEOFToken(),
 			},
 		},

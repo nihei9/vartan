@@ -10,19 +10,14 @@ type RootNode struct {
 }
 
 type ProductionNode struct {
-	Modifier *ModifierNode
-	LHS      string
-	RHS      []*AlternativeNode
-}
-
-type ModifierNode struct {
-	Name      string
-	Parameter string
+	Directive *DirectiveNode
+	LHS       string
+	RHS       []*AlternativeNode
 }
 
 type AlternativeNode struct {
-	Elements []*ElementNode
-	Action   *ActionNode
+	Elements  []*ElementNode
+	Directive *DirectiveNode
 }
 
 type ElementNode struct {
@@ -30,7 +25,7 @@ type ElementNode struct {
 	Pattern string
 }
 
-type ActionNode struct {
+type DirectiveNode struct {
 	Name      string
 	Parameter *ParameterNode
 }
@@ -102,6 +97,8 @@ func (p *parser) parseRoot() *RootNode {
 	var prods []*ProductionNode
 	var fragments []*FragmentNode
 	for {
+		p.consume(tokenKindNewline)
+
 		fragment := p.parseFragment()
 		if fragment != nil {
 			fragments = append(fragments, fragment)
@@ -131,10 +128,14 @@ func (p *parser) parseFragment() *FragmentNode {
 		return nil
 	}
 
+	p.consume(tokenKindNewline)
+
 	if !p.consume(tokenKindID) {
 		raiseSyntaxError(synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
+
+	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindColon) {
 		raiseSyntaxError(synErrNoColon)
@@ -145,8 +146,16 @@ func (p *parser) parseFragment() *FragmentNode {
 	}
 	rhs := p.lastTok.text
 
+	p.consume(tokenKindNewline)
+
 	if !p.consume(tokenKindSemicolon) {
 		raiseSyntaxError(synErrNoSemicolon)
+	}
+
+	if !p.consume(tokenKindNewline) {
+		if !p.consume(tokenKindEOF) {
+			raiseSyntaxError(synErrSemicolonNoNewline)
+		}
 	}
 
 	return &FragmentNode{
@@ -160,21 +169,10 @@ func (p *parser) parseProduction() *ProductionNode {
 		return nil
 	}
 
-	var mod *ModifierNode
-	if p.consume(tokenKindModifierMarker) {
-		if !p.consume(tokenKindID) {
-			raiseSyntaxError(synErrNoModifierName)
-		}
-		name := p.lastTok.text
-
-		var param string
-		if p.consume(tokenKindID) {
-			param = p.lastTok.text
-		}
-
-		mod = &ModifierNode{
-			Name:      name,
-			Parameter: param,
+	dir := p.parseDirective()
+	if dir != nil {
+		if !p.consume(tokenKindNewline) {
+			raiseSyntaxError(synErrProdDirNoNewline)
 		}
 	}
 
@@ -183,6 +181,8 @@ func (p *parser) parseProduction() *ProductionNode {
 	}
 	lhs := p.lastTok.text
 
+	p.consume(tokenKindNewline)
+
 	if !p.consume(tokenKindColon) {
 		raiseSyntaxError(synErrNoColon)
 	}
@@ -190,6 +190,8 @@ func (p *parser) parseProduction() *ProductionNode {
 	alt := p.parseAlternative()
 	rhs := []*AlternativeNode{alt}
 	for {
+		p.consume(tokenKindNewline)
+
 		if !p.consume(tokenKindOr) {
 			break
 		}
@@ -197,14 +199,22 @@ func (p *parser) parseProduction() *ProductionNode {
 		rhs = append(rhs, alt)
 	}
 
+	p.consume(tokenKindNewline)
+
 	if !p.consume(tokenKindSemicolon) {
 		raiseSyntaxError(synErrNoSemicolon)
 	}
 
+	if !p.consume(tokenKindNewline) {
+		if !p.consume(tokenKindEOF) {
+			raiseSyntaxError(synErrSemicolonNoNewline)
+		}
+	}
+
 	return &ProductionNode{
-		Modifier: mod,
-		LHS:      lhs,
-		RHS:      rhs,
+		Directive: dir,
+		LHS:       lhs,
+		RHS:       rhs,
 	}
 }
 
@@ -218,11 +228,11 @@ func (p *parser) parseAlternative() *AlternativeNode {
 		elems = append(elems, elem)
 	}
 
-	act := p.parseAction()
+	dir := p.parseDirective()
 
 	return &AlternativeNode{
-		Elements: elems,
-		Action:   act,
+		Elements:  elems,
+		Directive: dir,
 	}
 }
 
@@ -240,13 +250,13 @@ func (p *parser) parseElement() *ElementNode {
 	return nil
 }
 
-func (p *parser) parseAction() *ActionNode {
-	if !p.consume(tokenKindActionLeader) {
+func (p *parser) parseDirective() *DirectiveNode {
+	if !p.consume(tokenKindDirectiveMarker) {
 		return nil
 	}
 
 	if !p.consume(tokenKindID) {
-		raiseSyntaxError(synErrNoActionName)
+		raiseSyntaxError(synErrNoDirectiveName)
 	}
 	name := p.lastTok.text
 
@@ -290,7 +300,7 @@ func (p *parser) parseAction() *ActionNode {
 		}
 	}
 
-	return &ActionNode{
+	return &DirectiveNode{
 		Name:      name,
 		Parameter: param,
 	}

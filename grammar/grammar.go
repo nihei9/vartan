@@ -38,47 +38,47 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 				}
 
 				var modes []mlspec.LexModeName
-				if prod.Modifier != nil {
-					mod := prod.Modifier
-					switch mod.Name {
+				if prod.Directive != nil {
+					dir := prod.Directive
+					switch dir.Name {
 					case "mode":
-						if mod.Parameter == "" {
-							return nil, fmt.Errorf("modifier 'mode' needs a parameter")
+						if dir.Parameter == nil || dir.Parameter.ID == "" {
+							return nil, fmt.Errorf("'mode' directive needs an ID parameter")
 						}
 						modes = []mlspec.LexModeName{
-							mlspec.LexModeName(mod.Parameter),
+							mlspec.LexModeName(dir.Parameter.ID),
 						}
 					default:
-						return nil, fmt.Errorf("invalid modifier name '%v'", mod.Name)
+						return nil, fmt.Errorf("invalid directive name '%v'", dir.Name)
 					}
 				}
 
 				alt := prod.RHS[0]
 				var push mlspec.LexModeName
 				var pop bool
-				if alt.Action != nil {
-					act := alt.Action
-					switch act.Name {
+				if alt.Directive != nil {
+					dir := alt.Directive
+					switch dir.Name {
 					case "skip":
-						param := act.Parameter
+						param := dir.Parameter
 						if param != nil {
-							return nil, fmt.Errorf("action 'skip' needs no parameter")
+							return nil, fmt.Errorf("'skip' directive needs no parameter")
 						}
 						skip = append(skip, mlspec.LexKind(prod.LHS))
 					case "push":
-						param := act.Parameter
+						param := dir.Parameter
 						if param == nil || param.ID == "" {
-							return nil, fmt.Errorf("action 'push' needs an ID parameter")
+							return nil, fmt.Errorf("'push' directive needs an ID parameter")
 						}
 						push = mlspec.LexModeName(param.ID)
 					case "pop":
-						param := act.Parameter
+						param := dir.Parameter
 						if param != nil {
-							return nil, fmt.Errorf("action 'pop' needs no parameter")
+							return nil, fmt.Errorf("'pop' directive needs no parameter")
 						}
 						pop = true
 					default:
-						return nil, fmt.Errorf("invalid action name '%v'", act.Name)
+						return nil, fmt.Errorf("invalid directive name '%v'", dir.Name)
 					}
 				}
 
@@ -210,13 +210,13 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 				}
 				prods.append(p)
 
-				if alt.Action != nil {
-					act := alt.Action
-					switch act.Name {
+				if alt.Directive != nil {
+					dir := alt.Directive
+					switch dir.Name {
 					case "ast":
-						param := act.Parameter
+						param := dir.Parameter
 						if param == nil || param.Tree == nil {
-							return nil, fmt.Errorf("action 'push' needs a tree parameter")
+							return nil, fmt.Errorf("'ast' directive needs a tree parameter")
 						}
 						lhsText, ok := symTab.toText(p.lhs)
 						if !ok || param.Tree.Name != lhsText {
@@ -251,7 +251,7 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 						}
 						astActs[p.id] = astAct
 					default:
-						return nil, fmt.Errorf("invalid action name '%v'", act.Name)
+						return nil, fmt.Errorf("invalid directive name '%v'", dir.Name)
 					}
 				}
 			}
