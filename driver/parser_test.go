@@ -2,6 +2,7 @@ package driver
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -271,9 +272,9 @@ foo: "foo";
 			}
 
 			fmt.Println("CST:")
-			PrintTree(p.CST(), 0)
+			PrintTree(os.Stdout, p.CST())
 			fmt.Println("AST:")
-			PrintTree(p.AST(), 0)
+			PrintTree(os.Stdout, p.AST())
 		})
 	}
 }

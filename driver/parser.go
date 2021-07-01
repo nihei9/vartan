@@ -14,17 +14,38 @@ type Node struct {
 	Children []*Node
 }
 
-func PrintTree(node *Node, depth int) {
-	for i := 0; i < depth; i++ {
-		fmt.Printf("    ")
+func PrintTree(w io.Writer, node *Node) {
+	printTree(w, node, "", "")
+}
+
+func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix string) {
+	if node == nil {
+		return
 	}
-	fmt.Printf("%v", node.KindName)
+
 	if node.Text != "" {
-		fmt.Printf(` "%v"`, node.Text)
+		fmt.Fprintf(w, "%v%v %#v\n", ruledLine, node.KindName, node.Text)
+	} else {
+		fmt.Fprintf(w, "%v%v\n", ruledLine, node.KindName)
 	}
-	fmt.Printf("\n")
-	for _, c := range node.Children {
-		PrintTree(c, depth+1)
+
+	num := len(node.Children)
+	for i, child := range node.Children {
+		var line string
+		if num > 1 && i < num-1 {
+			line = "├─ "
+		} else {
+			line = "└─ "
+		}
+
+		var prefix string
+		if i >= num-1 {
+			prefix = "    "
+		} else {
+			prefix = "│  "
+		}
+
+		printTree(w, child, childRuledLinePrefix+line, childRuledLinePrefix+prefix)
 	}
 }
 

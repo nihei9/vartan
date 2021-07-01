@@ -55,7 +55,7 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		return err
 	}
 	fmt.Printf("Accepted\n")
-	driver.PrintTree(p.AST(), 0)
+	driver.PrintTree(os.Stdout, p.AST())
 
 	return nil
 }
