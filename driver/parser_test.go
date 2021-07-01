@@ -123,8 +123,10 @@ push_m2: "-->" #push m2;
 pop_m1 : "<-" #pop;
 #mode m2
 pop_m2: "<--" #pop;
+#mode default m1 m2
+whitespace: "\u{0020}+" #skip;
 `,
-			src: `->--><--<-`,
+			src: ` -> --> <-- <- `,
 		},
 		{
 			specSrc: `

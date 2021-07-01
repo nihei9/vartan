@@ -42,11 +42,14 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 					dir := prod.Directive
 					switch dir.Name {
 					case "mode":
-						if dir.Parameter == nil || dir.Parameter.ID == "" {
+						if len(dir.Parameters) == 0 {
 							return nil, fmt.Errorf("'mode' directive needs an ID parameter")
 						}
-						modes = []mlspec.LexModeName{
-							mlspec.LexModeName(dir.Parameter.ID),
+						for _, param := range dir.Parameters {
+							if param.ID == "" {
+								return nil, fmt.Errorf("'mode' directive needs an ID parameter")
+							}
+							modes = append(modes, mlspec.LexModeName(param.ID))
 						}
 					default:
 						return nil, fmt.Errorf("invalid directive name '%v'", dir.Name)
@@ -60,20 +63,17 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 					dir := alt.Directive
 					switch dir.Name {
 					case "skip":
-						param := dir.Parameter
-						if param != nil {
+						if len(dir.Parameters) > 0 {
 							return nil, fmt.Errorf("'skip' directive needs no parameter")
 						}
 						skip = append(skip, mlspec.LexKind(prod.LHS))
 					case "push":
-						param := dir.Parameter
-						if param == nil || param.ID == "" {
+						if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
 							return nil, fmt.Errorf("'push' directive needs an ID parameter")
 						}
-						push = mlspec.LexModeName(param.ID)
+						push = mlspec.LexModeName(dir.Parameters[0].ID)
 					case "pop":
-						param := dir.Parameter
-						if param != nil {
+						if len(dir.Parameters) > 0 {
 							return nil, fmt.Errorf("'pop' directive needs no parameter")
 						}
 						pop = true
@@ -214,10 +214,10 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 					dir := alt.Directive
 					switch dir.Name {
 					case "ast":
-						param := dir.Parameter
-						if param == nil || param.Tree == nil {
+						if len(dir.Parameters) != 1 || dir.Parameters[0].Tree == nil {
 							return nil, fmt.Errorf("'ast' directive needs a tree parameter")
 						}
+						param := dir.Parameters[0]
 						lhsText, ok := symTab.toText(p.lhs)
 						if !ok || param.Tree.Name != lhsText {
 							return nil, fmt.Errorf("a name of a tree structure must be the same ID as an LHS of a production; LHS: %v", lhsText)

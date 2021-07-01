@@ -25,10 +25,10 @@ func TestParse(t *testing.T) {
 		alt.Directive = dir
 		return alt
 	}
-	dir := func(name string, param *ParameterNode) *DirectiveNode {
+	dir := func(name string, params ...*ParameterNode) *DirectiveNode {
 		return &DirectiveNode{
-			Name:      name,
-			Parameter: param,
+			Name:       name,
+			Parameters: params,
 		}
 	}
 	idParam := func(id string) *ParameterNode {
@@ -209,6 +209,8 @@ push_m2: "-->" #push m2;
 pop_m1 : "<-" #pop;
 #mode m2
 pop_m2: "<--" #pop;
+#mode default m1 m2
+whitespace: "\u{0020}+" #skip;
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
@@ -241,7 +243,7 @@ pop_m2: "<--" #pop;
 						prod("pop_m1",
 							withAltDir(
 								alt(pat(`<-`)),
-								dir("pop", nil),
+								dir("pop"),
 							),
 						),
 						dir("mode", idParam("m1")),
@@ -250,10 +252,19 @@ pop_m2: "<--" #pop;
 						prod("pop_m2",
 							withAltDir(
 								alt(pat(`<--`)),
-								dir("pop", nil),
+								dir("pop"),
 							),
 						),
 						dir("mode", idParam("m2")),
+					),
+					withProdDir(
+						prod("whitespace",
+							withAltDir(
+								alt(pat(`\u{0020}+`)),
+								dir("skip"),
+							),
+						),
+						dir("mode", idParam("default"), idParam("m1"), idParam("m2")),
 					),
 				},
 			},
@@ -419,14 +430,11 @@ func testDirective(t *testing.T, dir, expected *DirectiveNode) {
 	if expected.Name != dir.Name {
 		t.Fatalf("unexpected directive name; want: %+v, got: %+v", expected.Name, dir.Name)
 	}
-	if expected.Parameter == nil && dir.Parameter != nil {
-		t.Fatalf("unexpected directive parameter; want: nil, got: %+v", dir.Parameter)
+	if len(expected.Parameters) != len(dir.Parameters) {
+		t.Fatalf("unexpected directive parameter; want: %+v, got: %+v", expected.Parameters, dir.Parameters)
 	}
-	if expected.Parameter != nil {
-		if dir.Parameter == nil {
-			t.Fatalf("unexpected directive parameter; want: %+v, got: nil", expected.Parameter)
-		}
-		testParameter(t, dir.Parameter, expected.Parameter)
+	for i, param := range dir.Parameters {
+		testParameter(t, param, expected.Parameters[i])
 	}
 }
 

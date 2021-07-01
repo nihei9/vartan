@@ -26,8 +26,8 @@ type ElementNode struct {
 }
 
 type DirectiveNode struct {
-	Name      string
-	Parameter *ParameterNode
+	Name       string
+	Parameters []*ParameterNode
 }
 
 type ParameterNode struct {
@@ -260,10 +260,25 @@ func (p *parser) parseDirective() *DirectiveNode {
 	}
 	name := p.lastTok.text
 
-	var param *ParameterNode
+	var params []*ParameterNode
+	for {
+		param := p.parseParameter()
+		if param == nil {
+			break
+		}
+		params = append(params, param)
+	}
+
+	return &DirectiveNode{
+		Name:       name,
+		Parameters: params,
+	}
+}
+
+func (p *parser) parseParameter() *ParameterNode {
 	switch {
 	case p.consume(tokenKindID):
-		param = &ParameterNode{
+		return &ParameterNode{
 			ID: p.lastTok.text,
 		}
 	case p.consume(tokenKindTreeNodeOpen):
@@ -292,7 +307,7 @@ func (p *parser) parseDirective() *DirectiveNode {
 			raiseSyntaxError(synErrTreeUnclosed)
 		}
 
-		param = &ParameterNode{
+		return &ParameterNode{
 			Tree: &TreeStructNode{
 				Name:     name,
 				Children: children,
@@ -300,10 +315,7 @@ func (p *parser) parseDirective() *DirectiveNode {
 		}
 	}
 
-	return &DirectiveNode{
-		Name:      name,
-		Parameter: param,
-	}
+	return nil
 }
 
 func (p *parser) consume(expected tokenKind) bool {
