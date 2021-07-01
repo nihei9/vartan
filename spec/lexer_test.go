@@ -78,6 +78,11 @@ bar // This is the fourth comment.
 			},
 		},
 		{
+			caption: "identifiers beginning with an underscore are not allowed because they are used only auto-generated identifiers",
+			src:     `_abc`,
+			err:     synErrAutoGenID,
+		},
+		{
 			caption: "an unclosed terminal is not a valid token",
 			src:     `"abc`,
 			err:     synErrUnclosedTerminal,

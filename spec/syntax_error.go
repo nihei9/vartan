@@ -18,9 +18,10 @@ func (e *SyntaxError) Error() string {
 
 var (
 	// lexical errors
+	synErrAutoGenID         = newSyntaxError("you cannot define an identifier beginning with an underscore")
 	synErrUnclosedTerminal  = newSyntaxError("unclosed terminal")
 	synErrInvalidEscSeq     = newSyntaxError("invalid escape sequence")
-	synErrIncompletedEscSeq = newSyntaxError("incompleted escape sequence; unexpected EOF following \\")
+	synErrIncompletedEscSeq = newSyntaxError("incompleted escape sequence; unexpected EOF following a backslash")
 	synErrZeroPos           = newSyntaxError("a position must be greater than or equal to 1")
 
 	// syntax errors

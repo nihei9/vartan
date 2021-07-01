@@ -160,6 +160,9 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 	case "kw_fragment":
 		return newSymbolToken(tokenKindKWFragment), nil
 	case "identifier":
+		if strings.HasPrefix(tok.Text(), "_") {
+			return nil, synErrAutoGenID
+		}
 		return newIDToken(tok.Text()), nil
 	case "terminal_open":
 		var b strings.Builder
