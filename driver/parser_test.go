@@ -104,6 +104,50 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 				),
 			),
 		},
+		// The driver can reduce productions that have the empty alternative and can generate a CST (and AST) node.
+		{
+			specSrc: `
+s
+    : foo bar
+    ;
+foo
+    :
+    ;
+bar
+    : bar_text
+    |
+    ;
+bar_text: "bar";
+`,
+			src: ``,
+			cst: nonTermNode("s",
+				termNode("foo", ""),
+				termNode("bar", ""),
+			),
+		},
+		// The driver can reduce productions that have the empty alternative and can generate a CST (and AST) node.
+		{
+			specSrc: `
+s
+    : foo bar
+    ;
+foo
+    :
+    ;
+bar
+    : bar_text
+    |
+    ;
+bar_text: "bar";
+`,
+			src: `bar`,
+			cst: nonTermNode("s",
+				termNode("foo", ""),
+				nonTermNode("bar",
+					termNode("bar_text", "bar"),
+				),
+			),
+		},
 		{
 			specSrc: `
 mode_tran_seq

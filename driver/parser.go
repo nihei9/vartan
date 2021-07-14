@@ -121,8 +121,11 @@ func (p *Parser) Parse() error {
 			}
 
 			// semantic action
+
 			prodNum := act
 			lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
+
+			// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.
 			n := p.gram.ParsingTable.AlternativeSymbolCounts[prodNum]
 			handle := p.semStack[len(p.semStack)-n:]
 
