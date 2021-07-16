@@ -12,6 +12,7 @@ import (
 
 	mldriver "github.com/nihei9/maleeni/driver"
 	mlspec "github.com/nihei9/maleeni/spec"
+	verr "github.com/nihei9/vartan/error"
 )
 
 type tokenKind string
@@ -180,7 +181,10 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		return newSymbolToken(tokenKindKWFragment, newPosition(l.row)), nil
 	case "identifier":
 		if strings.HasPrefix(tok.Text(), "_") {
-			return nil, synErrAutoGenID
+			return nil, &verr.SpecError{
+				Cause: synErrAutoGenID,
+				Row:   l.row,
+			}
 		}
 		return newIDToken(tok.Text(), newPosition(l.row)), nil
 	case "terminal_open":
@@ -191,14 +195,20 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 				return nil, err
 			}
 			if tok.EOF {
-				return nil, synErrUnclosedTerminal
+				return nil, &verr.SpecError{
+					Cause: synErrUnclosedTerminal,
+					Row:   l.row,
+				}
 			}
 			switch tok.KindName {
 			case "pattern":
 				// Remove '\' character.
 				fmt.Fprintf(&b, strings.ReplaceAll(tok.Text(), `\"`, `"`))
 			case "escape_symbol":
-				return nil, synErrIncompletedEscSeq
+				return nil, &verr.SpecError{
+					Cause: synErrIncompletedEscSeq,
+					Row:   l.row,
+				}
 			case "terminal_close":
 				return newTerminalPatternToken(b.String(), newPosition(l.row)), nil
 			}
@@ -222,7 +232,10 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			return nil, err
 		}
 		if num == 0 {
-			return nil, synErrZeroPos
+			return nil, &verr.SpecError{
+				Cause: synErrZeroPos,
+				Row:   l.row,
+			}
 		}
 		return newPositionToken(num, newPosition(l.row)), nil
 	case "expansion":

@@ -3,6 +3,8 @@ package spec
 import (
 	"strings"
 	"testing"
+
+	verr "github.com/nihei9/vartan/error"
 )
 
 func TestLexer_Run(t *testing.T) {
@@ -155,8 +157,18 @@ bar // This is the fourth comment.
 					break
 				}
 			}
-			if err != tt.err {
-				t.Fatalf("unexpected error; want: %v, got: %v", tt.err, err)
+			if tt.err != nil {
+				synErr, ok := err.(*verr.SpecError)
+				if !ok {
+					t.Fatalf("unexpected error; want: %v, got: %v", tt.err, err)
+				}
+				if tt.err != synErr.Cause {
+					t.Fatalf("unexpected error; want: %v, got: %v", tt.err, synErr.Cause)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error; want: %v, got: %v", tt.err, err)
+				}
 			}
 		})
 	}
