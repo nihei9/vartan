@@ -2,6 +2,8 @@ package spec
 
 import (
 	"io"
+
+	verr "github.com/nihei9/vartan/error"
 )
 
 type RootNode struct {
@@ -50,8 +52,11 @@ type FragmentNode struct {
 	RHS string
 }
 
-func raiseSyntaxError(synErr *SyntaxError) {
-	panic(synErr)
+func raiseSyntaxError(row int, synErr *SyntaxError) {
+	panic(&verr.SpecError{
+		Cause: synErr,
+		Row:   row,
+	})
 }
 
 func Parse(src io.Reader) (*RootNode, error) {
@@ -70,6 +75,10 @@ type parser struct {
 	lex       *lexer
 	peekedTok *token
 	lastTok   *token
+
+	// A token position that the parser read at last.
+	// It is used as additional information in error messages.
+	pos position
 }
 
 func newParser(src io.Reader) (*parser, error) {
@@ -114,7 +123,7 @@ func (p *parser) parseRoot() *RootNode {
 		break
 	}
 	if len(prods) == 0 {
-		raiseSyntaxError(synErrNoProduction)
+		raiseSyntaxError(0, synErrNoProduction)
 	}
 
 	return &RootNode{
@@ -131,30 +140,30 @@ func (p *parser) parseFragment() *FragmentNode {
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindID) {
-		raiseSyntaxError(synErrNoProductionName)
+		raiseSyntaxError(p.pos.row, synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
 
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindColon) {
-		raiseSyntaxError(synErrNoColon)
+		raiseSyntaxError(p.pos.row, synErrNoColon)
 	}
 
 	if !p.consume(tokenKindTerminalPattern) {
-		raiseSyntaxError(synErrFragmentNoPattern)
+		raiseSyntaxError(p.pos.row, synErrFragmentNoPattern)
 	}
 	rhs := p.lastTok.text
 
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindSemicolon) {
-		raiseSyntaxError(synErrNoSemicolon)
+		raiseSyntaxError(p.pos.row, synErrNoSemicolon)
 	}
 
 	if !p.consume(tokenKindNewline) {
 		if !p.consume(tokenKindEOF) {
-			raiseSyntaxError(synErrSemicolonNoNewline)
+			raiseSyntaxError(p.pos.row, synErrSemicolonNoNewline)
 		}
 	}
 
@@ -172,19 +181,19 @@ func (p *parser) parseProduction() *ProductionNode {
 	dir := p.parseDirective()
 	if dir != nil {
 		if !p.consume(tokenKindNewline) {
-			raiseSyntaxError(synErrProdDirNoNewline)
+			raiseSyntaxError(p.pos.row, synErrProdDirNoNewline)
 		}
 	}
 
 	if !p.consume(tokenKindID) {
-		raiseSyntaxError(synErrNoProductionName)
+		raiseSyntaxError(p.pos.row, synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
 
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindColon) {
-		raiseSyntaxError(synErrNoColon)
+		raiseSyntaxError(p.pos.row, synErrNoColon)
 	}
 
 	alt := p.parseAlternative()
@@ -202,12 +211,12 @@ func (p *parser) parseProduction() *ProductionNode {
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindSemicolon) {
-		raiseSyntaxError(synErrNoSemicolon)
+		raiseSyntaxError(p.pos.row, synErrNoSemicolon)
 	}
 
 	if !p.consume(tokenKindNewline) {
 		if !p.consume(tokenKindEOF) {
-			raiseSyntaxError(synErrSemicolonNoNewline)
+			raiseSyntaxError(p.pos.row, synErrSemicolonNoNewline)
 		}
 	}
 
@@ -256,7 +265,7 @@ func (p *parser) parseDirective() *DirectiveNode {
 	}
 
 	if !p.consume(tokenKindID) {
-		raiseSyntaxError(synErrNoDirectiveName)
+		raiseSyntaxError(p.pos.row, synErrNoDirectiveName)
 	}
 	name := p.lastTok.text
 
@@ -283,7 +292,7 @@ func (p *parser) parseParameter() *ParameterNode {
 		}
 	case p.consume(tokenKindTreeNodeOpen):
 		if !p.consume(tokenKindID) {
-			raiseSyntaxError(synErrTreeInvalidFirstElem)
+			raiseSyntaxError(p.pos.row, synErrTreeInvalidFirstElem)
 		}
 		name := p.lastTok.text
 
@@ -304,7 +313,7 @@ func (p *parser) parseParameter() *ParameterNode {
 		}
 
 		if !p.consume(tokenKindTreeNodeClose) {
-			raiseSyntaxError(synErrTreeUnclosed)
+			raiseSyntaxError(p.pos.row, synErrTreeUnclosed)
 		}
 
 		return &ParameterNode{
@@ -330,15 +339,15 @@ func (p *parser) consume(expected tokenKind) bool {
 			panic(err)
 		}
 	}
-	p.lastTok = tok
+	p.pos = tok.pos
 	if tok.kind == tokenKindInvalid {
-		raiseSyntaxError(synErrInvalidToken)
+		raiseSyntaxError(p.pos.row, synErrInvalidToken)
 	}
 	if tok.kind == expected {
+		p.lastTok = tok
 		return true
 	}
 	p.peekedTok = tok
-	p.lastTok = nil
 
 	return false
 }

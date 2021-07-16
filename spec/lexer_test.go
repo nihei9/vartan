@@ -6,6 +6,22 @@ import (
 )
 
 func TestLexer_Run(t *testing.T) {
+	idTok := func(text string) *token {
+		return newIDToken(text, newPosition(1))
+	}
+
+	termPatTok := func(text string) *token {
+		return newTerminalPatternToken(text, newPosition(1))
+	}
+
+	symTok := func(kind tokenKind) *token {
+		return newSymbolToken(kind, newPosition(1))
+	}
+
+	posTok := func(num int) *token {
+		return newPositionToken(num, newPosition(1))
+	}
+
 	tests := []struct {
 		caption string
 		src     string
@@ -16,16 +32,16 @@ func TestLexer_Run(t *testing.T) {
 			caption: "the lexer can recognize all kinds of tokens",
 			src:     `id"terminal":|;#'()$1...`,
 			tokens: []*token{
-				newIDToken("id"),
-				newTerminalPatternToken("terminal"),
-				newSymbolToken(tokenKindColon),
-				newSymbolToken(tokenKindOr),
-				newSymbolToken(tokenKindSemicolon),
-				newSymbolToken(tokenKindDirectiveMarker),
-				newSymbolToken(tokenKindTreeNodeOpen),
-				newSymbolToken(tokenKindTreeNodeClose),
-				newPositionToken(1),
-				newSymbolToken(tokenKindExpantion),
+				idTok("id"),
+				termPatTok("terminal"),
+				symTok(tokenKindColon),
+				symTok(tokenKindOr),
+				symTok(tokenKindSemicolon),
+				symTok(tokenKindDirectiveMarker),
+				symTok(tokenKindTreeNodeOpen),
+				symTok(tokenKindTreeNodeClose),
+				posTok(1),
+				symTok(tokenKindExpantion),
 				newEOFToken(),
 			},
 		},
@@ -33,7 +49,7 @@ func TestLexer_Run(t *testing.T) {
 			caption: "the lexer can recognize keywords",
 			src:     `fragment`,
 			tokens: []*token{
-				newSymbolToken(tokenKindKWFragment),
+				symTok(tokenKindKWFragment),
 				newEOFToken(),
 			},
 		},
@@ -41,7 +57,7 @@ func TestLexer_Run(t *testing.T) {
 			caption: "the lexer can recognize character sequences and escape sequences in terminal",
 			src:     `"abc\"\\"`,
 			tokens: []*token{
-				newTerminalPatternToken(`abc"\\`),
+				termPatTok(`abc"\\`),
 				newEOFToken(),
 			},
 		},
@@ -49,13 +65,13 @@ func TestLexer_Run(t *testing.T) {
 			caption: "the lexer can recognize newlines and combine consecutive newlines into one",
 			src:     "\u000A | \u000D | \u000D\u000A | \u000A\u000A \u000D\u000D \u000D\u000A\u000D\u000A",
 			tokens: []*token{
-				newSymbolToken(tokenKindNewline),
-				newSymbolToken(tokenKindOr),
-				newSymbolToken(tokenKindNewline),
-				newSymbolToken(tokenKindOr),
-				newSymbolToken(tokenKindNewline),
-				newSymbolToken(tokenKindOr),
-				newSymbolToken(tokenKindNewline),
+				symTok(tokenKindNewline),
+				symTok(tokenKindOr),
+				symTok(tokenKindNewline),
+				symTok(tokenKindOr),
+				symTok(tokenKindNewline),
+				symTok(tokenKindOr),
+				symTok(tokenKindNewline),
 				newEOFToken(),
 			},
 		},
@@ -69,11 +85,11 @@ foo
 bar // This is the fourth comment.
 `,
 			tokens: []*token{
-				newSymbolToken(tokenKindNewline),
-				newIDToken("foo"),
-				newSymbolToken(tokenKindNewline),
-				newIDToken("bar"),
-				newSymbolToken(tokenKindNewline),
+				symTok(tokenKindNewline),
+				idTok("foo"),
+				symTok(tokenKindNewline),
+				idTok("bar"),
+				symTok(tokenKindNewline),
 				newEOFToken(),
 			},
 		},
@@ -101,9 +117,9 @@ bar // This is the fourth comment.
 			caption: "the lexer can recognize valid tokens following an invalid token",
 			src:     `abc!!!def`,
 			tokens: []*token{
-				newIDToken("abc"),
+				idTok("abc"),
 				newInvalidToken("!!!"),
-				newIDToken("def"),
+				idTok("def"),
 				newEOFToken(),
 			},
 		},
@@ -113,9 +129,9 @@ bar // This is the fourth comment.
 			// \u0020: SP
 			src: "a\u0009b\u0020c",
 			tokens: []*token{
-				newIDToken("a"),
-				newIDToken("b"),
-				newIDToken("c"),
+				idTok("a"),
+				idTok("b"),
+				idTok("c"),
 				newEOFToken(),
 			},
 		},

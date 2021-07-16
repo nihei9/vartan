@@ -3,6 +3,8 @@ package spec
 import (
 	"strings"
 	"testing"
+
+	verr "github.com/nihei9/vartan/error"
 )
 
 func TestParse(t *testing.T) {
@@ -348,8 +350,12 @@ foo: "foo";
 		t.Run(tt.caption, func(t *testing.T) {
 			ast, err := Parse(strings.NewReader(tt.src))
 			if tt.synErr != nil {
-				if tt.synErr != err {
+				synErr, ok := err.(*verr.SpecError)
+				if !ok {
 					t.Fatalf("unexpected error; want: %v, got: %v", tt.synErr, err)
+				}
+				if tt.synErr != synErr.Cause {
+					t.Fatalf("unexpected error; want: %v, got: %v", tt.synErr, synErr.Cause)
 				}
 				if ast != nil {
 					t.Fatalf("AST must be nil")

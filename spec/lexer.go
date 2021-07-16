@@ -33,36 +33,51 @@ const (
 	tokenKindInvalid         = tokenKind("invalid")
 )
 
+type position struct {
+	row int
+}
+
+func newPosition(row int) position {
+	return position{
+		row: row,
+	}
+}
+
 type token struct {
 	kind tokenKind
 	text string
 	num  int
+	pos  position
 }
 
-func newSymbolToken(kind tokenKind) *token {
+func newSymbolToken(kind tokenKind, pos position) *token {
 	return &token{
 		kind: kind,
+		pos:  pos,
 	}
 }
 
-func newIDToken(text string) *token {
+func newIDToken(text string, pos position) *token {
 	return &token{
 		kind: tokenKindID,
 		text: text,
+		pos:  pos,
 	}
 }
 
-func newTerminalPatternToken(text string) *token {
+func newTerminalPatternToken(text string, pos position) *token {
 	return &token{
 		kind: tokenKindTerminalPattern,
 		text: text,
+		pos:  pos,
 	}
 }
 
-func newPositionToken(num int) *token {
+func newPositionToken(num int, pos position) *token {
 	return &token{
 		kind: tokenKindPosition,
 		num:  num,
+		pos:  pos,
 	}
 }
 
@@ -83,6 +98,7 @@ type lexer struct {
 	s   *mlspec.CompiledLexSpec
 	d   *mldriver.Lexer
 	buf *token
+	row int
 }
 
 //go:embed clexspec.json
@@ -99,8 +115,9 @@ func newLexer(src io.Reader) (*lexer, error) {
 		return nil, err
 	}
 	return &lexer{
-		s: s,
-		d: d,
+		s:   s,
+		d:   d,
+		row: 1,
 	}, nil
 }
 
@@ -111,20 +128,20 @@ func (l *lexer) next() (*token, error) {
 		return tok, nil
 	}
 
-	newline := false
+	var newline *token
 	for {
 		tok, err := l.lexAndSkipWSs()
 		if err != nil {
 			return nil, err
 		}
 		if tok.kind == tokenKindNewline {
-			newline = true
+			newline = tok
 			continue
 		}
 
-		if newline {
+		if newline != nil {
 			l.buf = tok
-			return newSymbolToken(tokenKindNewline), nil
+			return newline, nil
 		}
 		return tok, nil
 	}
@@ -156,14 +173,16 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 
 	switch tok.KindName {
 	case "newline":
-		return newSymbolToken(tokenKindNewline), nil
+		row := l.row
+		l.row++
+		return newSymbolToken(tokenKindNewline, newPosition(row)), nil
 	case "kw_fragment":
-		return newSymbolToken(tokenKindKWFragment), nil
+		return newSymbolToken(tokenKindKWFragment, newPosition(l.row)), nil
 	case "identifier":
 		if strings.HasPrefix(tok.Text(), "_") {
 			return nil, synErrAutoGenID
 		}
-		return newIDToken(tok.Text()), nil
+		return newIDToken(tok.Text(), newPosition(l.row)), nil
 	case "terminal_open":
 		var b strings.Builder
 		for {
@@ -181,21 +200,21 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			case "escape_symbol":
 				return nil, synErrIncompletedEscSeq
 			case "terminal_close":
-				return newTerminalPatternToken(b.String()), nil
+				return newTerminalPatternToken(b.String(), newPosition(l.row)), nil
 			}
 		}
 	case "colon":
-		return newSymbolToken(tokenKindColon), nil
+		return newSymbolToken(tokenKindColon, newPosition(l.row)), nil
 	case "or":
-		return newSymbolToken(tokenKindOr), nil
+		return newSymbolToken(tokenKindOr, newPosition(l.row)), nil
 	case "semicolon":
-		return newSymbolToken(tokenKindSemicolon), nil
+		return newSymbolToken(tokenKindSemicolon, newPosition(l.row)), nil
 	case "directive_marker":
-		return newSymbolToken(tokenKindDirectiveMarker), nil
+		return newSymbolToken(tokenKindDirectiveMarker, newPosition(l.row)), nil
 	case "tree_node_open":
-		return newSymbolToken(tokenKindTreeNodeOpen), nil
+		return newSymbolToken(tokenKindTreeNodeOpen, newPosition(l.row)), nil
 	case "tree_node_close":
-		return newSymbolToken(tokenKindTreeNodeClose), nil
+		return newSymbolToken(tokenKindTreeNodeClose, newPosition(l.row)), nil
 	case "position":
 		// Remove '$' character and convert to an integer.
 		num, err := strconv.Atoi(tok.Text()[1:])
@@ -205,9 +224,9 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		if num == 0 {
 			return nil, synErrZeroPos
 		}
-		return newPositionToken(num), nil
+		return newPositionToken(num, newPosition(l.row)), nil
 	case "expansion":
-		return newSymbolToken(tokenKindExpantion), nil
+		return newSymbolToken(tokenKindExpantion, newPosition(l.row)), nil
 	default:
 		return newInvalidToken(tok.Text()), nil
 	}

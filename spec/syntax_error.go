@@ -1,7 +1,5 @@
 package spec
 
-import "fmt"
-
 type SyntaxError struct {
 	message string
 }
@@ -13,7 +11,7 @@ func newSyntaxError(message string) *SyntaxError {
 }
 
 func (e *SyntaxError) Error() string {
-	return fmt.Sprintf("syntax error: %s", e.message)
+	return e.message
 }
 
 var (
