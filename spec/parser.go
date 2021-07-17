@@ -8,14 +8,22 @@ import (
 )
 
 type RootNode struct {
-	Productions []*ProductionNode
-	Fragments   []*FragmentNode
+	Productions    []*ProductionNode
+	LexProductions []*ProductionNode
+	Fragments      []*FragmentNode
 }
 
 type ProductionNode struct {
 	Directive *DirectiveNode
 	LHS       string
 	RHS       []*AlternativeNode
+}
+
+func (n *ProductionNode) isLexical() bool {
+	if len(n.RHS) == 1 && len(n.RHS[0].Elements) == 1 && n.RHS[0].Elements[0].Pattern != "" {
+		return true
+	}
+	return false
 }
 
 type AlternativeNode struct {
@@ -112,6 +120,7 @@ func (p *parser) parseRoot() *RootNode {
 	}()
 
 	var prods []*ProductionNode
+	var lexProds []*ProductionNode
 	var fragments []*FragmentNode
 	for {
 		fragment := p.parseFragment()
@@ -122,7 +131,11 @@ func (p *parser) parseRoot() *RootNode {
 
 		prod := p.parseProduction()
 		if prod != nil {
-			prods = append(prods, prod)
+			if prod.isLexical() {
+				lexProds = append(lexProds, prod)
+			} else {
+				prods = append(prods, prod)
+			}
 			continue
 		}
 
@@ -132,8 +145,9 @@ func (p *parser) parseRoot() *RootNode {
 	}
 
 	return &RootNode{
-		Productions: prods,
-		Fragments:   fragments,
+		Productions:    prods,
+		LexProductions: lexProds,
+		Fragments:      fragments,
 	}
 }
 

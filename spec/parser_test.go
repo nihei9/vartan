@@ -82,7 +82,7 @@ func TestParse(t *testing.T) {
 			caption: "single production is a valid grammar",
 			src:     `a: "a";`,
 			ast: &RootNode{
-				Productions: []*ProductionNode{
+				LexProductions: []*ProductionNode{
 					prod("a", alt(pat("a"))),
 				},
 			},
@@ -109,6 +109,8 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 						alt(pat(`\(`), id("e"), pat(`)`)),
 						alt(id("id")),
 					),
+				},
+				LexProductions: []*ProductionNode{
 					prod("id",
 						alt(pat(`[A-Za-z_][0-9A-Za-z_]*`)),
 					),
@@ -177,6 +179,8 @@ fragment words: "[A-Za-z\u{0020}]+";
 					prod("s",
 						alt(id("tagline")),
 					),
+				},
+				LexProductions: []*ProductionNode{
 					prod("tagline",
 						alt(pat(`\f{words} IS OUT THERE.`)),
 					),
@@ -221,6 +225,8 @@ whitespace: "\u{0020}+" #skip;
 						alt(id("pop_m1")),
 						alt(id("pop_m2")),
 					),
+				},
+				LexProductions: []*ProductionNode{
 					prod("push_m1",
 						withAltDir(
 							alt(pat(`->`)),
@@ -311,6 +317,8 @@ bar: "bar";
 							dir("ast", treeParam("bar_list", pos(1))),
 						),
 					),
+				},
+				LexProductions: []*ProductionNode{
 					prod("foo",
 						alt(pat("foo")),
 					),
@@ -376,6 +384,9 @@ func testRootNode(t *testing.T, root, expected *RootNode) {
 	}
 	for i, prod := range root.Productions {
 		testProductionNode(t, prod, expected.Productions[i])
+	}
+	for i, prod := range root.LexProductions {
+		testProductionNode(t, prod, expected.LexProductions[i])
 	}
 }
 
