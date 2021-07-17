@@ -24,7 +24,6 @@ var (
 
 	// syntax errors
 	synErrInvalidToken         = newSyntaxError("invalid token")
-	synErrNoProduction         = newSyntaxError("a grammar must have at least one production")
 	synErrNoProductionName     = newSyntaxError("a production name is missing")
 	synErrNoColon              = newSyntaxError("the colon must precede alternatives")
 	synErrNoSemicolon          = newSyntaxError("the semicolon is missing at the last of an alternative")

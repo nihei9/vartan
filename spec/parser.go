@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"fmt"
 	"io"
 
 	verr "github.com/nihei9/vartan/error"
@@ -64,17 +65,15 @@ func Parse(src io.Reader) (*RootNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	root, err := p.parse()
-	if err != nil {
-		return nil, err
-	}
-	return root, nil
+
+	return p.parse()
 }
 
 type parser struct {
 	lex       *lexer
 	peekedTok *token
 	lastTok   *token
+	errs      verr.SpecErrors
 
 	// A token position that the parser read at last.
 	// It is used as additional information in error messages.
@@ -92,22 +91,29 @@ func newParser(src io.Reader) (*parser, error) {
 }
 
 func (p *parser) parse() (root *RootNode, retErr error) {
-	defer func() {
-		err := recover()
-		if err != nil {
-			retErr = err.(error)
-			return
-		}
-	}()
-	return p.parseRoot(), nil
+	root = p.parseRoot()
+	if len(p.errs) > 0 {
+		return nil, p.errs
+	}
+
+	return root, nil
 }
 
 func (p *parser) parseRoot() *RootNode {
+	defer func() {
+		err := recover()
+		if err != nil {
+			specErr, ok := err.(*verr.SpecError)
+			if !ok {
+				panic(fmt.Errorf("an unexpected error occurred: %v", err))
+			}
+			p.errs = append(p.errs, specErr)
+		}
+	}()
+
 	var prods []*ProductionNode
 	var fragments []*FragmentNode
 	for {
-		p.consume(tokenKindNewline)
-
 		fragment := p.parseFragment()
 		if fragment != nil {
 			fragments = append(fragments, fragment)
@@ -120,10 +126,9 @@ func (p *parser) parseRoot() *RootNode {
 			continue
 		}
 
-		break
-	}
-	if len(prods) == 0 {
-		raiseSyntaxError(0, synErrNoProduction)
+		if p.consume(tokenKindEOF) {
+			break
+		}
 	}
 
 	return &RootNode{
@@ -133,6 +138,25 @@ func (p *parser) parseRoot() *RootNode {
 }
 
 func (p *parser) parseFragment() *FragmentNode {
+	defer func() {
+		err := recover()
+		if err == nil {
+			return
+		}
+
+		specErr, ok := err.(*verr.SpecError)
+		if !ok {
+			panic(err)
+		}
+
+		p.errs = append(p.errs, specErr)
+		p.skipOverTo(tokenKindSemicolon)
+
+		return
+	}()
+
+	p.consume(tokenKindNewline)
+
 	if !p.consume(tokenKindKWFragment) {
 		return nil
 	}
@@ -174,6 +198,25 @@ func (p *parser) parseFragment() *FragmentNode {
 }
 
 func (p *parser) parseProduction() *ProductionNode {
+	defer func() {
+		err := recover()
+		if err == nil {
+			return
+		}
+
+		specErr, ok := err.(*verr.SpecError)
+		if !ok {
+			panic(err)
+		}
+
+		p.errs = append(p.errs, specErr)
+		p.skipOverTo(tokenKindSemicolon)
+
+		return
+	}()
+
+	p.consume(tokenKindNewline)
+
 	if p.consume(tokenKindEOF) {
 		return nil
 	}
@@ -350,4 +393,38 @@ func (p *parser) consume(expected tokenKind) bool {
 	p.peekedTok = tok
 
 	return false
+}
+
+func (p *parser) skip() {
+	var tok *token
+	var err error
+	for {
+		if p.peekedTok != nil {
+			tok = p.peekedTok
+			p.peekedTok = nil
+		} else {
+			tok, err = p.lex.next()
+			if err != nil {
+				p.errs = append(p.errs, &verr.SpecError{
+					Cause: err,
+					Row:   p.pos.row,
+				})
+				continue
+			}
+		}
+
+		break
+	}
+
+	p.lastTok = tok
+	p.pos = tok.pos
+}
+
+func (p *parser) skipOverTo(kind tokenKind) {
+	for {
+		if p.consume(kind) || p.consume(tokenKindEOF) {
+			return
+		}
+		p.skip()
+	}
 }

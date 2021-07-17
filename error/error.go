@@ -7,6 +7,22 @@ import (
 	"strings"
 )
 
+type SpecErrors []*SpecError
+
+func (e SpecErrors) Error() string {
+	if len(e) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%v", e[0])
+	for _, err := range e[1:] {
+		fmt.Fprintf(&b, "\n%v", err)
+	}
+
+	return b.String()
+}
+
 type SpecError struct {
 	Cause      error
 	FilePath   string

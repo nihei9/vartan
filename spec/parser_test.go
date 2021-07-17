@@ -144,11 +144,6 @@ c: ;
 			synErr:  synErrInvalidToken,
 		},
 		{
-			caption: "a grammar must have at least one production",
-			src:     ``,
-			synErr:  synErrNoProduction,
-		},
-		{
 			caption: "a production must have its name as the first element",
 			src:     `: "a";`,
 			synErr:  synErrNoProductionName,
@@ -350,10 +345,11 @@ foo: "foo";
 		t.Run(tt.caption, func(t *testing.T) {
 			ast, err := Parse(strings.NewReader(tt.src))
 			if tt.synErr != nil {
-				synErr, ok := err.(*verr.SpecError)
+				synErrs, ok := err.(verr.SpecErrors)
 				if !ok {
 					t.Fatalf("unexpected error; want: %v, got: %v", tt.synErr, err)
 				}
+				synErr := synErrs[0]
 				if tt.synErr != synErr.Cause {
 					t.Fatalf("unexpected error; want: %v, got: %v", tt.synErr, synErr.Cause)
 				}

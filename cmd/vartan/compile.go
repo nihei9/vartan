@@ -54,14 +54,16 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		}
 
 		if retErr != nil {
-			specErr, ok := retErr.(*verr.SpecError)
+			specErrs, ok := retErr.(verr.SpecErrors)
 			if ok {
-				if *compileFlags.grammar != "" {
-					specErr.FilePath = grmPath
-					specErr.SourceName = grmPath
-				} else {
-					specErr.FilePath = grmPath
-					specErr.SourceName = "stdin"
+				for _, err := range specErrs {
+					if *compileFlags.grammar != "" {
+						err.FilePath = grmPath
+						err.SourceName = grmPath
+					} else {
+						err.FilePath = grmPath
+						err.SourceName = "stdin"
+					}
 				}
 			}
 			fmt.Fprintln(os.Stderr, retErr)
@@ -106,24 +108,17 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 }
 
 func readGrammar(path string) (grm *grammar.Grammar, retErr error) {
-	defer func() {
-		err := recover()
-		specErr, ok := err.(*verr.SpecError)
-		if ok {
-			specErr.FilePath = path
-			retErr = specErr
-		}
-	}()
-
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot open the grammar file %s: %w", path, err)
 	}
 	defer f.Close()
+
 	ast, err := spec.Parse(f)
 	if err != nil {
 		return nil, err
 	}
+
 	return grammar.NewGrammar(ast)
 }
 

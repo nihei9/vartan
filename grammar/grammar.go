@@ -144,6 +144,10 @@ func NewGrammar(root *spec.RootNode) (*Grammar, error) {
 		}
 	}
 
+	if len(root.Productions) == 0 {
+		return nil, fmt.Errorf("a grammar must have at least one production")
+	}
+
 	prods := newProductionSet()
 	var augStartSym symbol
 	astActs := map[productionID][]*astActionEntry{}
