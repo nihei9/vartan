@@ -28,6 +28,24 @@ func init() {
 }
 
 func runParse(cmd *cobra.Command, args []string) (retErr error) {
+	defer func() {
+		v := recover()
+		if v != nil {
+			err, ok := v.(error)
+			if !ok {
+				retErr = fmt.Errorf("an unexpected error occurred: %v\n", v)
+				fmt.Fprintln(os.Stderr, retErr)
+				return
+			}
+
+			retErr = err
+		}
+
+		if retErr != nil {
+			fmt.Fprintln(os.Stderr, retErr)
+		}
+	}()
+
 	cgram, err := readCompiledGrammar(args[0])
 	if err != nil {
 		return fmt.Errorf("Cannot read a compiled grammar: %w", err)

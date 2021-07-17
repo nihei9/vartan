@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
+	verr "github.com/nihei9/vartan/error"
 	"github.com/nihei9/vartan/grammar"
 	"github.com/nihei9/vartan/spec"
 	"github.com/spf13/cobra"
@@ -28,7 +31,63 @@ func init() {
 }
 
 func runCompile(cmd *cobra.Command, args []string) (retErr error) {
-	gram, err := readGrammar(*compileFlags.grammar)
+	var tmpDirPath string
+	defer func() {
+		if tmpDirPath == "" {
+			return
+		}
+		os.RemoveAll(tmpDirPath)
+	}()
+
+	grmPath := *compileFlags.grammar
+	defer func() {
+		v := recover()
+		if v != nil {
+			err, ok := v.(error)
+			if !ok {
+				retErr = fmt.Errorf("an unexpected error occurred: %v\n", v)
+				fmt.Fprintln(os.Stderr, retErr)
+				return
+			}
+
+			retErr = err
+		}
+
+		if retErr != nil {
+			specErr, ok := retErr.(*verr.SpecError)
+			if ok {
+				if *compileFlags.grammar != "" {
+					specErr.FilePath = grmPath
+					specErr.SourceName = grmPath
+				} else {
+					specErr.FilePath = grmPath
+					specErr.SourceName = "stdin"
+				}
+			}
+			fmt.Fprintln(os.Stderr, retErr)
+		}
+	}()
+
+	if grmPath == "" {
+		var err error
+		tmpDirPath, err = os.MkdirTemp("", "vartan-compile-*")
+		if err != nil {
+			return err
+		}
+
+		src, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		grmPath = filepath.Join(tmpDirPath, "stdin.vr")
+		err = ioutil.WriteFile(grmPath, src, 0600)
+		if err != nil {
+			return err
+		}
+	}
+
+	gram, err := readGrammar(grmPath)
 	if err != nil {
 		return err
 	}
@@ -46,17 +105,22 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 	return nil
 }
 
-func readGrammar(path string) (*grammar.Grammar, error) {
-	r := os.Stdin
-	if path != "" {
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, fmt.Errorf("Cannot open the grammar file %s: %w", path, err)
+func readGrammar(path string) (grm *grammar.Grammar, retErr error) {
+	defer func() {
+		err := recover()
+		specErr, ok := err.(*verr.SpecError)
+		if ok {
+			specErr.FilePath = path
+			retErr = specErr
 		}
-		defer f.Close()
-		r = f
+	}()
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot open the grammar file %s: %w", path, err)
 	}
-	ast, err := spec.Parse(r)
+	defer f.Close()
+	ast, err := spec.Parse(f)
 	if err != nil {
 		return nil, err
 	}
