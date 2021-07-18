@@ -119,7 +119,8 @@ func readGrammar(path string) (grm *grammar.Grammar, retErr error) {
 		return nil, err
 	}
 
-	return grammar.NewGrammar(ast)
+	var b grammar.GrammarBuilder
+	return b.Build(ast)
 }
 
 func writeCompiledGrammar(cgram *spec.CompiledGrammar, path string) error {

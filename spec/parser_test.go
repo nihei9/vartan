@@ -654,7 +654,7 @@ func testParameter(t *testing.T, param, expected *ParameterNode, checkPosition b
 
 func testPosition(t *testing.T, pos, expected Position) {
 	t.Helper()
-	if pos.row != expected.row {
+	if pos.Row != expected.Row {
 		t.Fatalf("unexpected position want: %+v, got: %+v", expected, pos)
 	}
 }

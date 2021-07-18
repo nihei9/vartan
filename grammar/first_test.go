@@ -155,7 +155,8 @@ func genActualFirst(t *testing.T, src string) (*firstSet, *Grammar) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gram, err := NewGrammar(ast)
+	var b GrammarBuilder
+	gram, err := b.Build(ast)
 	if err != nil {
 		t.Fatal(err)
 	}

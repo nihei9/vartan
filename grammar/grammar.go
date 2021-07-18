@@ -5,6 +5,7 @@ import (
 
 	mlcompiler "github.com/nihei9/maleeni/compiler"
 	mlspec "github.com/nihei9/maleeni/spec"
+	verr "github.com/nihei9/vartan/error"
 	"github.com/nihei9/vartan/spec"
 )
 
@@ -22,15 +23,25 @@ type Grammar struct {
 	astActions           map[productionID][]*astActionEntry
 }
 
-func NewGrammar(root *spec.RootNode) (*Grammar, error) {
-	symTabAndLexSpec, err := genSymbolTableAndLexSpec(root)
+type GrammarBuilder struct {
+	errs verr.SpecErrors
+}
+
+func (b *GrammarBuilder) Build(root *spec.RootNode) (*Grammar, error) {
+	b.errs = nil
+
+	symTabAndLexSpec, err := b.genSymbolTableAndLexSpec(root)
 	if err != nil {
 		return nil, err
 	}
 
-	prodsAndActs, err := genProductionsAndActions(root, symTabAndLexSpec)
+	prodsAndActs, err := b.genProductionsAndActions(root, symTabAndLexSpec)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(b.errs) > 0 {
+		return nil, b.errs
 	}
 
 	return &Grammar{
@@ -50,7 +61,7 @@ type symbolTableAndLexSpec struct {
 	skip        []mlspec.LexKind
 }
 
-func genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, error) {
+func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, error) {
 	symTab := newSymbolTable()
 	skipKinds := []mlspec.LexKind{}
 	entries := []*mlspec.LexEntry{}
@@ -60,9 +71,13 @@ func genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, erro
 			return nil, err
 		}
 
-		entry, skip, err := genLexEntry(prod)
+		entry, skip, specErr, err := genLexEntry(prod)
 		if err != nil {
 			return nil, err
+		}
+		if specErr != nil {
+			b.errs = append(b.errs, specErr)
+			continue
 		}
 		if skip {
 			skipKinds = append(skipKinds, mlspec.LexKind(prod.LHS))
@@ -132,23 +147,35 @@ func genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, erro
 	}, nil
 }
 
-func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, error) {
+func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecError, error) {
 	var modes []mlspec.LexModeName
 	if prod.Directive != nil {
 		dir := prod.Directive
 		switch dir.Name {
 		case "mode":
 			if len(dir.Parameters) == 0 {
-				return nil, false, fmt.Errorf("'mode' directive needs an ID parameter")
+				return nil, false, &verr.SpecError{
+					Cause:  semErrDirInvalidParam,
+					Detail: fmt.Sprintf("'mode' directive needs an ID parameter"),
+					Row:    dir.Pos.Row,
+				}, nil
 			}
 			for _, param := range dir.Parameters {
 				if param.ID == "" {
-					return nil, false, fmt.Errorf("'mode' directive needs an ID parameter")
+					return nil, false, &verr.SpecError{
+						Cause:  semErrDirInvalidParam,
+						Detail: fmt.Sprintf("'mode' directive needs an ID parameter"),
+						Row:    param.Pos.Row,
+					}, nil
 				}
 				modes = append(modes, mlspec.LexModeName(param.ID))
 			}
 		default:
-			return nil, false, fmt.Errorf("invalid directive name '%v'", dir.Name)
+			return nil, false, &verr.SpecError{
+				Cause:  semErrDirInvalidName,
+				Detail: dir.Name,
+				Row:    dir.Pos.Row,
+			}, nil
 		}
 	}
 
@@ -161,21 +188,37 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, error) {
 		switch dir.Name {
 		case "skip":
 			if len(dir.Parameters) > 0 {
-				return nil, false, fmt.Errorf("'skip' directive needs no parameter")
+				return nil, false, &verr.SpecError{
+					Cause:  semErrDirInvalidParam,
+					Detail: fmt.Sprintf("'skip' directive needs no parameter"),
+					Row:    dir.Pos.Row,
+				}, nil
 			}
 			skip = true
 		case "push":
 			if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
-				return nil, false, fmt.Errorf("'push' directive needs an ID parameter")
+				return nil, false, &verr.SpecError{
+					Cause:  semErrDirInvalidParam,
+					Detail: fmt.Sprintf("'push' directive needs an ID parameter"),
+					Row:    dir.Pos.Row,
+				}, nil
 			}
 			push = mlspec.LexModeName(dir.Parameters[0].ID)
 		case "pop":
 			if len(dir.Parameters) > 0 {
-				return nil, false, fmt.Errorf("'pop' directive needs no parameter")
+				return nil, false, &verr.SpecError{
+					Cause:  semErrDirInvalidParam,
+					Detail: fmt.Sprintf("'pop' directive needs no parameter"),
+					Row:    dir.Pos.Row,
+				}, nil
 			}
 			pop = true
 		default:
-			return nil, false, fmt.Errorf("invalid directive name '%v'", dir.Name)
+			return nil, false, &verr.SpecError{
+				Cause:  semErrDirInvalidName,
+				Detail: dir.Name,
+				Row:    dir.Pos.Row,
+			}, nil
 		}
 	}
 
@@ -185,7 +228,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, error) {
 		Pattern: mlspec.LexPattern(alt.Elements[0].Pattern),
 		Push:    push,
 		Pop:     pop,
-	}, skip, nil
+	}, skip, nil, nil
 }
 
 type productionsAndActions struct {
@@ -194,12 +237,15 @@ type productionsAndActions struct {
 	astActs     map[productionID][]*astActionEntry
 }
 
-func genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTableAndLexSpec) (*productionsAndActions, error) {
+func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTableAndLexSpec) (*productionsAndActions, error) {
 	symTab := symTabAndLexSpec.symTab
 	anonPat2Sym := symTabAndLexSpec.anonPat2Sym
 
 	if len(root.Productions) == 0 {
-		return nil, fmt.Errorf("a grammar must have at least one production")
+		b.errs = append(b.errs, &verr.SpecError{
+			Cause: semErrNoProduction,
+		})
+		return nil, nil
 	}
 
 	prods := newProductionSet()
@@ -235,8 +281,11 @@ func genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTable
 	for _, prod := range root.Productions {
 		lhsSym, ok := symTab.toSymbol(prod.LHS)
 		if !ok {
+			// All symbols are assumed to be pre-detected, so it's a bug if we cannot find them here.
 			return nil, fmt.Errorf("symbol '%v' is undefined", prod.LHS)
 		}
+
+	LOOP_RHS:
 		for _, alt := range prod.RHS {
 			altSyms := make([]symbol, len(alt.Elements))
 			for i, elem := range alt.Elements {
@@ -245,17 +294,24 @@ func genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTable
 					var ok bool
 					sym, ok = anonPat2Sym[elem.Pattern]
 					if !ok {
+						// All patterns are assumed to be pre-detected, so it's a bug if we cannot find them here.
 						return nil, fmt.Errorf("pattern '%v' is undefined", elem.Pattern)
 					}
 				} else {
 					var ok bool
 					sym, ok = symTab.toSymbol(elem.ID)
 					if !ok {
-						return nil, fmt.Errorf("symbol '%v' is undefined", elem.ID)
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrUndefinedSym,
+							Detail: elem.ID,
+							Row:    elem.Pos.Row,
+						})
+						continue LOOP_RHS
 					}
 				}
 				altSyms[i] = sym
 			}
+
 			p, err := newProduction(lhsSym, altSyms)
 			if err != nil {
 				return nil, err
@@ -267,24 +323,44 @@ func genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTable
 				switch dir.Name {
 				case "ast":
 					if len(dir.Parameters) != 1 || dir.Parameters[0].Tree == nil {
-						return nil, fmt.Errorf("'ast' directive needs a tree parameter")
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("'ast' directive needs a tree parameter"),
+							Row:    dir.Pos.Row,
+						})
+						continue LOOP_RHS
 					}
 					param := dir.Parameters[0]
 					lhsText, ok := symTab.toText(p.lhs)
 					if !ok || param.Tree.Name != lhsText {
-						return nil, fmt.Errorf("a name of a tree structure must be the same ID as an LHS of a production; LHS: %v", lhsText)
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("a name of a tree structure must be the same ID as an LHS of a production; LHS: %v", lhsText),
+							Row:    param.Pos.Row,
+						})
+						continue LOOP_RHS
 					}
 					astAct := make([]*astActionEntry, len(param.Tree.Children))
 					for i, c := range param.Tree.Children {
 						if c.Position > len(alt.Elements) {
-							return nil, fmt.Errorf("a position must be less than or equal to the length of an alternative; alternative length: %v", len(alt.Elements))
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDirInvalidParam,
+								Detail: fmt.Sprintf("a position must be less than or equal to the length of an alternativ (%v)", len(alt.Elements)),
+								Row:    c.Pos.Row,
+							})
+							continue LOOP_RHS
 						}
 
 						if c.Expansion {
 							offset := c.Position - 1
 							elem := alt.Elements[offset]
 							if elem.Pattern != "" {
-								return nil, fmt.Errorf("the expansion symbol cannot be applied to a pattern ($%v: %v)", c.Position, elem.Pattern)
+								b.errs = append(b.errs, &verr.SpecError{
+									Cause:  semErrDirInvalidParam,
+									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a pattern ($%v: %v)", c.Position, elem.Pattern),
+									Row:    c.Pos.Row,
+								})
+								continue LOOP_RHS
 							}
 							elemSym, ok := symTab.toSymbol(elem.ID)
 							if !ok {
@@ -292,7 +368,12 @@ func genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTable
 								return nil, fmt.Errorf("a symbol corresponding to a position ($%v: %v) was not found", c.Position, elem.ID)
 							}
 							if elemSym.isTerminal() {
-								return nil, fmt.Errorf("the expansion symbol cannot be applied to a terminal symbol ($%v: %v)", c.Position, elem.ID)
+								b.errs = append(b.errs, &verr.SpecError{
+									Cause:  semErrDirInvalidParam,
+									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a terminal symbol ($%v: %v)", c.Position, elem.ID),
+									Row:    c.Pos.Row,
+								})
+								continue LOOP_RHS
 							}
 						}
 
@@ -303,7 +384,12 @@ func genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTable
 					}
 					astActs[p.id] = astAct
 				default:
-					return nil, fmt.Errorf("invalid directive name '%v'", dir.Name)
+					b.errs = append(b.errs, &verr.SpecError{
+						Cause:  semErrDirInvalidName,
+						Detail: fmt.Sprintf("invalid directive name '%v'", dir.Name),
+						Row:    dir.Pos.Row,
+					})
+					continue LOOP_RHS
 				}
 			}
 		}

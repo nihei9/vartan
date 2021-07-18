@@ -136,7 +136,8 @@ func genActualFollow(t *testing.T, src string) (*followSet, *Grammar) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gram, err := NewGrammar(ast)
+	var b GrammarBuilder
+	gram, err := b.Build(ast)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -39,7 +39,8 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		if err != nil {
 			t.Fatal(err)
 		}
-		gram, err = NewGrammar(ast)
+		var b GrammarBuilder
+		gram, err = b.Build(ast)
 		if err != nil {
 			t.Fatal(err)
 		}

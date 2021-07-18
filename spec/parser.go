@@ -186,7 +186,7 @@ func (p *parser) parseFragment() *FragmentNode {
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindID) {
-		raiseSyntaxError(p.pos.row, synErrNoProductionName)
+		raiseSyntaxError(p.pos.Row, synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
 	lhsPos := p.lastTok.pos
@@ -194,23 +194,23 @@ func (p *parser) parseFragment() *FragmentNode {
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindColon) {
-		raiseSyntaxError(p.pos.row, synErrNoColon)
+		raiseSyntaxError(p.pos.Row, synErrNoColon)
 	}
 
 	if !p.consume(tokenKindTerminalPattern) {
-		raiseSyntaxError(p.pos.row, synErrFragmentNoPattern)
+		raiseSyntaxError(p.pos.Row, synErrFragmentNoPattern)
 	}
 	rhs := p.lastTok.text
 
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindSemicolon) {
-		raiseSyntaxError(p.pos.row, synErrNoSemicolon)
+		raiseSyntaxError(p.pos.Row, synErrNoSemicolon)
 	}
 
 	if !p.consume(tokenKindNewline) {
 		if !p.consume(tokenKindEOF) {
-			raiseSyntaxError(p.pos.row, synErrSemicolonNoNewline)
+			raiseSyntaxError(p.pos.Row, synErrSemicolonNoNewline)
 		}
 	}
 
@@ -248,12 +248,12 @@ func (p *parser) parseProduction() *ProductionNode {
 	dir := p.parseDirective()
 	if dir != nil {
 		if !p.consume(tokenKindNewline) {
-			raiseSyntaxError(p.pos.row, synErrProdDirNoNewline)
+			raiseSyntaxError(p.pos.Row, synErrProdDirNoNewline)
 		}
 	}
 
 	if !p.consume(tokenKindID) {
-		raiseSyntaxError(p.pos.row, synErrNoProductionName)
+		raiseSyntaxError(p.pos.Row, synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
 	lhsPos := p.lastTok.pos
@@ -261,7 +261,7 @@ func (p *parser) parseProduction() *ProductionNode {
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindColon) {
-		raiseSyntaxError(p.pos.row, synErrNoColon)
+		raiseSyntaxError(p.pos.Row, synErrNoColon)
 	}
 
 	alt := p.parseAlternative()
@@ -279,12 +279,12 @@ func (p *parser) parseProduction() *ProductionNode {
 	p.consume(tokenKindNewline)
 
 	if !p.consume(tokenKindSemicolon) {
-		raiseSyntaxError(p.pos.row, synErrNoSemicolon)
+		raiseSyntaxError(p.pos.Row, synErrNoSemicolon)
 	}
 
 	if !p.consume(tokenKindNewline) {
 		if !p.consume(tokenKindEOF) {
-			raiseSyntaxError(p.pos.row, synErrSemicolonNoNewline)
+			raiseSyntaxError(p.pos.Row, synErrSemicolonNoNewline)
 		}
 	}
 
@@ -344,7 +344,7 @@ func (p *parser) parseDirective() *DirectiveNode {
 	dirPos := p.lastTok.pos
 
 	if !p.consume(tokenKindID) {
-		raiseSyntaxError(p.pos.row, synErrNoDirectiveName)
+		raiseSyntaxError(p.pos.Row, synErrNoDirectiveName)
 	}
 	name := p.lastTok.text
 
@@ -373,7 +373,7 @@ func (p *parser) parseParameter() *ParameterNode {
 		}
 	case p.consume(tokenKindTreeNodeOpen):
 		if !p.consume(tokenKindID) {
-			raiseSyntaxError(p.pos.row, synErrTreeInvalidFirstElem)
+			raiseSyntaxError(p.pos.Row, synErrTreeInvalidFirstElem)
 		}
 		name := p.lastTok.text
 		namePos := p.lastTok.pos
@@ -396,7 +396,7 @@ func (p *parser) parseParameter() *ParameterNode {
 		}
 
 		if !p.consume(tokenKindTreeNodeClose) {
-			raiseSyntaxError(p.pos.row, synErrTreeUnclosed)
+			raiseSyntaxError(p.pos.Row, synErrTreeUnclosed)
 		}
 
 		return &ParameterNode{
@@ -426,7 +426,7 @@ func (p *parser) consume(expected tokenKind) bool {
 	}
 	p.pos = tok.pos
 	if tok.kind == tokenKindInvalid {
-		raiseSyntaxError(p.pos.row, synErrInvalidToken)
+		raiseSyntaxError(p.pos.Row, synErrInvalidToken)
 	}
 	if tok.kind == expected {
 		p.lastTok = tok
@@ -449,7 +449,7 @@ func (p *parser) skip() {
 			if err != nil {
 				p.errs = append(p.errs, &verr.SpecError{
 					Cause: err,
-					Row:   p.pos.row,
+					Row:   p.pos.Row,
 				})
 				continue
 			}

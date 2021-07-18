@@ -35,12 +35,12 @@ const (
 )
 
 type Position struct {
-	row int
+	Row int
 }
 
 func newPosition(row int) Position {
 	return Position{
-		row: row,
+		Row: row,
 	}
 }
 

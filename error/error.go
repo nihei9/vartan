@@ -25,6 +25,7 @@ func (e SpecErrors) Error() string {
 
 type SpecError struct {
 	Cause      error
+	Detail     string
 	FilePath   string
 	SourceName string
 	Row        int
@@ -39,6 +40,9 @@ func (e *SpecError) Error() string {
 		fmt.Fprintf(&b, "%v: ", e.Row)
 	}
 	fmt.Fprintf(&b, "error: %v", e.Cause)
+	if e.Detail != "" {
+		fmt.Fprintf(&b, ": %v", e.Detail)
+	}
 
 	line := readLine(e.FilePath, e.Row)
 	if line != "" {
