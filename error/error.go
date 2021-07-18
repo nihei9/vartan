@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -14,9 +15,18 @@ func (e SpecErrors) Error() string {
 		return ""
 	}
 
+	sorted := make([]*SpecError, len(e))
+	copy(sorted, e)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].Row < sorted[j].Row
+	})
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].FilePath < sorted[j].FilePath
+	})
+
 	var b strings.Builder
-	fmt.Fprintf(&b, "%v", e[0])
-	for _, err := range e[1:] {
+	fmt.Fprintf(&b, "%v", sorted[0])
+	for _, err := range sorted[1:] {
 		fmt.Fprintf(&b, "\n%v", err)
 	}
 
