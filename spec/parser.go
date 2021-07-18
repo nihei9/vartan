@@ -17,6 +17,7 @@ type ProductionNode struct {
 	Directive *DirectiveNode
 	LHS       string
 	RHS       []*AlternativeNode
+	Pos       Position
 }
 
 func (n *ProductionNode) isLexical() bool {
@@ -29,36 +30,43 @@ func (n *ProductionNode) isLexical() bool {
 type AlternativeNode struct {
 	Elements  []*ElementNode
 	Directive *DirectiveNode
+	Pos       Position
 }
 
 type ElementNode struct {
 	ID      string
 	Pattern string
+	Pos     Position
 }
 
 type DirectiveNode struct {
 	Name       string
 	Parameters []*ParameterNode
+	Pos        Position
 }
 
 type ParameterNode struct {
 	ID   string
 	Tree *TreeStructNode
+	Pos  Position
 }
 
 type TreeStructNode struct {
 	Name     string
 	Children []*TreeChildNode
+	Pos      Position
 }
 
 type TreeChildNode struct {
 	Position  int
 	Expansion bool
+	Pos       Position
 }
 
 type FragmentNode struct {
 	LHS string
 	RHS string
+	Pos Position
 }
 
 func raiseSyntaxError(row int, synErr *SyntaxError) {
@@ -85,7 +93,7 @@ type parser struct {
 
 	// A token position that the parser read at last.
 	// It is used as additional information in error messages.
-	pos position
+	pos Position
 }
 
 func newParser(src io.Reader) (*parser, error) {
@@ -181,6 +189,7 @@ func (p *parser) parseFragment() *FragmentNode {
 		raiseSyntaxError(p.pos.row, synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
+	lhsPos := p.lastTok.pos
 
 	p.consume(tokenKindNewline)
 
@@ -208,6 +217,7 @@ func (p *parser) parseFragment() *FragmentNode {
 	return &FragmentNode{
 		LHS: lhs,
 		RHS: rhs,
+		Pos: lhsPos,
 	}
 }
 
@@ -246,6 +256,7 @@ func (p *parser) parseProduction() *ProductionNode {
 		raiseSyntaxError(p.pos.row, synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
+	lhsPos := p.lastTok.pos
 
 	p.consume(tokenKindNewline)
 
@@ -281,6 +292,7 @@ func (p *parser) parseProduction() *ProductionNode {
 		Directive: dir,
 		LHS:       lhs,
 		RHS:       rhs,
+		Pos:       lhsPos,
 	}
 }
 
@@ -294,11 +306,18 @@ func (p *parser) parseAlternative() *AlternativeNode {
 		elems = append(elems, elem)
 	}
 
+	// When a length of an alternative is zero, we cannot set a position.
+	var firstElemPos Position
+	if len(elems) > 0 {
+		firstElemPos = elems[0].Pos
+	}
+
 	dir := p.parseDirective()
 
 	return &AlternativeNode{
 		Elements:  elems,
 		Directive: dir,
+		Pos:       firstElemPos,
 	}
 }
 
@@ -306,11 +325,13 @@ func (p *parser) parseElement() *ElementNode {
 	switch {
 	case p.consume(tokenKindID):
 		return &ElementNode{
-			ID: p.lastTok.text,
+			ID:  p.lastTok.text,
+			Pos: p.lastTok.pos,
 		}
 	case p.consume(tokenKindTerminalPattern):
 		return &ElementNode{
 			Pattern: p.lastTok.text,
+			Pos:     p.lastTok.pos,
 		}
 	}
 	return nil
@@ -320,6 +341,7 @@ func (p *parser) parseDirective() *DirectiveNode {
 	if !p.consume(tokenKindDirectiveMarker) {
 		return nil
 	}
+	dirPos := p.lastTok.pos
 
 	if !p.consume(tokenKindID) {
 		raiseSyntaxError(p.pos.row, synErrNoDirectiveName)
@@ -338,6 +360,7 @@ func (p *parser) parseDirective() *DirectiveNode {
 	return &DirectiveNode{
 		Name:       name,
 		Parameters: params,
+		Pos:        dirPos,
 	}
 }
 
@@ -345,13 +368,15 @@ func (p *parser) parseParameter() *ParameterNode {
 	switch {
 	case p.consume(tokenKindID):
 		return &ParameterNode{
-			ID: p.lastTok.text,
+			ID:  p.lastTok.text,
+			Pos: p.lastTok.pos,
 		}
 	case p.consume(tokenKindTreeNodeOpen):
 		if !p.consume(tokenKindID) {
 			raiseSyntaxError(p.pos.row, synErrTreeInvalidFirstElem)
 		}
 		name := p.lastTok.text
+		namePos := p.lastTok.pos
 
 		var children []*TreeChildNode
 		for {
@@ -361,6 +386,7 @@ func (p *parser) parseParameter() *ParameterNode {
 
 			child := &TreeChildNode{
 				Position: p.lastTok.num,
+				Pos:      p.lastTok.pos,
 			}
 			if p.consume(tokenKindExpantion) {
 				child.Expansion = true
@@ -377,7 +403,9 @@ func (p *parser) parseParameter() *ParameterNode {
 			Tree: &TreeStructNode{
 				Name:     name,
 				Children: children,
+				Pos:      namePos,
 			},
+			Pos: namePos,
 		}
 	}
 

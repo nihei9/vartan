@@ -34,12 +34,12 @@ const (
 	tokenKindInvalid         = tokenKind("invalid")
 )
 
-type position struct {
+type Position struct {
 	row int
 }
 
-func newPosition(row int) position {
-	return position{
+func newPosition(row int) Position {
+	return Position{
 		row: row,
 	}
 }
@@ -48,17 +48,17 @@ type token struct {
 	kind tokenKind
 	text string
 	num  int
-	pos  position
+	pos  Position
 }
 
-func newSymbolToken(kind tokenKind, pos position) *token {
+func newSymbolToken(kind tokenKind, pos Position) *token {
 	return &token{
 		kind: kind,
 		pos:  pos,
 	}
 }
 
-func newIDToken(text string, pos position) *token {
+func newIDToken(text string, pos Position) *token {
 	return &token{
 		kind: tokenKindID,
 		text: text,
@@ -66,7 +66,7 @@ func newIDToken(text string, pos position) *token {
 	}
 }
 
-func newTerminalPatternToken(text string, pos position) *token {
+func newTerminalPatternToken(text string, pos Position) *token {
 	return &token{
 		kind: tokenKindTerminalPattern,
 		text: text,
@@ -74,7 +74,7 @@ func newTerminalPatternToken(text string, pos position) *token {
 	}
 }
 
-func newPositionToken(num int, pos position) *token {
+func newPositionToken(num int, pos Position) *token {
 	return &token{
 		kind: tokenKindPosition,
 		num:  num,

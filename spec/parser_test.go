@@ -14,6 +14,10 @@ func TestParse(t *testing.T) {
 			RHS: alts,
 		}
 	}
+	withProdPos := func(prod *ProductionNode, pos Position) *ProductionNode {
+		prod.Pos = pos
+		return prod
+	}
 	withProdDir := func(prod *ProductionNode, dir *DirectiveNode) *ProductionNode {
 		prod.Directive = dir
 		return prod
@@ -22,6 +26,10 @@ func TestParse(t *testing.T) {
 		return &AlternativeNode{
 			Elements: elems,
 		}
+	}
+	withAltPos := func(alt *AlternativeNode, pos Position) *AlternativeNode {
+		alt.Pos = pos
+		return alt
 	}
 	withAltDir := func(alt *AlternativeNode, dir *DirectiveNode) *AlternativeNode {
 		alt.Directive = dir
@@ -32,6 +40,10 @@ func TestParse(t *testing.T) {
 			Name:       name,
 			Parameters: params,
 		}
+	}
+	withDirPos := func(dir *DirectiveNode, pos Position) *DirectiveNode {
+		dir.Pos = pos
+		return dir
 	}
 	idParam := func(id string) *ParameterNode {
 		return &ParameterNode{
@@ -46,6 +58,10 @@ func TestParse(t *testing.T) {
 			},
 		}
 	}
+	withParamPos := func(param *ParameterNode, pos Position) *ParameterNode {
+		param.Pos = pos
+		return param
+	}
 	pos := func(pos int) *TreeChildNode {
 		return &TreeChildNode{
 			Position: pos,
@@ -54,6 +70,10 @@ func TestParse(t *testing.T) {
 	exp := func(c *TreeChildNode) *TreeChildNode {
 		c.Expansion = true
 		return c
+	}
+	withTreeChildPos := func(child *TreeChildNode, pos Position) *TreeChildNode {
+		child.Pos = pos
+		return child
 	}
 	id := func(id string) *ElementNode {
 		return &ElementNode{
@@ -65,18 +85,27 @@ func TestParse(t *testing.T) {
 			Pattern: p,
 		}
 	}
+	withElemPos := func(elem *ElementNode, pos Position) *ElementNode {
+		elem.Pos = pos
+		return elem
+	}
 	frag := func(lhs string, rhs string) *FragmentNode {
 		return &FragmentNode{
 			LHS: lhs,
 			RHS: rhs,
 		}
 	}
+	withFragmentPos := func(frag *FragmentNode, pos Position) *FragmentNode {
+		frag.Pos = pos
+		return frag
+	}
 
 	tests := []struct {
-		caption string
-		src     string
-		ast     *RootNode
-		synErr  *SyntaxError
+		caption       string
+		src           string
+		checkPosition bool
+		ast           *RootNode
+		synErr        *SyntaxError
 	}{
 		{
 			caption: "single production is a valid grammar",
@@ -348,6 +377,114 @@ foo: "foo";
 `,
 			synErr: synErrTreeUnclosed,
 		},
+		{
+			caption: "an AST has node positions",
+			src: `
+#mode default
+exp
+    : exp "\+" id #ast '(exp $1 $2)
+    | id
+    ;
+whitespace: "\u{0020}+" #skip;
+id: "\f{letter}(\f{letter}|\f{number})*";
+fragment letter: "[A-Za-z_]";
+fragment number: "[0-9]";
+`,
+			checkPosition: true,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					withProdPos(
+						withProdDir(
+							prod("exp",
+								withAltPos(
+									withAltDir(
+										alt(
+											withElemPos(id("exp"), newPosition(4)),
+											withElemPos(pat(`\+`), newPosition(4)),
+											withElemPos(id("id"), newPosition(4)),
+										),
+										withDirPos(
+											dir("ast",
+												withParamPos(
+													treeParam("exp",
+														withTreeChildPos(pos(1), newPosition(4)),
+														withTreeChildPos(pos(2), newPosition(4))),
+													newPosition(4),
+												),
+											),
+											newPosition(4),
+										),
+									),
+									newPosition(4),
+								),
+								withAltPos(
+									alt(
+										withElemPos(id("id"), newPosition(5)),
+									),
+									newPosition(5),
+								),
+							),
+							withDirPos(
+								dir("mode",
+									withParamPos(
+										idParam("default"),
+										newPosition(2),
+									),
+								),
+								newPosition(2),
+							),
+						),
+						newPosition(3),
+					),
+				},
+				LexProductions: []*ProductionNode{
+					withProdPos(
+						prod("whitespace",
+							withAltPos(
+								withAltDir(
+									alt(
+										withElemPos(
+											pat(`\u{0020}+`),
+											newPosition(7),
+										),
+									),
+									withDirPos(
+										dir("skip"),
+										newPosition(7),
+									),
+								),
+								newPosition(7),
+							),
+						),
+						newPosition(7),
+					),
+					withProdPos(
+						prod("id",
+							withAltPos(
+								alt(
+									withElemPos(
+										pat(`\f{letter}(\f{letter}|\f{number})*`),
+										newPosition(8),
+									),
+								),
+								newPosition(8),
+							),
+						),
+						newPosition(8),
+					),
+				},
+				Fragments: []*FragmentNode{
+					withFragmentPos(
+						frag("letter", "[A-Za-z_]"),
+						newPosition(9),
+					),
+					withFragmentPos(
+						frag("number", "[0-9]"),
+						newPosition(10),
+					),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.caption, func(t *testing.T) {
@@ -371,26 +508,29 @@ foo: "foo";
 				if ast == nil {
 					t.Fatalf("AST must be non-nil")
 				}
-				testRootNode(t, ast, tt.ast)
+				testRootNode(t, ast, tt.ast, tt.checkPosition)
 			}
 		})
 	}
 }
 
-func testRootNode(t *testing.T, root, expected *RootNode) {
+func testRootNode(t *testing.T, root, expected *RootNode, checkPosition bool) {
 	t.Helper()
 	if len(root.Productions) != len(expected.Productions) {
 		t.Fatalf("unexpected length of productions; want: %v, got: %v", len(expected.Productions), len(root.Productions))
 	}
 	for i, prod := range root.Productions {
-		testProductionNode(t, prod, expected.Productions[i])
+		testProductionNode(t, prod, expected.Productions[i], checkPosition)
 	}
 	for i, prod := range root.LexProductions {
-		testProductionNode(t, prod, expected.LexProductions[i])
+		testProductionNode(t, prod, expected.LexProductions[i], checkPosition)
+	}
+	for i, frag := range root.Fragments {
+		testFragmentNode(t, frag, expected.Fragments[i], checkPosition)
 	}
 }
 
-func testProductionNode(t *testing.T, prod, expected *ProductionNode) {
+func testProductionNode(t *testing.T, prod, expected *ProductionNode, checkPosition bool) {
 	t.Helper()
 	if expected.Directive == nil && prod.Directive != nil {
 		t.Fatalf("unexpected directive; want: nil, got: %+v", prod.Directive)
@@ -399,7 +539,7 @@ func testProductionNode(t *testing.T, prod, expected *ProductionNode) {
 		if prod.Directive == nil {
 			t.Fatalf("a directive is not set; want: %+v, got: nil", expected.Directive)
 		}
-		testDirective(t, prod.Directive, expected.Directive)
+		testDirective(t, prod.Directive, expected.Directive, checkPosition)
 	}
 	if prod.LHS != expected.LHS {
 		t.Fatalf("unexpected LHS; want: %v, got: %v", expected.LHS, prod.LHS)
@@ -408,17 +548,33 @@ func testProductionNode(t *testing.T, prod, expected *ProductionNode) {
 		t.Fatalf("unexpected length of an RHS; want: %v, got: %v", len(expected.RHS), len(prod.RHS))
 	}
 	for i, alt := range prod.RHS {
-		testAlternativeNode(t, alt, expected.RHS[i])
+		testAlternativeNode(t, alt, expected.RHS[i], checkPosition)
+	}
+	if checkPosition {
+		testPosition(t, prod.Pos, expected.Pos)
 	}
 }
 
-func testAlternativeNode(t *testing.T, alt, expected *AlternativeNode) {
+func testFragmentNode(t *testing.T, frag, expected *FragmentNode, checkPosition bool) {
+	t.Helper()
+	if frag.LHS != expected.LHS {
+		t.Fatalf("unexpected LHS; want: %v, got: %v", expected.LHS, frag.LHS)
+	}
+	if frag.RHS != expected.RHS {
+		t.Fatalf("unexpected RHS; want: %v, got: %v", expected.RHS, frag.RHS)
+	}
+	if checkPosition {
+		testPosition(t, frag.Pos, expected.Pos)
+	}
+}
+
+func testAlternativeNode(t *testing.T, alt, expected *AlternativeNode, checkPosition bool) {
 	t.Helper()
 	if len(alt.Elements) != len(expected.Elements) {
 		t.Fatalf("unexpected length of elements; want: %v, got: %v", len(expected.Elements), len(alt.Elements))
 	}
 	for i, elem := range alt.Elements {
-		testElementNode(t, elem, expected.Elements[i])
+		testElementNode(t, elem, expected.Elements[i], checkPosition)
 	}
 	if expected.Directive == nil && alt.Directive != nil {
 		t.Fatalf("unexpected directive; want: nil, got: %+v", alt.Directive)
@@ -427,18 +583,27 @@ func testAlternativeNode(t *testing.T, alt, expected *AlternativeNode) {
 		if alt.Directive == nil {
 			t.Fatalf("a directive is not set; want: %+v, got: nil", expected.Directive)
 		}
-		testDirective(t, alt.Directive, expected.Directive)
+		testDirective(t, alt.Directive, expected.Directive, checkPosition)
+	}
+	if checkPosition {
+		testPosition(t, alt.Pos, expected.Pos)
 	}
 }
 
-func testElementNode(t *testing.T, elem, expected *ElementNode) {
+func testElementNode(t *testing.T, elem, expected *ElementNode, checkPosition bool) {
 	t.Helper()
+	if elem.ID != expected.ID {
+		t.Fatalf("unexpected ID; want: %v, got: %v", expected.ID, elem.ID)
+	}
 	if elem.Pattern != expected.Pattern {
 		t.Fatalf("unexpected pattern; want: %v, got: %v", expected.Pattern, elem.Pattern)
 	}
+	if checkPosition {
+		testPosition(t, elem.Pos, expected.Pos)
+	}
 }
 
-func testDirective(t *testing.T, dir, expected *DirectiveNode) {
+func testDirective(t *testing.T, dir, expected *DirectiveNode, checkPosition bool) {
 	t.Helper()
 	if expected.Name != dir.Name {
 		t.Fatalf("unexpected directive name; want: %+v, got: %+v", expected.Name, dir.Name)
@@ -447,11 +612,14 @@ func testDirective(t *testing.T, dir, expected *DirectiveNode) {
 		t.Fatalf("unexpected directive parameter; want: %+v, got: %+v", expected.Parameters, dir.Parameters)
 	}
 	for i, param := range dir.Parameters {
-		testParameter(t, param, expected.Parameters[i])
+		testParameter(t, param, expected.Parameters[i], checkPosition)
+	}
+	if checkPosition {
+		testPosition(t, dir.Pos, expected.Pos)
 	}
 }
 
-func testParameter(t *testing.T, param, expected *ParameterNode) {
+func testParameter(t *testing.T, param, expected *ParameterNode, checkPosition bool) {
 	t.Helper()
 	if param.ID != expected.ID {
 		t.Fatalf("unexpected ID parameter; want: %v, got: %v", expected.ID, param.ID)
@@ -474,6 +642,19 @@ func testParameter(t *testing.T, param, expected *ParameterNode) {
 			if c.Position != e.Position || c.Expansion != e.Expansion {
 				t.Fatalf("unexpected child; want: %+v, got: %+v", e, c)
 			}
+			if checkPosition {
+				testPosition(t, c.Pos, e.Pos)
+			}
 		}
+	}
+	if checkPosition {
+		testPosition(t, param.Pos, expected.Pos)
+	}
+}
+
+func testPosition(t *testing.T, pos, expected Position) {
+	t.Helper()
+	if pos.row != expected.row {
+		t.Fatalf("unexpected position want: %+v, got: %+v", expected, pos)
 	}
 }
