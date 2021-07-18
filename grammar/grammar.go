@@ -66,6 +66,15 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	skipKinds := []mlspec.LexKind{}
 	entries := []*mlspec.LexEntry{}
 	for _, prod := range root.LexProductions {
+		if _, exist := symTab.toSymbol(prod.LHS); exist {
+			b.errs = append(b.errs, &verr.SpecError{
+				Cause:  semErrDuplicateSym,
+				Detail: prod.LHS,
+				Row:    prod.Pos.Row,
+			})
+			continue
+		}
+
 		_, err := symTab.registerTerminalSymbol(prod.LHS)
 		if err != nil {
 			return nil, err
@@ -129,7 +138,18 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	// Anonymous patterns take precedence over explicitly defined lexical specifications.
 	entries = append(anonEntries, entries...)
 
+	checkedFragments := map[string]struct{}{}
 	for _, fragment := range root.Fragments {
+		if _, exist := checkedFragments[fragment.LHS]; exist {
+			b.errs = append(b.errs, &verr.SpecError{
+				Cause:  semErrDuplicateSym,
+				Detail: fragment.LHS,
+				Row:    fragment.Pos.Row,
+			})
+			continue
+		}
+		checkedFragments[fragment.LHS] = struct{}{}
+
 		entries = append(entries, &mlspec.LexEntry{
 			Fragment: true,
 			Kind:     mlspec.LexKind(fragment.LHS),

@@ -17,6 +17,7 @@ func (e *SemanticError) Error() string {
 var (
 	semErrNoProduction    = newSemanticError("a grammar needs at least one production")
 	semErrUndefinedSym    = newSemanticError("undefined symbol")
+	semErrDuplicateSym    = newSemanticError("duplicate symbol")
 	semErrDirInvalidName  = newSemanticError("invalid directive name")
 	semErrDirInvalidParam = newSemanticError("invalid parameter")
 )
