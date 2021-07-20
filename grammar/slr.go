@@ -2,6 +2,7 @@ package grammar
 
 import (
 	"fmt"
+	"strings"
 )
 
 type ActionType string
@@ -64,6 +65,35 @@ func (e goToEntry) describe() (GoToType, stateNum) {
 	return GoToTypeRegistered, stateNum(e)
 }
 
+type conflict interface {
+	conflict()
+}
+
+type shiftReduceConflict struct {
+	state     stateNum
+	sym       symbol
+	nextState stateNum
+	prodNum   productionNum
+}
+
+func (c *shiftReduceConflict) conflict() {
+}
+
+type reduceReduceConflict struct {
+	state    stateNum
+	sym      symbol
+	prodNum1 productionNum
+	prodNum2 productionNum
+}
+
+func (c *reduceReduceConflict) conflict() {
+}
+
+var (
+	_ conflict = &shiftReduceConflict{}
+	_ conflict = &reduceReduceConflict{}
+)
+
 type ParsingTable struct {
 	actionTable      []actionEntry
 	goToTable        []goToEntry
@@ -84,13 +114,18 @@ func (t *ParsingTable) getGoTo(state stateNum, sym symbolNum) (GoToType, stateNu
 	return t.goToTable[pos].describe()
 }
 
-func (t *ParsingTable) writeShiftAction(state stateNum, sym symbol, nextState stateNum) error {
+func (t *ParsingTable) writeShiftAction(state stateNum, sym symbol, nextState stateNum) conflict {
 	pos := state.Int()*t.terminalCount + sym.num().Int()
 	act := t.actionTable[pos]
 	if !act.isEmpty() {
-		ty, _, _ := act.describe()
+		ty, _, p := act.describe()
 		if ty == ActionTypeReduce {
-			return fmt.Errorf("shift/reduce conflict")
+			return &shiftReduceConflict{
+				state:     state,
+				sym:       sym,
+				nextState: nextState,
+				prodNum:   p,
+			}
 		}
 	}
 	t.actionTable[pos] = newShiftActionEntry(nextState)
@@ -98,15 +133,25 @@ func (t *ParsingTable) writeShiftAction(state stateNum, sym symbol, nextState st
 	return nil
 }
 
-func (t *ParsingTable) writeReduceAction(state stateNum, sym symbol, prod productionNum) error {
+func (t *ParsingTable) writeReduceAction(state stateNum, sym symbol, prod productionNum) conflict {
 	pos := state.Int()*t.terminalCount + sym.num().Int()
 	act := t.actionTable[pos]
 	if !act.isEmpty() {
-		ty, _, p := act.describe()
+		ty, s, p := act.describe()
 		if ty == ActionTypeReduce && p != prod {
-			return fmt.Errorf("reduce/reduce conflict")
+			return &reduceReduceConflict{
+				state:    state,
+				sym:      sym,
+				prodNum1: p,
+				prodNum2: prod,
+			}
 		}
-		return fmt.Errorf("shift/reduce conflict")
+		return &shiftReduceConflict{
+			state:     state,
+			sym:       sym,
+			nextState: s,
+			prodNum:   prod,
+		}
 	}
 	t.actionTable[pos] = newReduceActionEntry(prod)
 
@@ -118,27 +163,38 @@ func (t *ParsingTable) writeGoTo(state stateNum, sym symbol, nextState stateNum)
 	t.goToTable[pos] = newGoToEntry(nextState)
 }
 
-func genSLRParsingTable(automaton *lr0Automaton, prods *productionSet, follow *followSet, termCount, nonTermCount int) (*ParsingTable, error) {
+type slrTableBuilder struct {
+	automaton    *lr0Automaton
+	prods        *productionSet
+	follow       *followSet
+	termCount    int
+	nonTermCount int
+	symTab       *symbolTable
+}
+
+func (b *slrTableBuilder) build() (*ParsingTable, error) {
 	var ptab *ParsingTable
 	{
-		initialState := automaton.states[automaton.initialState]
+		initialState := b.automaton.states[b.automaton.initialState]
 		ptab = &ParsingTable{
-			actionTable:      make([]actionEntry, len(automaton.states)*termCount),
-			goToTable:        make([]goToEntry, len(automaton.states)*nonTermCount),
-			stateCount:       len(automaton.states),
-			terminalCount:    termCount,
-			nonTerminalCount: nonTermCount,
+			actionTable:      make([]actionEntry, len(b.automaton.states)*b.termCount),
+			goToTable:        make([]goToEntry, len(b.automaton.states)*b.nonTermCount),
+			stateCount:       len(b.automaton.states),
+			terminalCount:    b.termCount,
+			nonTerminalCount: b.nonTermCount,
 			InitialState:     initialState.num,
 		}
 	}
 
-	for _, state := range automaton.states {
+	var conflicts []conflict
+	for _, state := range b.automaton.states {
 		for sym, kID := range state.next {
-			nextState := automaton.states[kID]
+			nextState := b.automaton.states[kID]
 			if sym.isTerminal() {
-				err := ptab.writeShiftAction(state.num, sym, nextState.num)
-				if err != nil {
-					return nil, err
+				c := ptab.writeShiftAction(state.num, sym, nextState.num)
+				if c != nil {
+					conflicts = append(conflicts, c)
+					continue
 				}
 			} else {
 				ptab.writeGoTo(state.num, sym, nextState.num)
@@ -146,24 +202,47 @@ func genSLRParsingTable(automaton *lr0Automaton, prods *productionSet, follow *f
 		}
 
 		for prodID := range state.reducible {
-			prod, _ := prods.findByID(prodID)
-			flw, err := follow.find(prod.lhs)
+			prod, _ := b.prods.findByID(prodID)
+			flw, err := b.follow.find(prod.lhs)
 			if err != nil {
 				return nil, err
 			}
 			for sym := range flw.symbols {
-				err := ptab.writeReduceAction(state.num, sym, prod.num)
-				if err != nil {
-					return nil, err
+				c := ptab.writeReduceAction(state.num, sym, prod.num)
+				if c != nil {
+					conflicts = append(conflicts, c)
+					continue
 				}
 			}
 			if flw.eof {
-				err := ptab.writeReduceAction(state.num, symbolEOF, prod.num)
-				if err != nil {
-					return nil, err
+				c := ptab.writeReduceAction(state.num, symbolEOF, prod.num)
+				if c != nil {
+					conflicts = append(conflicts, c)
+					continue
 				}
 			}
 		}
+	}
+	if len(conflicts) > 0 {
+		var msg strings.Builder
+		for _, conflict := range conflicts {
+			fmt.Fprintf(&msg, "\n")
+			switch c := conflict.(type) {
+			case *shiftReduceConflict:
+				sym, ok := b.symTab.toText(c.sym)
+				if !ok {
+					sym = fmt.Sprintf("<not found: %v>", c.sym)
+				}
+				fmt.Fprintf(&msg, "%v: shift/reduce conflict (shift %v, reduce %v) on %v", c.state, c.nextState, c.prodNum, sym)
+			case *reduceReduceConflict:
+				sym, ok := b.symTab.toText(c.sym)
+				if !ok {
+					sym = fmt.Sprintf("<not found: %v>", c.sym)
+				}
+				fmt.Fprintf(&msg, "%v: reduce/reduce conflict (reduce %v and %v) on %v", c.state, c.prodNum1, c.prodNum2, sym)
+			}
+		}
+		return nil, fmt.Errorf("%v conflicts:%v", len(conflicts), msg.String())
 	}
 
 	return ptab, nil

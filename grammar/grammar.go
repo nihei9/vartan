@@ -487,7 +487,15 @@ func Compile(gram *Grammar) (*spec.CompiledGrammar, error) {
 		return nil, err
 	}
 
-	tab, err := genSLRParsingTable(lr0, gram.productionSet, followSet, len(terms), len(nonTerms))
+	slr := &slrTableBuilder{
+		automaton:    lr0,
+		prods:        gram.productionSet,
+		follow:       followSet,
+		termCount:    len(terms),
+		nonTermCount: len(nonTerms),
+		symTab:       gram.symbolTable,
+	}
+	tab, err := slr.build()
 	if err != nil {
 		return nil, err
 	}

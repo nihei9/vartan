@@ -68,7 +68,15 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		nonTermCount = len(nonTermTexts)
 		termCount = len(termTexts)
 
-		ptab, err = genSLRParsingTable(automaton, gram.productionSet, follow, termCount, nonTermCount)
+		slr := &slrTableBuilder{
+			automaton:    automaton,
+			prods:        gram.productionSet,
+			follow:       follow,
+			termCount:    termCount,
+			nonTermCount: nonTermCount,
+			symTab:       gram.symbolTable,
+		}
+		ptab, err = slr.build()
 		if err != nil {
 			t.Fatalf("failed to create a SLR parsing table: %v", err)
 		}
