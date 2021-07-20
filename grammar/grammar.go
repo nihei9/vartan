@@ -17,6 +17,7 @@ type astActionEntry struct {
 type Grammar struct {
 	lexSpec              *mlspec.LexSpec
 	skipLexKinds         []mlspec.LexKind
+	sym2AnonPat          map[symbol]string
 	productionSet        *productionSet
 	augmentedStartSymbol symbol
 	symbolTable          *symbolTable
@@ -47,6 +48,7 @@ func (b *GrammarBuilder) Build(root *spec.RootNode) (*Grammar, error) {
 	return &Grammar{
 		lexSpec:              symTabAndLexSpec.lexSpec,
 		skipLexKinds:         symTabAndLexSpec.skip,
+		sym2AnonPat:          symTabAndLexSpec.sym2AnonPat,
 		productionSet:        prodsAndActs.prods,
 		augmentedStartSymbol: prodsAndActs.augStartSym,
 		symbolTable:          symTabAndLexSpec.symTab,
@@ -57,6 +59,7 @@ func (b *GrammarBuilder) Build(root *spec.RootNode) (*Grammar, error) {
 type symbolTableAndLexSpec struct {
 	symTab      *symbolTable
 	anonPat2Sym map[string]symbol
+	sym2AnonPat map[symbol]string
 	lexSpec     *mlspec.LexSpec
 	skip        []mlspec.LexKind
 }
@@ -95,6 +98,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	}
 
 	anonPat2Sym := map[string]symbol{}
+	sym2AnonPat := map[symbol]string{}
 	var anonEntries []*mlspec.LexEntry
 	{
 		anonPats := []string{}
@@ -127,6 +131,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 				return nil, err
 			}
 			anonPat2Sym[p] = sym
+			sym2AnonPat[sym] = p
 
 			anonEntries = append(anonEntries, &mlspec.LexEntry{
 				Kind:    mlspec.LexKind(kind),
@@ -160,6 +165,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	return &symbolTableAndLexSpec{
 		symTab:      symTab,
 		anonPat2Sym: anonPat2Sym,
+		sym2AnonPat: sym2AnonPat,
 		lexSpec: &mlspec.LexSpec{
 			Entries: entries,
 		},
@@ -494,6 +500,7 @@ func Compile(gram *Grammar) (*spec.CompiledGrammar, error) {
 		termCount:    len(terms),
 		nonTermCount: len(nonTerms),
 		symTab:       gram.symbolTable,
+		sym2AnonPat:  gram.sym2AnonPat,
 	}
 	tab, err := slr.build()
 	if err != nil {

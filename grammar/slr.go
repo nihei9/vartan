@@ -170,6 +170,7 @@ type slrTableBuilder struct {
 	termCount    int
 	nonTermCount int
 	symTab       *symbolTable
+	sym2AnonPat  map[symbol]string
 }
 
 func (b *slrTableBuilder) build() (*ParsingTable, error) {
@@ -229,21 +230,31 @@ func (b *slrTableBuilder) build() (*ParsingTable, error) {
 			fmt.Fprintf(&msg, "\n")
 			switch c := conflict.(type) {
 			case *shiftReduceConflict:
-				sym, ok := b.symTab.toText(c.sym)
-				if !ok {
-					sym = fmt.Sprintf("<not found: %v>", c.sym)
-				}
-				fmt.Fprintf(&msg, "%v: shift/reduce conflict (shift %v, reduce %v) on %v", c.state, c.nextState, c.prodNum, sym)
+				fmt.Fprintf(&msg, "%v: shift/reduce conflict (shift %v, reduce %v) on %v", c.state, c.nextState, c.prodNum, b.symbolToText(c.sym))
 			case *reduceReduceConflict:
-				sym, ok := b.symTab.toText(c.sym)
-				if !ok {
-					sym = fmt.Sprintf("<not found: %v>", c.sym)
-				}
-				fmt.Fprintf(&msg, "%v: reduce/reduce conflict (reduce %v and %v) on %v", c.state, c.prodNum1, c.prodNum2, sym)
+				fmt.Fprintf(&msg, "%v: reduce/reduce conflict (reduce %v and %v) on %v", c.state, c.prodNum1, c.prodNum2, b.symbolToText(c.sym))
 			}
 		}
 		return nil, fmt.Errorf("%v conflicts:%v", len(conflicts), msg.String())
 	}
 
 	return ptab, nil
+}
+
+func (b *slrTableBuilder) symbolToText(sym symbol) string {
+	text, ok := b.symTab.toText(sym)
+	if !ok {
+		return fmt.Sprintf("<symbol not found: %v>", sym)
+	}
+
+	if strings.HasPrefix(text, "_") {
+		pat, ok := b.sym2AnonPat[sym]
+		if !ok {
+			return fmt.Sprintf("<pattern not found: %v>", text)
+		}
+
+		return fmt.Sprintf(`"%v"`, pat)
+	}
+
+	return text
 }
