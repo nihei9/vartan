@@ -281,8 +281,10 @@ foo: "foo";
 				t.Fatal(err)
 			}
 
-			var b grammar.GrammarBuilder
-			g, err := b.Build(ast)
+			b := grammar.GrammarBuilder{
+				AST: ast,
+			}
+			g, err := b.Build()
 			if tt.specErr {
 				if err == nil {
 					t.Fatal("an expected error didn't occur")

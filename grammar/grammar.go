@@ -2,6 +2,7 @@ package grammar
 
 import (
 	"fmt"
+	"os"
 
 	mlcompiler "github.com/nihei9/maleeni/compiler"
 	mlspec "github.com/nihei9/maleeni/spec"
@@ -25,18 +26,18 @@ type Grammar struct {
 }
 
 type GrammarBuilder struct {
+	AST *spec.RootNode
+
 	errs verr.SpecErrors
 }
 
-func (b *GrammarBuilder) Build(root *spec.RootNode) (*Grammar, error) {
-	b.errs = nil
-
-	symTabAndLexSpec, err := b.genSymbolTableAndLexSpec(root)
+func (b *GrammarBuilder) Build() (*Grammar, error) {
+	symTabAndLexSpec, err := b.genSymbolTableAndLexSpec(b.AST)
 	if err != nil {
 		return nil, err
 	}
 
-	prodsAndActs, err := b.genProductionsAndActions(root, symTabAndLexSpec)
+	prodsAndActs, err := b.genProductionsAndActions(b.AST, symTabAndLexSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +429,24 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	}, nil
 }
 
-func Compile(gram *Grammar) (*spec.CompiledGrammar, error) {
+type compileConfig struct {
+	descriptionFileName string
+}
+
+type compileOption func(config *compileConfig)
+
+func EnableDescription(fileName string) compileOption {
+	return func(config *compileConfig) {
+		config.descriptionFileName = fileName
+	}
+}
+
+func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error) {
+	config := &compileConfig{}
+	for _, opt := range opts {
+		opt(config)
+	}
+
 	lexSpec, err := mlcompiler.Compile(gram.lexSpec, mlcompiler.CompressionLevel(mlcompiler.CompressionLevelMax))
 	if err != nil {
 		return nil, err
@@ -503,6 +521,14 @@ func Compile(gram *Grammar) (*spec.CompiledGrammar, error) {
 		sym2AnonPat:  gram.sym2AnonPat,
 	}
 	tab, err := slr.build()
+	if config.descriptionFileName != "" {
+		f, err := os.OpenFile(config.descriptionFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		slr.writeDescription(f)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package grammar
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -171,6 +172,8 @@ type slrTableBuilder struct {
 	nonTermCount int
 	symTab       *symbolTable
 	sym2AnonPat  map[symbol]string
+
+	conflicts []conflict
 }
 
 func (b *slrTableBuilder) build() (*ParsingTable, error) {
@@ -224,21 +227,156 @@ func (b *slrTableBuilder) build() (*ParsingTable, error) {
 			}
 		}
 	}
+
+	b.conflicts = conflicts
+
 	if len(conflicts) > 0 {
-		var msg strings.Builder
-		for _, conflict := range conflicts {
-			fmt.Fprintf(&msg, "\n")
-			switch c := conflict.(type) {
-			case *shiftReduceConflict:
-				fmt.Fprintf(&msg, "%v: shift/reduce conflict (shift %v, reduce %v) on %v", c.state, c.nextState, c.prodNum, b.symbolToText(c.sym))
-			case *reduceReduceConflict:
-				fmt.Fprintf(&msg, "%v: reduce/reduce conflict (reduce %v and %v) on %v", c.state, c.prodNum1, c.prodNum2, b.symbolToText(c.sym))
-			}
-		}
-		return nil, fmt.Errorf("%v conflicts:%v", len(conflicts), msg.String())
+		return nil, fmt.Errorf("%v conflicts", len(conflicts))
 	}
 
 	return ptab, nil
+}
+
+func (b *slrTableBuilder) writeDescription(w io.Writer) {
+	conflicts := map[stateNum][]conflict{}
+	for _, con := range b.conflicts {
+		switch c := con.(type) {
+		case *shiftReduceConflict:
+			conflicts[c.state] = append(conflicts[c.state], c)
+		case *reduceReduceConflict:
+			conflicts[c.state] = append(conflicts[c.state], c)
+		}
+	}
+
+	fmt.Fprintf(w, "# Conflicts\n\n")
+
+	if len(b.conflicts) > 0 {
+		fmt.Fprintf(w, "%v conflics:\n\n", len(b.conflicts))
+
+		for _, conflict := range b.conflicts {
+			switch c := conflict.(type) {
+			case *shiftReduceConflict:
+				fmt.Fprintf(w, "%v: shift/reduce conflict (shift %v, reduce %v) on %v\n", c.state, c.nextState, c.prodNum, b.symbolToText(c.sym))
+			case *reduceReduceConflict:
+				fmt.Fprintf(w, "%v: reduce/reduce conflict (reduce %v and %v) on %v\n", c.state, c.prodNum1, c.prodNum2, b.symbolToText(c.sym))
+			}
+		}
+		fmt.Fprintf(w, "\n")
+	} else {
+		fmt.Fprintf(w, "no conflicts\n\n")
+	}
+
+	fmt.Fprintf(w, "# Productions\n\n")
+
+	fmt.Fprintf(w, "%v productions:\n\n", len(b.prods.getAllProductions()))
+
+	for _, prod := range b.prods.getAllProductions() {
+		fmt.Fprintf(w, "%4v %v\n", prod.num, b.productionToString(prod, -1))
+	}
+
+	fmt.Fprintf(w, "\n# States\n\n")
+
+	fmt.Fprintf(w, "%v states:\n\n", len(b.automaton.states))
+
+	for _, state := range b.automaton.states {
+		fmt.Fprintf(w, "state %v\n", state.num)
+		for _, item := range state.items {
+			prod, ok := b.prods.findByID(item.prod)
+			if !ok {
+				fmt.Fprintf(w, "<production not found>\n")
+				continue
+			}
+			fmt.Fprintf(w, "    %v\n", b.productionToString(prod, item.dot))
+		}
+
+		fmt.Fprintf(w, "\n")
+
+		var shiftRecs []string
+		var reduceRecs []string
+		var gotoRecs []string
+		var accRec string
+		{
+			for sym, kID := range state.next {
+				nextState := b.automaton.states[kID]
+				if sym.isTerminal() {
+					shiftRecs = append(shiftRecs, fmt.Sprintf("shift  %4v on %v", nextState.num, b.symbolToText(sym)))
+				} else {
+					gotoRecs = append(gotoRecs, fmt.Sprintf("goto   %4v on %v", nextState.num, b.symbolToText(sym)))
+				}
+			}
+
+			for prodID := range state.reducible {
+				prod, ok := b.prods.findByID(prodID)
+				if !ok {
+					reduceRecs = append(reduceRecs, "<production not found>")
+					continue
+				}
+				if prod.lhs.isStart() {
+					accRec = "accept on <EOF>"
+					continue
+				}
+				flw, err := b.follow.find(prod.lhs)
+				if err != nil {
+					reduceRecs = append(reduceRecs, fmt.Sprintf("%v", err))
+					continue
+				}
+				for sym := range flw.symbols {
+					reduceRecs = append(reduceRecs, fmt.Sprintf("reduce %4v on %v", prod.num, b.symbolToText(sym)))
+				}
+				if flw.eof {
+					reduceRecs = append(reduceRecs, fmt.Sprintf("reduce %4v on <EOF>", prod.num))
+				}
+			}
+		}
+
+		if len(shiftRecs) > 0 || len(reduceRecs) > 0 {
+			for _, rec := range shiftRecs {
+				fmt.Fprintf(w, "    %v\n", rec)
+			}
+			for _, rec := range reduceRecs {
+				fmt.Fprintf(w, "    %v\n", rec)
+			}
+			fmt.Fprintf(w, "\n")
+		}
+		if len(gotoRecs) > 0 {
+			for _, rec := range gotoRecs {
+				fmt.Fprintf(w, "    %v\n", rec)
+			}
+			fmt.Fprintf(w, "\n")
+		}
+		if accRec != "" {
+			fmt.Fprintf(w, "    %v\n\n", accRec)
+		}
+
+		cons, ok := conflicts[state.num]
+		if ok {
+			for _, con := range cons {
+				switch c := con.(type) {
+				case *shiftReduceConflict:
+					fmt.Fprintf(w, "    shift/reduce conflict (shift %v, reduce %v) on %v\n", c.nextState, c.prodNum, b.symbolToText(c.sym))
+				case *reduceReduceConflict:
+					fmt.Fprintf(w, "    reduce/reduce conflict (reduce %v and %v) on %v\n", c.prodNum1, c.prodNum2, b.symbolToText(c.sym))
+				}
+			}
+			fmt.Fprintf(w, "\n")
+		}
+	}
+}
+
+func (b *slrTableBuilder) productionToString(prod *production, dot int) string {
+	var w strings.Builder
+	fmt.Fprintf(&w, "%v →", b.symbolToText(prod.lhs))
+	for n, rhs := range prod.rhs {
+		if n == dot {
+			fmt.Fprintf(&w, " ・")
+		}
+		fmt.Fprintf(&w, " %v", b.symbolToText(rhs))
+	}
+	if dot == len(prod.rhs) {
+		fmt.Fprintf(&w, " ・")
+	}
+
+	return w.String()
 }
 
 func (b *slrTableBuilder) symbolToText(sym symbol) string {

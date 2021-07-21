@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	verr "github.com/nihei9/vartan/error"
 	"github.com/nihei9/vartan/grammar"
@@ -94,7 +95,13 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		return err
 	}
 
-	cgram, err := grammar.Compile(gram)
+	var descFileName string
+	{
+		_, grmFileName := filepath.Split(grmPath)
+		descFileName = fmt.Sprintf("%v.desc", strings.TrimSuffix(grmFileName, ".vr"))
+	}
+
+	cgram, err := grammar.Compile(gram, grammar.EnableDescription(descFileName))
 	if err != nil {
 		return err
 	}
@@ -119,8 +126,10 @@ func readGrammar(path string) (grm *grammar.Grammar, retErr error) {
 		return nil, err
 	}
 
-	var b grammar.GrammarBuilder
-	return b.Build(ast)
+	b := grammar.GrammarBuilder{
+		AST: ast,
+	}
+	return b.Build()
 }
 
 func writeCompiledGrammar(cgram *spec.CompiledGrammar, path string) error {
