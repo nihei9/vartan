@@ -67,6 +67,10 @@
 			"pop": true
 		},
 		{
+			"kind": "literal_pattern",
+			"pattern": "'[^']*'"
+		},
+		{
 			"kind": "colon",
 			"pattern": ":"
 		},
@@ -79,12 +83,8 @@
 			"pattern": ";"
 		},
 		{
-			"kind": "directive_marker",
-			"pattern": "#"
-		},
-		{
 			"kind": "tree_node_open",
-			"pattern": "'\\("
+			"pattern": "#\\("
 		},
 		{
 			"kind": "tree_node_close",
@@ -97,6 +97,10 @@
 		{
 			"kind": "expansion",
 			"pattern": "\\.\\.\\."
+		},
+		{
+			"kind": "directive_marker",
+			"pattern": "#"
 		}
 	]
 }

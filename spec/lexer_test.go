@@ -32,18 +32,19 @@ func TestLexer_Run(t *testing.T) {
 	}{
 		{
 			caption: "the lexer can recognize all kinds of tokens",
-			src:     `id"terminal":|;#'()$1...`,
+			src:     `id"terminal"'.*+?|()[\':|;#()$1...#`,
 			tokens: []*token{
 				idTok("id"),
 				termPatTok("terminal"),
+				termPatTok(`\.\*\+\?\|\(\)\[\\`),
 				symTok(tokenKindColon),
 				symTok(tokenKindOr),
 				symTok(tokenKindSemicolon),
-				symTok(tokenKindDirectiveMarker),
 				symTok(tokenKindTreeNodeOpen),
 				symTok(tokenKindTreeNodeClose),
 				posTok(1),
 				symTok(tokenKindExpantion),
+				symTok(tokenKindDirectiveMarker),
 				newEOFToken(),
 			},
 		},
@@ -62,6 +63,16 @@ func TestLexer_Run(t *testing.T) {
 				termPatTok(`abc"\\`),
 				newEOFToken(),
 			},
+		},
+		{
+			caption: "a pattern must include at least one character",
+			src:     `""`,
+			err:     synErrEmptyPattern,
+		},
+		{
+			caption: "a literal pattern must include at least one character",
+			src:     `''`,
+			err:     synErrEmptyPattern,
 		},
 		{
 			caption: "the lexer can recognize newlines and combine consecutive newlines into one",

@@ -210,9 +210,25 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 					Row:   l.row,
 				}
 			case "terminal_close":
-				return newTerminalPatternToken(b.String(), newPosition(l.row)), nil
+				pat := b.String()
+				if pat == "" {
+					return nil, &verr.SpecError{
+						Cause: synErrEmptyPattern,
+						Row:   l.row,
+					}
+				}
+				return newTerminalPatternToken(pat, newPosition(l.row)), nil
 			}
 		}
+	case "literal_pattern":
+		pat := strings.Trim(tok.Text(), "'")
+		if pat == "" {
+			return nil, &verr.SpecError{
+				Cause: synErrEmptyPattern,
+				Row:   l.row,
+			}
+		}
+		return newTerminalPatternToken(mlspec.EscapePattern(pat), newPosition(l.row)), nil
 	case "colon":
 		return newSymbolToken(tokenKindColon, newPosition(l.row)), nil
 	case "or":

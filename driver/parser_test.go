@@ -210,10 +210,10 @@ fragment words: "[A-Za-z\u{0020}]+";
 		{
 			specSrc: `
 list
-    : "\[" elems "]" #ast '(list $2...)
+    : "\[" elems "]" #ast #(list $2...)
     ;
 elems
-    : elems "," id #ast '(elems $1... $3)
+    : elems "," id #ast #(elems $1... $3)
     | id
     ;
 whitespace: "\u{0020}+" #skip;
@@ -245,7 +245,7 @@ id: "[A-Za-z]+";
 		{
 			specSrc: `
 s
-    : foo #ast '(start $1)
+    : foo #ast #(start $1)
     ;
 foo
     : bar
@@ -258,7 +258,7 @@ bar: "bar";
 		{
 			specSrc: `
 s
-    : "foo" #ast '(s $1...)
+    : "foo" #ast #(s $1...)
     ;
 `,
 			specErr: true,
@@ -267,7 +267,7 @@ s
 		{
 			specSrc: `
 s
-    : foo #ast '(s $1...)
+    : foo #ast #(s $1...)
     ;
 foo: "foo";
 `,

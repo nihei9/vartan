@@ -319,11 +319,11 @@ s: foo; foo: "foo";
 			caption: "a grammar can contain 'ast' directives",
 			src: `
 s
-    : foo bar_list #ast '(s $1 $2)
+    : foo bar_list #ast #(s $1 $2)
     ;
 bar_list
-    : bar_list bar #ast '(bar_list $1... $2)
-    | bar          #ast '(bar_list $1)
+    : bar_list bar #ast #(bar_list $1... $2)
+    | bar          #ast #(bar_list $1)
     ;
 foo: "foo";
 bar: "bar";
@@ -361,7 +361,7 @@ bar: "bar";
 			caption: "the first element of a tree structure must be an ID",
 			src: `
 s
-    : foo #ast '($1)
+    : foo #ast #($1)
     ;
 foo: "foo";
 `,
@@ -371,7 +371,7 @@ foo: "foo";
 			caption: "a tree structure must be closed by ')'",
 			src: `
 s
-    : foo #ast '(s $1
+    : foo #ast #(s $1
     ;
 foo: "foo";
 `,
@@ -382,7 +382,7 @@ foo: "foo";
 			src: `
 #mode default
 exp
-    : exp "\+" id #ast '(exp $1 $2)
+    : exp "\+" id #ast #(exp $1 $2)
     | id
     ;
 whitespace: "\u{0020}+" #skip;

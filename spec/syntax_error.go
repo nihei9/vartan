@@ -20,6 +20,7 @@ var (
 	synErrUnclosedTerminal  = newSyntaxError("unclosed terminal")
 	synErrInvalidEscSeq     = newSyntaxError("invalid escape sequence")
 	synErrIncompletedEscSeq = newSyntaxError("incompleted escape sequence; unexpected EOF following a backslash")
+	synErrEmptyPattern      = newSyntaxError("a pattern must include at least one character")
 	synErrZeroPos           = newSyntaxError("a position must be greater than or equal to 1")
 
 	// syntax errors
