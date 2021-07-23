@@ -150,6 +150,22 @@ bar_text: "bar";
 		},
 		{
 			specSrc: `
+foos
+    : foos foo
+    | foo
+    ;
+foo
+    : bar? baz? bra
+    ;
+whitespace: "\u{0020}+" #skip;
+bar: "bar";
+baz: "baz";
+bra: "bra";
+`,
+			src: `barbazbra barbra bazbra bra`,
+		},
+		{
+			specSrc: `
 mode_tran_seq
     : mode_tran_seq mode_tran
     | mode_tran

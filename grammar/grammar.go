@@ -266,7 +266,6 @@ type productionsAndActions struct {
 
 func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTableAndLexSpec) (*productionsAndActions, error) {
 	symTab := symTabAndLexSpec.symTab
-	anonPat2Sym := symTabAndLexSpec.anonPat2Sym
 
 	if len(root.Productions) == 0 {
 		b.errs = append(b.errs, &verr.SpecError{
@@ -314,38 +313,33 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 
 	LOOP_RHS:
 		for _, alt := range prod.RHS {
-			altSyms := make([]symbol, len(alt.Elements))
-			for i, elem := range alt.Elements {
-				var sym symbol
-				if elem.Pattern != "" {
-					var ok bool
-					sym, ok = anonPat2Sym[elem.Pattern]
-					if !ok {
-						// All patterns are assumed to be pre-detected, so it's a bug if we cannot find them here.
-						return nil, fmt.Errorf("pattern '%v' is undefined", elem.Pattern)
-					}
-				} else {
-					var ok bool
-					sym, ok = symTab.toSymbol(elem.ID)
-					if !ok {
-						b.errs = append(b.errs, &verr.SpecError{
-							Cause:  semErrUndefinedSym,
-							Detail: elem.ID,
-							Row:    elem.Pos.Row,
-						})
-						continue LOOP_RHS
-					}
-				}
-				altSyms[i] = sym
+			altSymsList, err := b.genAlternatives(alt, symTabAndLexSpec)
+			if err != nil {
+				continue LOOP_RHS
 			}
 
-			p, err := newProduction(lhsSym, altSyms)
-			if err != nil {
-				return nil, err
+			var firstProd *production
+			for _, altSyms := range altSymsList {
+				p, err := newProduction(lhsSym, altSyms)
+				if err != nil {
+					return nil, err
+				}
+				prods.append(p)
+
+				if firstProd == nil {
+					firstProd = p
+				}
 			}
-			prods.append(p)
 
 			if alt.Directive != nil {
+				if len(altSymsList) > 1 {
+					b.errs = append(b.errs, &verr.SpecError{
+						Cause: semErrCannotUseDirective,
+						Row:   alt.Pos.Row,
+					})
+					continue LOOP_RHS
+				}
+
 				dir := alt.Directive
 				switch dir.Name {
 				case "ast":
@@ -358,7 +352,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						continue LOOP_RHS
 					}
 					param := dir.Parameters[0]
-					lhsText, ok := symTab.toText(p.lhs)
+					lhsText, ok := symTab.toText(firstProd.lhs)
 					if !ok || param.Tree.Name != lhsText {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
@@ -409,7 +403,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 							expansion: c.Expansion,
 						}
 					}
-					astActs[p.id] = astAct
+					astActs[firstProd.id] = astAct
 				default:
 					b.errs = append(b.errs, &verr.SpecError{
 						Cause:  semErrDirInvalidName,
@@ -427,6 +421,70 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 		augStartSym: augStartSym,
 		astActs:     astActs,
 	}, nil
+}
+
+func (b *GrammarBuilder) genAlternatives(alt *spec.AlternativeNode, symTabAndLexSpec *symbolTableAndLexSpec) ([][]symbol, error) {
+	symTab := symTabAndLexSpec.symTab
+	anonPat2Sym := symTabAndLexSpec.anonPat2Sym
+
+	syms := make([]symbol, len(alt.Elements))
+	opts := make([]bool, len(alt.Elements))
+	for i, elem := range alt.Elements {
+		var sym symbol
+		if elem.Pattern != "" {
+			var ok bool
+			sym, ok = anonPat2Sym[elem.Pattern]
+			if !ok {
+				// All patterns are assumed to be pre-detected, so it's a bug if we cannot find them here.
+				return nil, fmt.Errorf("pattern '%v' is undefined", elem.Pattern)
+			}
+		} else {
+			var ok bool
+			sym, ok = symTab.toSymbol(elem.ID)
+			if !ok {
+				return nil, &verr.SpecError{
+					Cause:  semErrUndefinedSym,
+					Detail: elem.ID,
+					Row:    elem.Pos.Row,
+				}
+			}
+		}
+		syms[i] = sym
+		if elem.Optional {
+			opts[i] = true
+		}
+	}
+
+	return resolveQuantifiers(syms, opts), nil
+}
+
+func resolveQuantifiers(syms []symbol, opts []bool) [][]symbol {
+	var symsList [][]symbol
+	for i, optional := range opts {
+		if !optional {
+			continue
+		}
+
+		newSyms1 := syms[:]
+		newOpts1 := make([]bool, len(opts))
+		copy(newOpts1, opts)
+		newOpts1[i] = false
+		symsList = append(symsList, resolveQuantifiers(newSyms1, newOpts1)...)
+
+		newSyms2 := make([]symbol, len(syms)-1)
+		copy(newSyms2[0:i], syms[0:i])
+		copy(newSyms2[i:], syms[i+1:])
+		newOpts2 := make([]bool, len(opts)-1)
+		copy(newOpts2[i:], opts[i+1:])
+		symsList = append(symsList, resolveQuantifiers(newSyms2, newOpts2)...)
+
+		break
+	}
+	if len(symsList) > 0 {
+		return symsList
+	}
+
+	return [][]symbol{syms}
 }
 
 type compileConfig struct {

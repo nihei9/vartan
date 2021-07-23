@@ -80,9 +80,21 @@ func TestParse(t *testing.T) {
 			ID: id,
 		}
 	}
+	optID := func(id string) *ElementNode {
+		return &ElementNode{
+			ID:       id,
+			Optional: true,
+		}
+	}
 	pat := func(p string) *ElementNode {
 		return &ElementNode{
 			Pattern: p,
+		}
+	}
+	optPat := func(p string) *ElementNode {
+		return &ElementNode{
+			Pattern:  p,
+			Optional: true,
 		}
 	}
 	withElemPos := func(elem *ElementNode, pos Position) *ElementNode {
@@ -485,6 +497,52 @@ fragment number: "[0-9]";
 				},
 			},
 		},
+		{
+			caption: "IDs and patterns can be optional",
+			src: `
+a
+    : A B? 'C'?
+    ;
+A: "A";
+B: "B";
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					prod("a",
+						alt(id("A"), optID("B"), optPat("C")),
+					),
+				},
+				LexProductions: []*ProductionNode{
+					prod("A",
+						alt(pat("A")),
+					),
+					prod("B",
+						alt(pat("B")),
+					),
+				},
+			},
+		},
+		{
+			caption: "consecutive quantifiers are treated as a single quantifier",
+			src: `
+a
+    : A???
+    ;
+A: "A";
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					prod("a",
+						alt(optID("A")),
+					),
+				},
+				LexProductions: []*ProductionNode{
+					prod("A",
+						alt(pat("A")),
+					),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.caption, func(t *testing.T) {
@@ -597,6 +655,9 @@ func testElementNode(t *testing.T, elem, expected *ElementNode, checkPosition bo
 	}
 	if elem.Pattern != expected.Pattern {
 		t.Fatalf("unexpected pattern; want: %v, got: %v", expected.Pattern, elem.Pattern)
+	}
+	if elem.Optional != expected.Optional {
+		t.Fatalf("unexpected optional field; want: %v, got: %v", expected.Optional, elem.Optional)
 	}
 	if checkPosition {
 		testPosition(t, elem.Pos, expected.Pos)

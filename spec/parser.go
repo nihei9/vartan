@@ -34,9 +34,10 @@ type AlternativeNode struct {
 }
 
 type ElementNode struct {
-	ID      string
-	Pattern string
-	Pos     Position
+	ID       string
+	Pattern  string
+	Pos      Position
+	Optional bool
 }
 
 type DirectiveNode struct {
@@ -322,19 +323,32 @@ func (p *parser) parseAlternative() *AlternativeNode {
 }
 
 func (p *parser) parseElement() *ElementNode {
+	var elem *ElementNode
 	switch {
 	case p.consume(tokenKindID):
-		return &ElementNode{
+		elem = &ElementNode{
 			ID:  p.lastTok.text,
 			Pos: p.lastTok.pos,
 		}
 	case p.consume(tokenKindTerminalPattern):
-		return &ElementNode{
+		elem = &ElementNode{
 			Pattern: p.lastTok.text,
 			Pos:     p.lastTok.pos,
 		}
 	}
-	return nil
+	if elem == nil {
+		return nil
+	}
+
+	// Consecutive quantifiers are treated as a single quantifier.
+	for {
+		if !p.consume(tokenKindOption) {
+			break
+		}
+		elem.Optional = true
+	}
+
+	return elem
 }
 
 func (p *parser) parseDirective() *DirectiveNode {
