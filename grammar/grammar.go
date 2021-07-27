@@ -3,6 +3,7 @@ package grammar
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	mlcompiler "github.com/nihei9/maleeni/compiler"
 	mlspec "github.com/nihei9/maleeni/spec"
@@ -342,6 +343,42 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 			p, err := newProduction(lhsSym, altSyms)
 			if err != nil {
 				return nil, err
+			}
+			if _, exist := prods.findByID(p.id); exist {
+				// Report the line number of a duplicate alternative.
+				// When the alternative is empty, we report the position of its LHS.
+				var row int
+				if len(alt.Elements) > 0 {
+					row = alt.Elements[0].Pos.Row
+				} else {
+					row = prod.Pos.Row
+				}
+
+				var detail string
+				{
+					var b strings.Builder
+					fmt.Fprintf(&b, "%v →", prod.LHS)
+					for _, elem := range alt.Elements {
+						switch {
+						case elem.ID != "":
+							fmt.Fprintf(&b, " %v", elem.ID)
+						case elem.Pattern != "":
+							fmt.Fprintf(&b, ` "%v"`, elem.Pattern)
+						}
+					}
+					if len(alt.Elements) == 0 {
+						fmt.Fprintf(&b, " ε")
+					}
+
+					detail = b.String()
+				}
+
+				b.errs = append(b.errs, &verr.SpecError{
+					Cause:  semErrDuplicateProduction,
+					Detail: detail,
+					Row:    row,
+				})
+				continue LOOP_RHS
 			}
 			prods.append(p)
 

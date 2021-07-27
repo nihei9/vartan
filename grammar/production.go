@@ -80,9 +80,9 @@ func newProductionSet() *productionSet {
 	}
 }
 
-func (ps *productionSet) append(prod *production) bool {
+func (ps *productionSet) append(prod *production) {
 	if _, ok := ps.id2Prod[prod.id]; ok {
-		return false
+		return
 	}
 
 	if prod.lhs.isStart() {
@@ -98,8 +98,6 @@ func (ps *productionSet) append(prod *production) bool {
 		ps.lhs2Prods[prod.lhs] = []*production{prod}
 	}
 	ps.id2Prod[prod.id] = prod
-
-	return true
 }
 
 func (ps *productionSet) findByID(id productionID) (*production, bool) {

@@ -273,6 +273,48 @@ foo: "foo";
 `,
 			specErr: true,
 		},
+		// A production must not have a duplicate alternative.
+		{
+			specSrc: `
+s
+    : foo
+    | foo
+    ;
+foo: "foo";
+`,
+			specErr: true,
+		},
+		// A production must not have a duplicate alternative.
+		{
+			specSrc: `
+a
+    : foo
+    ;
+b
+    :
+    |
+    ;
+foo: "foo";
+`,
+			specErr: true,
+		},
+		// A production must not have a duplicate alternative.
+		{
+			specSrc: `
+a
+    : foo
+    ;
+b
+    : bar
+    ;
+a
+    : foo
+    ;
+foo: "foo";
+bar: "bar";
+`,
+			specErr: true,
+		},
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
