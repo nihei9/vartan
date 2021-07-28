@@ -88,10 +88,11 @@ func newEOFToken() *token {
 	}
 }
 
-func newInvalidToken(text string) *token {
+func newInvalidToken(text string, pos Position) *token {
 	return &token{
 		kind: tokenKindInvalid,
 		text: text,
+		pos:  pos,
 	}
 }
 
@@ -157,7 +158,7 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			return nil, err
 		}
 		if tok.Invalid {
-			newInvalidToken(tok.Text())
+			return newInvalidToken(tok.Text(), newPosition(l.row)), nil
 		}
 		if tok.EOF {
 			return newEOFToken(), nil
@@ -182,8 +183,9 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 	case "identifier":
 		if strings.HasPrefix(tok.Text(), "_") {
 			return nil, &verr.SpecError{
-				Cause: synErrAutoGenID,
-				Row:   l.row,
+				Cause:  synErrAutoGenID,
+				Detail: tok.Text(),
+				Row:    l.row,
 			}
 		}
 		return newIDToken(tok.Text(), newPosition(l.row)), nil
@@ -257,6 +259,6 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 	case "expansion":
 		return newSymbolToken(tokenKindExpantion, newPosition(l.row)), nil
 	default:
-		return newInvalidToken(tok.Text()), nil
+		return newInvalidToken(tok.Text(), newPosition(l.row)), nil
 	}
 }

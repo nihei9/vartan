@@ -76,6 +76,14 @@ func raiseSyntaxError(row int, synErr *SyntaxError) {
 	})
 }
 
+func raiseSyntaxErrorWithDetail(row int, synErr *SyntaxError, detail string) {
+	panic(&verr.SpecError{
+		Cause:  synErr,
+		Detail: detail,
+		Row:    row,
+	})
+}
+
 func Parse(src io.Reader) (*RootNode, error) {
 	p, err := newParser(src)
 	if err != nil {
@@ -426,7 +434,7 @@ func (p *parser) consume(expected tokenKind) bool {
 	}
 	p.pos = tok.pos
 	if tok.kind == tokenKindInvalid {
-		raiseSyntaxError(p.pos.Row, synErrInvalidToken)
+		raiseSyntaxErrorWithDetail(p.pos.Row, synErrInvalidToken, tok.text)
 	}
 	if tok.kind == expected {
 		p.lastTok = tok

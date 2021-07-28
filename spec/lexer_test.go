@@ -24,6 +24,10 @@ func TestLexer_Run(t *testing.T) {
 		return newPositionToken(num, newPosition(1))
 	}
 
+	invalidTok := func(text string) *token {
+		return newInvalidToken(text, newPosition(1))
+	}
+
 	tests := []struct {
 		caption string
 		src     string
@@ -131,7 +135,7 @@ bar // This is the fourth comment.
 			src:     `abc!!!def`,
 			tokens: []*token{
 				idTok("abc"),
-				newInvalidToken("!!!"),
+				invalidTok("!!!"),
 				idTok("def"),
 				newEOFToken(),
 			},
