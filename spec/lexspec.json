@@ -31,7 +31,7 @@
 		},
 		{
 			"kind": "newline",
-			"pattern": "\\f{newline}+"
+			"pattern": "\\f{newline}"
 		},
 		{
 			"kind": "line_comment",

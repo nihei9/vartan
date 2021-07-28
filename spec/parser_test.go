@@ -220,6 +220,58 @@ fragment words: "[A-Za-z\u{0020}]+";
 			},
 		},
 		{
+			caption: "the lexer treats consecutive lines as a single token but can count lines correctly",
+			src: `// This line precedes line comments and blank lines.
+// This is a line comment.
+
+
+s
+    : foo
+    ;
+
+
+// This line is sandwiched between blank lines.
+
+
+foo: 'foo';
+`,
+			checkPosition: true,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					withProdPos(
+						prod("s",
+							withAltPos(
+								alt(
+									withElemPos(
+										id("foo"),
+										newPosition(6),
+									),
+								),
+								newPosition(6),
+							),
+						),
+						newPosition(5),
+					),
+				},
+				LexProductions: []*ProductionNode{
+					withProdPos(
+						prod("foo",
+							withAltPos(
+								alt(
+									withElemPos(
+										pat(`foo`),
+										newPosition(13),
+									),
+								),
+								newPosition(13),
+							),
+						),
+						newPosition(13),
+					),
+				},
+			},
+		},
+		{
 			caption: "a grammar can contain production directives and alternative directives",
 			src: `
 mode_tran_seq
