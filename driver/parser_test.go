@@ -188,6 +188,17 @@ bar: "bar";
 			src:     `foo`,
 			specErr: true,
 		},
+		// A terminal used in productions cannot have the skip directive.
+		{
+			specSrc: `
+a
+    : foo
+    ;
+foo: "foo" #skip;
+`,
+			src:     `foo`,
+			specErr: true,
+		},
 		{
 			specSrc: `
 mode_tran_seq

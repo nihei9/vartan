@@ -43,16 +43,29 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, err
 	}
 
-	unusedProds, unusedTerms, err := findUnusedSymbols(b.AST)
+	syms, err := findUsedAndUnusedSymbols(b.AST)
 	if err != nil {
 		return nil, err
 	}
 
+	// When a terminal symbol that cannot be reached from the start symbol has the skip directive,
+	// the compiler treats its terminal as a used symbol, not unused.
 	for _, sym := range symTabAndLexSpec.skipSyms {
-		delete(unusedTerms, sym)
+		if _, ok := syms.unusedTerminals[sym]; !ok {
+			prod := syms.usedTerminals[sym]
+
+			b.errs = append(b.errs, &verr.SpecError{
+				Cause:  semErrTermCannotBeSkipped,
+				Detail: sym,
+				Row:    prod.Pos.Row,
+			})
+			continue
+		}
+
+		delete(syms.unusedTerminals, sym)
 	}
 
-	for sym, prod := range unusedProds {
+	for sym, prod := range syms.unusedProductions {
 		b.errs = append(b.errs, &verr.SpecError{
 			Cause:  semErrUnusedProduction,
 			Detail: sym,
@@ -60,7 +73,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		})
 	}
 
-	for sym, prod := range unusedTerms {
+	for sym, prod := range syms.unusedTerminals {
 		b.errs = append(b.errs, &verr.SpecError{
 			Cause:  semErrUnusedTerminal,
 			Detail: sym,
@@ -83,62 +96,82 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 	}, nil
 }
 
-func findUnusedSymbols(root *spec.RootNode) (map[string]*spec.ProductionNode, map[string]*spec.ProductionNode, error) {
+type usedAndUnusedSymbols struct {
+	unusedProductions map[string]*spec.ProductionNode
+	unusedTerminals   map[string]*spec.ProductionNode
+	usedTerminals     map[string]*spec.ProductionNode
+}
+
+func findUsedAndUnusedSymbols(root *spec.RootNode) (*usedAndUnusedSymbols, error) {
 	prods := map[string]*spec.ProductionNode{}
 	lexProds := map[string]*spec.ProductionNode{}
-	check := map[string]bool{}
+	mark := map[string]bool{}
 	{
 		for _, p := range root.Productions {
 			prods[p.LHS] = p
-			check[p.LHS] = false
+			mark[p.LHS] = false
 			for _, alt := range p.RHS {
 				for _, e := range alt.Elements {
 					if e.ID == "" {
 						continue
 					}
-					check[e.ID] = false
+					mark[e.ID] = false
 				}
 			}
 		}
+
 		for _, p := range root.LexProductions {
 			lexProds[p.LHS] = p
-			check[p.LHS] = false
+			mark[p.LHS] = false
 		}
 
 		start := root.Productions[0]
-		check[start.LHS] = true
-		markUsedSymbols(check, prods, start)
+		mark[start.LHS] = true
+		markUsedSymbols(mark, map[string]bool{}, prods, start)
 	}
 
+	// usedProds := make(map[string]*spec.ProductionNode, len(prods))
+	usedTerms := make(map[string]*spec.ProductionNode, len(lexProds))
 	unusedProds := map[string]*spec.ProductionNode{}
 	unusedTerms := map[string]*spec.ProductionNode{}
-	for sym, used := range check {
-		if used {
-			continue
-		}
-
+	for sym, used := range mark {
 		if p, ok := prods[sym]; ok {
+			if used {
+				continue
+			}
 			unusedProds[sym] = p
 			continue
 		}
 		if p, ok := lexProds[sym]; ok {
-			unusedTerms[sym] = p
+			if used {
+				usedTerms[sym] = p
+			} else {
+				unusedTerms[sym] = p
+			}
 			continue
 		}
-		return nil, nil, fmt.Errorf("a definition of unused production was not found: %v", sym)
+		return nil, fmt.Errorf("a definition of unused production was not found: %v", sym)
 	}
 
-	return unusedProds, unusedTerms, nil
+	return &usedAndUnusedSymbols{
+		usedTerminals:     usedTerms,
+		unusedProductions: unusedProds,
+		unusedTerminals:   unusedTerms,
+	}, nil
 }
 
-func markUsedSymbols(check map[string]bool, prods map[string]*spec.ProductionNode, prod *spec.ProductionNode) {
+func markUsedSymbols(mark map[string]bool, marked map[string]bool, prods map[string]*spec.ProductionNode, prod *spec.ProductionNode) {
+	if marked[prod.LHS] {
+		return
+	}
+
 	for _, alt := range prod.RHS {
 		for _, e := range alt.Elements {
 			if e.ID == "" {
 				continue
 			}
 
-			check[e.ID] = true
+			mark[e.ID] = true
 
 			p, ok := prods[e.ID]
 			if !ok {
@@ -146,9 +179,9 @@ func markUsedSymbols(check map[string]bool, prods map[string]*spec.ProductionNod
 			}
 
 			// Remove a production to avoid inifinite recursion.
-			delete(prods, prod.LHS)
+			marked[prod.LHS] = true
 
-			markUsedSymbols(check, prods, p)
+			markUsedSymbols(mark, marked, prods, p)
 		}
 	}
 }
