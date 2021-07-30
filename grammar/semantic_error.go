@@ -15,6 +15,8 @@ func (e *SemanticError) Error() string {
 }
 
 var (
+	semErrUnusedProduction    = newSemanticError("unused production")
+	semErrUnusedTerminal      = newSemanticError("unused terminal")
 	semErrNoProduction        = newSemanticError("a grammar needs at least one production")
 	semErrUndefinedSym        = newSemanticError("undefined symbol")
 	semErrDuplicateProduction = newSemanticError("duplicate production")

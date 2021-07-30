@@ -148,6 +148,46 @@ bar_text: "bar";
 				),
 			),
 		},
+		// Production `b` is unused.
+		{
+			specSrc: `
+a
+    : foo
+    ;
+b
+    : foo;
+foo: "foo";
+`,
+			src:     `foo`,
+			specErr: true,
+		},
+		// Terminal `bar` is unused.
+		{
+			specSrc: `
+s
+    : foo
+    ;
+foo: "foo";
+bar: "bar";
+`,
+			src:     `foo`,
+			specErr: true,
+		},
+		// Production `b` and terminal `bar` is unused.
+		{
+			specSrc: `
+a
+    : foo
+    ;
+b
+    : bar
+    ;
+foo: "foo";
+bar: "bar";
+`,
+			src:     `foo`,
+			specErr: true,
+		},
 		{
 			specSrc: `
 mode_tran_seq
@@ -258,6 +298,9 @@ bar: "bar";
 		{
 			specSrc: `
 s
+    : foo
+    ;
+foo
     : "foo" #ast #(s $1...)
     ;
 `,

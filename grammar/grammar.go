@@ -43,6 +43,31 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, err
 	}
 
+	unusedProds, unusedTerms, err := findUnusedSymbols(b.AST)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, sym := range symTabAndLexSpec.skipSyms {
+		delete(unusedTerms, sym)
+	}
+
+	for sym, prod := range unusedProds {
+		b.errs = append(b.errs, &verr.SpecError{
+			Cause:  semErrUnusedProduction,
+			Detail: sym,
+			Row:    prod.Pos.Row,
+		})
+	}
+
+	for sym, prod := range unusedTerms {
+		b.errs = append(b.errs, &verr.SpecError{
+			Cause:  semErrUnusedTerminal,
+			Detail: sym,
+			Row:    prod.Pos.Row,
+		})
+	}
+
 	if len(b.errs) > 0 {
 		return nil, b.errs
 	}
@@ -58,17 +83,89 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 	}, nil
 }
 
+func findUnusedSymbols(root *spec.RootNode) (map[string]*spec.ProductionNode, map[string]*spec.ProductionNode, error) {
+	prods := map[string]*spec.ProductionNode{}
+	lexProds := map[string]*spec.ProductionNode{}
+	check := map[string]bool{}
+	{
+		for _, p := range root.Productions {
+			prods[p.LHS] = p
+			check[p.LHS] = false
+			for _, alt := range p.RHS {
+				for _, e := range alt.Elements {
+					if e.ID == "" {
+						continue
+					}
+					check[e.ID] = false
+				}
+			}
+		}
+		for _, p := range root.LexProductions {
+			lexProds[p.LHS] = p
+			check[p.LHS] = false
+		}
+
+		start := root.Productions[0]
+		check[start.LHS] = true
+		markUsedSymbols(check, prods, start)
+	}
+
+	unusedProds := map[string]*spec.ProductionNode{}
+	unusedTerms := map[string]*spec.ProductionNode{}
+	for sym, used := range check {
+		if used {
+			continue
+		}
+
+		if p, ok := prods[sym]; ok {
+			unusedProds[sym] = p
+			continue
+		}
+		if p, ok := lexProds[sym]; ok {
+			unusedTerms[sym] = p
+			continue
+		}
+		return nil, nil, fmt.Errorf("a definition of unused production was not found: %v", sym)
+	}
+
+	return unusedProds, unusedTerms, nil
+}
+
+func markUsedSymbols(check map[string]bool, prods map[string]*spec.ProductionNode, prod *spec.ProductionNode) {
+	for _, alt := range prod.RHS {
+		for _, e := range alt.Elements {
+			if e.ID == "" {
+				continue
+			}
+
+			check[e.ID] = true
+
+			p, ok := prods[e.ID]
+			if !ok {
+				continue
+			}
+
+			// Remove a production to avoid inifinite recursion.
+			delete(prods, prod.LHS)
+
+			markUsedSymbols(check, prods, p)
+		}
+	}
+}
+
 type symbolTableAndLexSpec struct {
 	symTab      *symbolTable
 	anonPat2Sym map[string]symbol
 	sym2AnonPat map[symbol]string
 	lexSpec     *mlspec.LexSpec
 	skip        []mlspec.LexKind
+	skipSyms    []string
 }
 
 func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, error) {
 	symTab := newSymbolTable()
 	skipKinds := []mlspec.LexKind{}
+	skipSyms := []string{}
 	entries := []*mlspec.LexEntry{}
 	for _, prod := range root.LexProductions {
 		if _, exist := symTab.toSymbol(prod.LHS); exist {
@@ -95,6 +192,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		}
 		if skip {
 			skipKinds = append(skipKinds, mlspec.LexKind(prod.LHS))
+			skipSyms = append(skipSyms, prod.LHS)
 		}
 		entries = append(entries, entry)
 	}
@@ -171,7 +269,8 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		lexSpec: &mlspec.LexSpec{
 			Entries: entries,
 		},
-		skip: skipKinds,
+		skip:     skipKinds,
+		skipSyms: skipSyms,
 	}, nil
 }
 
