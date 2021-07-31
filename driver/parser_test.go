@@ -369,6 +369,32 @@ bar: "bar";
 `,
 			specErr: true,
 		},
+		// A terminal and a non-terminal (start symbol) are duplicates.
+		{
+			specSrc: `
+a
+    : foo
+    ;
+foo: "foo";
+a: "a";
+`,
+			specErr: true,
+		},
+		// A terminal and a non-terminal (not start symbol) are duplicates.
+		{
+			specSrc: `
+a
+    : foo
+    ;
+b
+    : bar
+    ;
+foo: "foo";
+bar: "bar";
+b: "a";
+`,
+			specErr: true,
+		},
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {

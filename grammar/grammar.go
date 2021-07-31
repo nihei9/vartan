@@ -203,7 +203,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	for _, prod := range root.LexProductions {
 		if _, exist := symTab.toSymbol(prod.LHS); exist {
 			b.errs = append(b.errs, &verr.SpecError{
-				Cause:  semErrDuplicateSym,
+				Cause:  semErrDuplicateTerminal,
 				Detail: prod.LHS,
 				Row:    prod.Pos.Row,
 			})
@@ -280,7 +280,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	for _, fragment := range root.Fragments {
 		if _, exist := checkedFragments[fragment.LHS]; exist {
 			b.errs = append(b.errs, &verr.SpecError{
-				Cause:  semErrDuplicateSym,
+				Cause:  semErrDuplicateTerminal,
 				Detail: fragment.LHS,
 				Row:    fragment.Pos.Row,
 			})
@@ -432,9 +432,16 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	prods.append(p)
 
 	for _, prod := range root.Productions {
-		_, err := symTab.registerNonTerminalSymbol(prod.LHS)
+		sym, err := symTab.registerNonTerminalSymbol(prod.LHS)
 		if err != nil {
 			return nil, err
+		}
+		if sym.isTerminal() {
+			b.errs = append(b.errs, &verr.SpecError{
+				Cause:  semErrDuplicateName,
+				Detail: prod.LHS,
+				Row:    prod.Pos.Row,
+			})
 		}
 	}
 
