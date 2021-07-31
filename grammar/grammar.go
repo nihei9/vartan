@@ -196,43 +196,13 @@ type symbolTableAndLexSpec struct {
 }
 
 func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, error) {
+	// Anonymous patterns take precedence over explicitly defined lexical specifications (named patterns).
+	// Thus anonymous patterns must be registered to `symTab` and `entries` before named patterns.
 	symTab := newSymbolTable()
-	skipKinds := []mlspec.LexKind{}
-	skipSyms := []string{}
 	entries := []*mlspec.LexEntry{}
-	for _, prod := range root.LexProductions {
-		if _, exist := symTab.toSymbol(prod.LHS); exist {
-			b.errs = append(b.errs, &verr.SpecError{
-				Cause:  semErrDuplicateTerminal,
-				Detail: prod.LHS,
-				Row:    prod.Pos.Row,
-			})
-			continue
-		}
-
-		_, err := symTab.registerTerminalSymbol(prod.LHS)
-		if err != nil {
-			return nil, err
-		}
-
-		entry, skip, specErr, err := genLexEntry(prod)
-		if err != nil {
-			return nil, err
-		}
-		if specErr != nil {
-			b.errs = append(b.errs, specErr)
-			continue
-		}
-		if skip {
-			skipKinds = append(skipKinds, mlspec.LexKind(prod.LHS))
-			skipSyms = append(skipSyms, prod.LHS)
-		}
-		entries = append(entries, entry)
-	}
 
 	anonPat2Sym := map[string]symbol{}
 	sym2AnonPat := map[symbol]string{}
-	var anonEntries []*mlspec.LexEntry
 	{
 		anonPats := []string{}
 		for _, prod := range root.Productions {
@@ -263,18 +233,48 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 			if err != nil {
 				return nil, err
 			}
+
 			anonPat2Sym[p] = sym
 			sym2AnonPat[sym] = p
 
-			anonEntries = append(anonEntries, &mlspec.LexEntry{
+			entries = append(entries, &mlspec.LexEntry{
 				Kind:    mlspec.LexKind(kind),
 				Pattern: mlspec.LexPattern(p),
 			})
 		}
 	}
 
-	// Anonymous patterns take precedence over explicitly defined lexical specifications.
-	entries = append(anonEntries, entries...)
+	skipKinds := []mlspec.LexKind{}
+	skipSyms := []string{}
+	for _, prod := range root.LexProductions {
+		if _, exist := symTab.toSymbol(prod.LHS); exist {
+			b.errs = append(b.errs, &verr.SpecError{
+				Cause:  semErrDuplicateTerminal,
+				Detail: prod.LHS,
+				Row:    prod.Pos.Row,
+			})
+			continue
+		}
+
+		_, err := symTab.registerTerminalSymbol(prod.LHS)
+		if err != nil {
+			return nil, err
+		}
+
+		entry, skip, specErr, err := genLexEntry(prod)
+		if err != nil {
+			return nil, err
+		}
+		if specErr != nil {
+			b.errs = append(b.errs, specErr)
+			continue
+		}
+		if skip {
+			skipKinds = append(skipKinds, mlspec.LexKind(prod.LHS))
+			skipSyms = append(skipSyms, prod.LHS)
+		}
+		entries = append(entries, entry)
+	}
 
 	checkedFragments := map[string]struct{}{}
 	for _, fragment := range root.Fragments {
@@ -662,12 +662,12 @@ func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error
 		skip[modeNum] = skipRec
 	}
 
-	terms, err := gram.symbolTable.getTerminalTexts()
+	terms, err := gram.symbolTable.terminalTexts()
 	if err != nil {
 		return nil, err
 	}
 
-	nonTerms, err := gram.symbolTable.getNonTerminalTexts()
+	nonTerms, err := gram.symbolTable.nonTerminalTexts()
 	if err != nil {
 		return nil, err
 	}

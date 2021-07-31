@@ -104,7 +104,7 @@ func TestSymbol(t *testing.T) {
 	})
 
 	t.Run("texts of non-terminals", func(t *testing.T) {
-		ts, err := tab.getNonTerminalTexts()
+		ts, err := tab.nonTerminalTexts()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -119,7 +119,7 @@ func TestSymbol(t *testing.T) {
 	})
 
 	t.Run("texts of terminals", func(t *testing.T) {
-		ts, err := tab.getTerminalTexts()
+		ts, err := tab.terminalTexts()
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -59,11 +59,11 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 			t.Fatal(err)
 		}
 
-		nonTermTexts, err := gram.symbolTable.getNonTerminalTexts()
+		nonTermTexts, err := gram.symbolTable.nonTerminalTexts()
 		if err != nil {
 			t.Fatal(err)
 		}
-		termTexts, err := gram.symbolTable.getTerminalTexts()
+		termTexts, err := gram.symbolTable.terminalTexts()
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -2,6 +2,7 @@ package grammar
 
 import (
 	"fmt"
+	"sort"
 )
 
 type symbolKind string
@@ -224,14 +225,28 @@ func (t *symbolTable) toText(sym symbol) (string, bool) {
 	return text, ok
 }
 
-func (t *symbolTable) getTerminalTexts() ([]string, error) {
+func (t *symbolTable) terminalSymbols() []symbol {
+	syms := make([]symbol, 0, t.termNum.Int()-terminalNumMin.Int())
+	for sym := range t.sym2Text {
+		if !sym.isTerminal() || sym.isNil() || sym.isEOF() {
+			continue
+		}
+		syms = append(syms, sym)
+	}
+	sort.Slice(syms, func(i, j int) bool {
+		return syms[i] < syms[j]
+	})
+	return syms
+}
+
+func (t *symbolTable) terminalTexts() ([]string, error) {
 	if t.termNum == terminalNumMin {
 		return nil, fmt.Errorf("symbol table has no terminals")
 	}
 	return t.termTexts, nil
 }
 
-func (t *symbolTable) getNonTerminalTexts() ([]string, error) {
+func (t *symbolTable) nonTerminalTexts() ([]string, error) {
 	if t.nonTermNum == nonTerminalNumMin || t.nonTermTexts[symbolStart.num().Int()] == "" {
 		return nil, fmt.Errorf("symbol table has no terminals or no start symbol")
 	}

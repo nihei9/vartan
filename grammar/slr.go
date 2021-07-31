@@ -266,6 +266,26 @@ func (b *slrTableBuilder) writeDescription(w io.Writer) {
 		fmt.Fprintf(w, "no conflicts\n\n")
 	}
 
+	fmt.Fprintf(w, "# Terminals\n\n")
+
+	termSyms := b.symTab.terminalSymbols()
+
+	fmt.Fprintf(w, "%v symbols:\n\n", len(termSyms))
+
+	for _, sym := range termSyms {
+		text, ok := b.symTab.toText(sym)
+		if !ok {
+			text = fmt.Sprintf("<symbol not found: %v>", sym)
+		}
+		if strings.HasPrefix(text, "_") {
+			fmt.Fprintf(w, "%4v %v: \"%v\"\n", sym.num(), text, b.sym2AnonPat[sym])
+		} else {
+			fmt.Fprintf(w, "%4v %v\n", sym.num(), text)
+		}
+	}
+
+	fmt.Fprintf(w, "\n")
+
 	fmt.Fprintf(w, "# Productions\n\n")
 
 	fmt.Fprintf(w, "%v productions:\n\n", len(b.prods.getAllProductions()))
