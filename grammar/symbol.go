@@ -53,9 +53,12 @@ const (
 
 	maskNumberPart = uint16(0x3fff) // 0011 1111 1111 1111
 
-	symbolNil   = symbol(0)      // 0000 0000 0000 0000
-	symbolStart = symbol(0x4001) // 0100 0000 0000 0001
-	symbolEOF   = symbol(0xc001) // 1100 0000 0000 0001: The EOF symbol is treated as a terminal symbol.
+	symbolNumStart = uint16(0x0001) // 0000 0000 0000 0001
+	symbolNumEOF   = uint16(0x0001) // 0000 0000 0000 0001
+
+	symbolNil   = symbol(0)                                                 // 0000 0000 0000 0000
+	symbolStart = symbol(maskNonTerminal | maskStartOrEOF | symbolNumStart) // 0100 0000 0000 0001
+	symbolEOF   = symbol(maskTerminal | maskStartOrEOF | symbolNumEOF)      // 1100 0000 0000 0001: The EOF symbol is treated as a terminal symbol.
 
 	nonTerminalNumMin = symbolNum(2)           // The number 1 is used by a start symbol.
 	terminalNumMin    = symbolNum(2)           // The number 1 is used by the EOF symbol.

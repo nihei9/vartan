@@ -3,8 +3,10 @@ package driver
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	mldriver "github.com/nihei9/maleeni/driver"
+	mlspec "github.com/nihei9/maleeni/spec"
 	"github.com/nihei9/vartan/spec"
 )
 
@@ -176,7 +178,29 @@ func (p *Parser) Parse() error {
 				ast: ast,
 			})
 		default:
-			return fmt.Errorf("unexpected token: %v", tok)
+			var tokText string
+			if tok.EOF {
+				tokText = "<EOF>"
+			} else {
+				tokText = fmt.Sprintf("%v (%v)", tok.KindName.String(), tok.Text())
+			}
+
+			eKinds, eof := p.expectedKinds(p.top())
+
+			var b strings.Builder
+			fmt.Fprintf(&b, "%v", eKinds[0])
+			for _, k := range eKinds[1:] {
+				fmt.Fprintf(&b, ", %v", k)
+			}
+			if eof {
+				if len(eKinds) > 0 {
+					fmt.Fprintf(&b, ", <EOF>")
+				} else {
+					fmt.Fprintf(&b, "<EOF>")
+				}
+			}
+
+			return fmt.Errorf("unexpected token: %v, expected: %v", tokText, b.String())
 		}
 	}
 }
@@ -189,7 +213,7 @@ func (p *Parser) nextToken() (*mldriver.Token, error) {
 			return nil, err
 		}
 		if tok.Invalid {
-			return nil, fmt.Errorf("invalid token: %+v", tok)
+			return nil, fmt.Errorf("invalid token: '%v'", tok.Text())
 		}
 
 		if skip[tok.KindID] > 0 {
@@ -236,4 +260,22 @@ func (p *Parser) CST() *Node {
 
 func (p *Parser) AST() *Node {
 	return p.ast
+}
+
+func (p *Parser) expectedKinds(state int) ([]mlspec.LexKindName, bool) {
+	kinds := []mlspec.LexKindName{}
+	eof := false
+	terms := p.gram.ParsingTable.ExpectedTerminals[state]
+	for _, tsym := range terms {
+		if tsym == 1 {
+			eof = true
+			continue
+		}
+
+		kindID := p.gram.LexicalSpecification.Maleeni.TerminalToKind[tsym]
+		kindName := p.gram.LexicalSpecification.Maleeni.Spec.KindNames[kindID]
+		kinds = append(kinds, kindName)
+	}
+
+	return kinds, eof
 }

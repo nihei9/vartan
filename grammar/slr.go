@@ -96,11 +96,12 @@ var (
 )
 
 type ParsingTable struct {
-	actionTable      []actionEntry
-	goToTable        []goToEntry
-	stateCount       int
-	terminalCount    int
-	nonTerminalCount int
+	actionTable       []actionEntry
+	goToTable         []goToEntry
+	stateCount        int
+	terminalCount     int
+	nonTerminalCount  int
+	expectedTerminals [][]int
 
 	InitialState stateNum
 }
@@ -181,20 +182,25 @@ func (b *slrTableBuilder) build() (*ParsingTable, error) {
 	{
 		initialState := b.automaton.states[b.automaton.initialState]
 		ptab = &ParsingTable{
-			actionTable:      make([]actionEntry, len(b.automaton.states)*b.termCount),
-			goToTable:        make([]goToEntry, len(b.automaton.states)*b.nonTermCount),
-			stateCount:       len(b.automaton.states),
-			terminalCount:    b.termCount,
-			nonTerminalCount: b.nonTermCount,
-			InitialState:     initialState.num,
+			actionTable:       make([]actionEntry, len(b.automaton.states)*b.termCount),
+			goToTable:         make([]goToEntry, len(b.automaton.states)*b.nonTermCount),
+			stateCount:        len(b.automaton.states),
+			terminalCount:     b.termCount,
+			nonTerminalCount:  b.nonTermCount,
+			expectedTerminals: make([][]int, len(b.automaton.states)),
+			InitialState:      initialState.num,
 		}
 	}
 
 	var conflicts []conflict
 	for _, state := range b.automaton.states {
+		var eTerms []int
+
 		for sym, kID := range state.next {
 			nextState := b.automaton.states[kID]
 			if sym.isTerminal() {
+				eTerms = append(eTerms, sym.num().Int())
+
 				c := ptab.writeShiftAction(state.num, sym, nextState.num)
 				if c != nil {
 					conflicts = append(conflicts, c)
@@ -212,6 +218,8 @@ func (b *slrTableBuilder) build() (*ParsingTable, error) {
 				return nil, err
 			}
 			for sym := range flw.symbols {
+				eTerms = append(eTerms, sym.num().Int())
+
 				c := ptab.writeReduceAction(state.num, sym, prod.num)
 				if c != nil {
 					conflicts = append(conflicts, c)
@@ -219,6 +227,8 @@ func (b *slrTableBuilder) build() (*ParsingTable, error) {
 				}
 			}
 			if flw.eof {
+				eTerms = append(eTerms, symbolEOF.num().Int())
+
 				c := ptab.writeReduceAction(state.num, symbolEOF, prod.num)
 				if c != nil {
 					conflicts = append(conflicts, c)
@@ -226,6 +236,8 @@ func (b *slrTableBuilder) build() (*ParsingTable, error) {
 				}
 			}
 		}
+
+		ptab.expectedTerminals[state.num] = eTerms
 	}
 
 	b.conflicts = conflicts

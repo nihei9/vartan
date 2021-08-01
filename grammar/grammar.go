@@ -629,10 +629,12 @@ func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error
 	}
 
 	kind2Term := make([]int, len(lexSpec.KindNames))
+	term2Kind := make([]int, gram.symbolTable.termNum.Int())
 	skip := make([]int, len(lexSpec.KindNames))
 	for i, k := range lexSpec.KindNames {
 		if k == mlspec.LexKindNameNil {
-			kind2Term[0] = symbolNil.num().Int()
+			kind2Term[mlspec.LexKindIDNil] = symbolNil.num().Int()
+			term2Kind[symbolNil.num()] = mlspec.LexKindIDNil.Int()
 			continue
 		}
 
@@ -641,6 +643,7 @@ func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error
 			return nil, fmt.Errorf("terminal symbol '%v' was not found in a symbol table", k)
 		}
 		kind2Term[i] = sym.num().Int()
+		term2Kind[sym.num()] = i
 
 		for _, sk := range gram.skipLexKinds {
 			if k != sk {
@@ -735,6 +738,7 @@ func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error
 			Maleeni: &spec.Maleeni{
 				Spec:           lexSpec,
 				KindToTerminal: kind2Term,
+				TerminalToKind: term2Kind,
 				Skip:           skip,
 			},
 		},
@@ -751,6 +755,7 @@ func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error
 			NonTerminals:            nonTerms,
 			NonTerminalCount:        tab.nonTerminalCount,
 			EOFSymbol:               symbolEOF.num().Int(),
+			ExpectedTerminals:       tab.expectedTerminals,
 		},
 		ASTAction: &spec.ASTAction{
 			Entries: astActEnties,
