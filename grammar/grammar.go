@@ -18,7 +18,7 @@ type astActionEntry struct {
 
 type Grammar struct {
 	lexSpec              *mlspec.LexSpec
-	skipLexKinds         []mlspec.LexKind
+	skipLexKinds         []mlspec.LexKindName
 	sym2AnonPat          map[symbol]string
 	productionSet        *productionSet
 	augmentedStartSymbol symbol
@@ -191,7 +191,7 @@ type symbolTableAndLexSpec struct {
 	anonPat2Sym map[string]symbol
 	sym2AnonPat map[symbol]string
 	lexSpec     *mlspec.LexSpec
-	skip        []mlspec.LexKind
+	skip        []mlspec.LexKindName
 	skipSyms    []string
 }
 
@@ -238,13 +238,13 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 			sym2AnonPat[sym] = p
 
 			entries = append(entries, &mlspec.LexEntry{
-				Kind:    mlspec.LexKind(kind),
+				Kind:    mlspec.LexKindName(kind),
 				Pattern: mlspec.LexPattern(p),
 			})
 		}
 	}
 
-	skipKinds := []mlspec.LexKind{}
+	skipKinds := []mlspec.LexKindName{}
 	skipSyms := []string{}
 	for _, prod := range root.LexProductions {
 		if _, exist := symTab.toSymbol(prod.LHS); exist {
@@ -270,7 +270,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 			continue
 		}
 		if skip {
-			skipKinds = append(skipKinds, mlspec.LexKind(prod.LHS))
+			skipKinds = append(skipKinds, mlspec.LexKindName(prod.LHS))
 			skipSyms = append(skipSyms, prod.LHS)
 		}
 		entries = append(entries, entry)
@@ -290,7 +290,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 
 		entries = append(entries, &mlspec.LexEntry{
 			Fragment: true,
-			Kind:     mlspec.LexKind(fragment.LHS),
+			Kind:     mlspec.LexKindName(fragment.LHS),
 			Pattern:  mlspec.LexPattern(fragment.RHS),
 		})
 	}
@@ -384,7 +384,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 
 	return &mlspec.LexEntry{
 		Modes:   modes,
-		Kind:    mlspec.LexKind(prod.LHS),
+		Kind:    mlspec.LexKindName(prod.LHS),
 		Pattern: mlspec.LexPattern(alt.Elements[0].Pattern),
 		Push:    push,
 		Pop:     pop,
@@ -628,38 +628,27 @@ func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error
 		return nil, err
 	}
 
-	kind2Term := make([][]int, len(lexSpec.Modes))
-	skip := make([][]int, len(lexSpec.Modes))
-	for modeNum, spec := range lexSpec.Specs {
-		if modeNum == 0 {
-			kind2Term[0] = nil
-			skip[0] = nil
+	kind2Term := make([]int, len(lexSpec.KindNames))
+	skip := make([]int, len(lexSpec.KindNames))
+	for i, k := range lexSpec.KindNames {
+		if k == mlspec.LexKindNameNil {
+			kind2Term[0] = symbolNil.num().Int()
 			continue
 		}
 
-		k2tRec := make([]int, len(spec.Kinds))
-		skipRec := make([]int, len(spec.Kinds))
-		for n, k := range spec.Kinds {
-			if n == 0 {
-				k2tRec[0] = symbolNil.num().Int()
+		sym, ok := gram.symbolTable.toSymbol(k.String())
+		if !ok {
+			return nil, fmt.Errorf("terminal symbol '%v' was not found in a symbol table", k)
+		}
+		kind2Term[i] = sym.num().Int()
+
+		for _, sk := range gram.skipLexKinds {
+			if k != sk {
 				continue
 			}
-
-			sym, ok := gram.symbolTable.toSymbol(k.String())
-			if !ok {
-				return nil, fmt.Errorf("terminal symbol '%v' (in '%v' mode) is not found in a symbol table", k, lexSpec.Modes[modeNum])
-			}
-			k2tRec[n] = sym.num().Int()
-
-			for _, sk := range gram.skipLexKinds {
-				if k != sk {
-					continue
-				}
-				skipRec[n] = 1
-			}
+			skip[i] = 1
+			break
 		}
-		kind2Term[modeNum] = k2tRec
-		skip[modeNum] = skipRec
 	}
 
 	terms, err := gram.symbolTable.terminalTexts()

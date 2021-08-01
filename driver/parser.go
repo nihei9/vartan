@@ -89,7 +89,7 @@ func (p *Parser) Parse() error {
 		if tok.EOF {
 			tsym = p.gram.ParsingTable.EOFSymbol
 		} else {
-			tsym = p.gram.LexicalSpecification.Maleeni.KindToTerminal[tok.Mode.Int()][tok.Kind]
+			tsym = p.gram.LexicalSpecification.Maleeni.KindToTerminal[tok.KindID]
 		}
 		act := p.gram.ParsingTable.Action[p.top()*termCount+tsym]
 		switch {
@@ -192,7 +192,7 @@ func (p *Parser) nextToken() (*mldriver.Token, error) {
 			return nil, fmt.Errorf("invalid token: %+v", tok)
 		}
 
-		if skip[tok.Mode.Int()][tok.Kind] > 0 {
+		if skip[tok.KindID] > 0 {
 			continue
 		}
 
