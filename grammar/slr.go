@@ -412,6 +412,13 @@ func (b *slrTableBuilder) productionToString(prod *production, dot int) string {
 }
 
 func (b *slrTableBuilder) symbolToText(sym symbol) string {
+	if sym.isNil() {
+		return "<NULL>"
+	}
+	if sym.isEOF() {
+		return "<EOF>"
+	}
+
 	text, ok := b.symTab.toText(sym)
 	if !ok {
 		return fmt.Sprintf("<symbol not found: %v>", sym)
