@@ -424,7 +424,7 @@ b: "a";
 				t.Fatal(err)
 			}
 
-			p, err := NewParser(gram, strings.NewReader(tt.src))
+			p, err := NewParser(gram, strings.NewReader(tt.src), MakeAST(), MakeCST())
 			if err != nil {
 				t.Fatal(err)
 			}

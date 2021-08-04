@@ -62,7 +62,7 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			defer f.Close()
 			src = f
 		}
-		p, err = driver.NewParser(cgram, src)
+		p, err = driver.NewParser(cgram, src, driver.MakeAST())
 		if err != nil {
 			return err
 		}

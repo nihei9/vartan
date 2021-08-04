@@ -51,6 +51,22 @@ func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix s
 	}
 }
 
+type ParserOption func(p *Parser) error
+
+func MakeAST() ParserOption {
+	return func(p *Parser) error {
+		p.makeAST = true
+		return nil
+	}
+}
+
+func MakeCST() ParserOption {
+	return func(p *Parser) error {
+		p.makeCST = true
+		return nil
+	}
+}
+
 type semanticFrame struct {
 	cst *Node
 	ast *Node
@@ -63,20 +79,31 @@ type Parser struct {
 	semStack   []*semanticFrame
 	cst        *Node
 	ast        *Node
+	makeAST    bool
+	makeCST    bool
 }
 
-func NewParser(gram *spec.CompiledGrammar, src io.Reader) (*Parser, error) {
+func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) (*Parser, error) {
 	lex, err := mldriver.NewLexer(gram.LexicalSpecification.Maleeni.Spec, src)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Parser{
+	p := &Parser{
 		gram:       gram,
 		lex:        lex,
 		stateStack: []int{},
 		semStack:   []*semanticFrame{},
-	}, nil
+	}
+
+	for _, opt := range opts {
+		err := opt(p)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return p, nil
 }
 
 func (p *Parser) Parse() error {
@@ -103,16 +130,27 @@ func (p *Parser) Parse() error {
 			}
 
 			// semantic action
-			p.semStack = append(p.semStack, &semanticFrame{
-				cst: &Node{
-					KindName: p.gram.ParsingTable.Terminals[tsym],
-					Text:     tokText,
-				},
-				ast: &Node{
-					KindName: p.gram.ParsingTable.Terminals[tsym],
-					Text:     tokText,
-				},
-			})
+			{
+				var ast *Node
+				var cst *Node
+				if p.makeAST {
+					ast = &Node{
+						KindName: p.gram.ParsingTable.Terminals[tsym],
+						Text:     tokText,
+					}
+				}
+				if p.makeCST {
+					cst = &Node{
+						KindName: p.gram.ParsingTable.Terminals[tsym],
+						Text:     tokText,
+					}
+				}
+
+				p.semStack = append(p.semStack, &semanticFrame{
+					cst: cst,
+					ast: ast,
+				})
+			}
 		case act > 0: // Reduce
 			accepted := p.reduce(act)
 			if accepted {
@@ -123,60 +161,62 @@ func (p *Parser) Parse() error {
 			}
 
 			// semantic action
-
-			prodNum := act
-			lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
-
-			// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.
-			n := p.gram.ParsingTable.AlternativeSymbolCounts[prodNum]
-			handle := p.semStack[len(p.semStack)-n:]
-
-			var cst *Node
 			{
-				children := make([]*Node, len(handle))
-				for i, f := range handle {
-					children[i] = f.cst
-				}
-				cst = &Node{
-					KindName: p.gram.ParsingTable.NonTerminals[lhs],
-					Children: children,
-				}
-			}
+				prodNum := act
+				lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
 
-			var ast *Node
-			{
-				act := p.gram.ASTAction.Entries[prodNum]
-				children := []*Node{}
-				if act != nil {
-					for _, e := range act {
-						if e > 0 {
-							offset := e - 1
-							children = append(children, handle[offset].ast)
-						} else {
-							offset := e*-1 - 1
-							for _, c := range handle[offset].ast.Children {
-								children = append(children, c)
+				// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.
+				n := p.gram.ParsingTable.AlternativeSymbolCounts[prodNum]
+				handle := p.semStack[len(p.semStack)-n:]
+
+				var ast *Node
+				var cst *Node
+				if p.makeAST {
+					act := p.gram.ASTAction.Entries[prodNum]
+					children := []*Node{}
+					if act != nil {
+						for _, e := range act {
+							if e > 0 {
+								offset := e - 1
+								children = append(children, handle[offset].ast)
+							} else {
+								offset := e*-1 - 1
+								for _, c := range handle[offset].ast.Children {
+									children = append(children, c)
+								}
 							}
 						}
+					} else {
+						// If an alternative has no AST action, a driver generates
+						// a node with the same structure as a CST.
+						for _, f := range handle {
+							children = append(children, f.ast)
+						}
 					}
-				} else {
-					// If an alternative has no AST action, a driver generates
-					// a node with the same structure as a CST.
-					for _, f := range handle {
-						children = append(children, f.ast)
-					}
-				}
-				ast = &Node{
-					KindName: p.gram.ParsingTable.NonTerminals[lhs],
-					Children: children,
-				}
-			}
 
-			p.semStack = p.semStack[:len(p.semStack)-n]
-			p.semStack = append(p.semStack, &semanticFrame{
-				cst: cst,
-				ast: ast,
-			})
+					ast = &Node{
+						KindName: p.gram.ParsingTable.NonTerminals[lhs],
+						Children: children,
+					}
+				}
+				if p.makeCST {
+					children := make([]*Node, len(handle))
+					for i, f := range handle {
+						children[i] = f.cst
+					}
+
+					cst = &Node{
+						KindName: p.gram.ParsingTable.NonTerminals[lhs],
+						Children: children,
+					}
+				}
+
+				p.semStack = p.semStack[:len(p.semStack)-n]
+				p.semStack = append(p.semStack, &semanticFrame{
+					cst: cst,
+					ast: ast,
+				})
+			}
 		default:
 			var tokText string
 			if tok.EOF {
