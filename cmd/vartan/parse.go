@@ -11,8 +11,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var lexFlags = struct {
+var parseFlags = struct {
 	source *string
+	cst    *bool
 }{}
 
 func init() {
@@ -23,7 +24,8 @@ func init() {
 		Args:    cobra.ExactArgs(1),
 		RunE:    runParse,
 	}
-	lexFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default stdin)")
+	parseFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default stdin)")
+	parseFlags.cst = cmd.Flags().Bool("cst", false, "when this option is enabled, the parser generates a CST")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -54,15 +56,22 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 	var p *driver.Parser
 	{
 		src := os.Stdin
-		if *lexFlags.source != "" {
-			f, err := os.Open(*lexFlags.source)
+		if *parseFlags.source != "" {
+			f, err := os.Open(*parseFlags.source)
 			if err != nil {
-				return fmt.Errorf("Cannot open the source file %s: %w", *lexFlags.source, err)
+				return fmt.Errorf("Cannot open the source file %s: %w", *parseFlags.source, err)
 			}
 			defer f.Close()
 			src = f
 		}
-		p, err = driver.NewParser(cgram, src, driver.MakeAST())
+
+		var opts []driver.ParserOption
+		if *parseFlags.cst {
+			opts = append(opts, driver.MakeCST())
+		} else {
+			opts = append(opts, driver.MakeAST())
+		}
+		p, err = driver.NewParser(cgram, src, opts...)
 		if err != nil {
 			return err
 		}
@@ -72,8 +81,15 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 	if err != nil {
 		return err
 	}
+
+	var tree *driver.Node
+	if *parseFlags.cst {
+		tree = p.CST()
+	} else {
+		tree = p.AST()
+	}
 	fmt.Printf("Accepted\n")
-	driver.PrintTree(os.Stdout, p.AST())
+	driver.PrintTree(os.Stdout, tree)
 
 	return nil
 }
