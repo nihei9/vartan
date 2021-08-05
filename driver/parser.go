@@ -173,24 +173,44 @@ func (p *Parser) Parse() error {
 				var cst *Node
 				if p.makeAST {
 					act := p.gram.ASTAction.Entries[prodNum]
-					children := []*Node{}
+					var children []*Node
 					if act != nil {
+						// Count the number of children in advance to avoid frequent growth in a slice for children.
+						{
+							l := 0
+							for _, e := range act {
+								if e > 0 {
+									l++
+								} else {
+									offset := e*-1 - 1
+									l += len(handle[offset].ast.Children)
+								}
+							}
+
+							children = make([]*Node, l)
+						}
+
+						p := 0
 						for _, e := range act {
 							if e > 0 {
 								offset := e - 1
-								children = append(children, handle[offset].ast)
+								children[p] = handle[offset].ast
+								p++
 							} else {
 								offset := e*-1 - 1
 								for _, c := range handle[offset].ast.Children {
-									children = append(children, c)
+									children[p] = c
+									p++
 								}
 							}
 						}
 					} else {
 						// If an alternative has no AST action, a driver generates
 						// a node with the same structure as a CST.
-						for _, f := range handle {
-							children = append(children, f.ast)
+
+						children = make([]*Node, len(handle))
+						for i, f := range handle {
+							children[i] = f.ast
 						}
 					}
 
