@@ -81,6 +81,7 @@ type Parser struct {
 	ast        *Node
 	makeAST    bool
 	makeCST    bool
+	needSemAct bool
 }
 
 func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) (*Parser, error) {
@@ -93,7 +94,6 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) 
 		gram:       gram,
 		lex:        lex,
 		stateStack: []int{},
-		semStack:   []*semanticFrame{},
 	}
 
 	for _, opt := range opts {
@@ -102,6 +102,8 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) 
 			return nil, err
 		}
 	}
+
+	p.needSemAct = p.makeAST || p.makeCST
 
 	return p, nil
 }
@@ -130,7 +132,7 @@ func (p *Parser) Parse() error {
 			}
 
 			// semantic action
-			{
+			if p.needSemAct {
 				var ast *Node
 				var cst *Node
 				if p.makeAST {
@@ -154,14 +156,17 @@ func (p *Parser) Parse() error {
 		case act > 0: // Reduce
 			accepted := p.reduce(act)
 			if accepted {
-				top := p.semStack[len(p.semStack)-1]
-				p.cst = top.cst
-				p.ast = top.ast
+				if p.needSemAct {
+					top := p.semStack[len(p.semStack)-1]
+					p.cst = top.cst
+					p.ast = top.ast
+				}
+
 				return nil
 			}
 
 			// semantic action
-			{
+			if p.needSemAct {
 				prodNum := act
 				lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
 

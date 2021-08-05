@@ -12,8 +12,9 @@ import (
 )
 
 var parseFlags = struct {
-	source *string
-	cst    *bool
+	source    *string
+	onlyParse *bool
+	cst       *bool
 }{}
 
 func init() {
@@ -25,6 +26,7 @@ func init() {
 		RunE:    runParse,
 	}
 	parseFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default stdin)")
+	parseFlags.onlyParse = cmd.Flags().Bool("only-parse", false, "when this option is enabled, the parser performs only parse and doesn't semantic actions")
 	parseFlags.cst = cmd.Flags().Bool("cst", false, "when this option is enabled, the parser generates a CST")
 	rootCmd.AddCommand(cmd)
 }
@@ -48,6 +50,10 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		}
 	}()
 
+	if *parseFlags.onlyParse && *parseFlags.cst {
+		return fmt.Errorf("You cannot enable --only-parse and --cst at the same time")
+	}
+
 	cgram, err := readCompiledGrammar(args[0])
 	if err != nil {
 		return fmt.Errorf("Cannot read a compiled grammar: %w", err)
@@ -66,9 +72,10 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		}
 
 		var opts []driver.ParserOption
-		if *parseFlags.cst {
+		switch {
+		case *parseFlags.cst:
 			opts = append(opts, driver.MakeCST())
-		} else {
+		case !*parseFlags.onlyParse:
 			opts = append(opts, driver.MakeAST())
 		}
 		p, err = driver.NewParser(cgram, src, opts...)
@@ -82,14 +89,17 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		return err
 	}
 
-	var tree *driver.Node
-	if *parseFlags.cst {
-		tree = p.CST()
-	} else {
-		tree = p.AST()
-	}
 	fmt.Printf("Accepted\n")
-	driver.PrintTree(os.Stdout, tree)
+
+	if !*parseFlags.onlyParse {
+		var tree *driver.Node
+		if *parseFlags.cst {
+			tree = p.CST()
+		} else {
+			tree = p.AST()
+		}
+		driver.PrintTree(os.Stdout, tree)
+	}
 
 	return nil
 }
