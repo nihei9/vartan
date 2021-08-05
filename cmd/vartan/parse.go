@@ -90,8 +90,6 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		return err
 	}
 
-	fmt.Printf("Accepted\n")
-
 	if !*parseFlags.onlyParse {
 		var tree *driver.Node
 		if *parseFlags.cst {

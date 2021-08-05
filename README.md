@@ -29,8 +29,8 @@ term
     ;
 factor
     : number
-	| id
-	;
+    | id
+    ;
 
 whitespaces: "[\u{0009}\u{0020}]+" #skip;
 number: "[0-9]+";
@@ -52,8 +52,7 @@ If you want to make sure that the grammar behaves as expected, you can use `vart
 ⚠️ An encoding that `vartan parse` command and the driver can handle is only UTF-8.
 
 ```sh
-$ echo -n 'foo + bar * baz * 100 ' | vartan parse expr.json
-Accepted
+$ echo -n 'foo + bar * baz * 100' | vartan parse expr.json
 expr
 ├─ expr
 │  └─ term
