@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime/debug"
 
 	"github.com/nihei9/vartan/driver"
 	"github.com/nihei9/vartan/spec"
@@ -37,8 +38,8 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		if v != nil {
 			err, ok := v.(error)
 			if !ok {
-				retErr = fmt.Errorf("an unexpected error occurred: %v\n", v)
-				fmt.Fprintln(os.Stderr, retErr)
+				retErr = fmt.Errorf("an unexpected error occurred: %v", v)
+				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
 				return
 			}
 
@@ -46,7 +47,7 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		}
 
 		if retErr != nil {
-			fmt.Fprintln(os.Stderr, retErr)
+			fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
 		}
 	}()
 
