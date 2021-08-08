@@ -8,6 +8,12 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
+type expectedLR0State struct {
+	kernelItems    []*lrItem
+	nextStates     map[symbol][]*lrItem
+	reducibleProds []*production
+}
+
 func TestGenLR0Automaton(t *testing.T) {
 	src := `
 expr
@@ -58,7 +64,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 	genProd := newTestProductionGenerator(t, genSym)
 	genLR0Item := newTestLR0ItemGenerator(t, genProd)
 
-	expectedKernels := map[int][]*lr0Item{
+	expectedKernels := map[int][]*lrItem{
 		0: {
 			genLR0Item("expr'", 0, "expr"),
 		},
@@ -104,7 +110,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 	expectedStates := []expectedLR0State{
 		{
 			kernelItems: expectedKernels[0],
-			nextStates: map[symbol][]*lr0Item{
+			nextStates: map[symbol][]*lrItem{
 				genSym("expr"):    expectedKernels[1],
 				genSym("term"):    expectedKernels[2],
 				genSym("factor"):  expectedKernels[3],
@@ -115,7 +121,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[1],
-			nextStates: map[symbol][]*lr0Item{
+			nextStates: map[symbol][]*lrItem{
 				genSym("add"): expectedKernels[6],
 			},
 			reducibleProds: []*production{
@@ -124,7 +130,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[2],
-			nextStates: map[symbol][]*lr0Item{
+			nextStates: map[symbol][]*lrItem{
 				genSym("mul"): expectedKernels[7],
 			},
 			reducibleProds: []*production{
@@ -133,14 +139,14 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[3],
-			nextStates:  map[symbol][]*lr0Item{},
+			nextStates:  map[symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("term", "factor"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[4],
-			nextStates: map[symbol][]*lr0Item{
+			nextStates: map[symbol][]*lrItem{
 				genSym("expr"):    expectedKernels[8],
 				genSym("term"):    expectedKernels[2],
 				genSym("factor"):  expectedKernels[3],
@@ -151,14 +157,14 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[5],
-			nextStates:  map[symbol][]*lr0Item{},
+			nextStates:  map[symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("factor", "id"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[6],
-			nextStates: map[symbol][]*lr0Item{
+			nextStates: map[symbol][]*lrItem{
 				genSym("term"):    expectedKernels[9],
 				genSym("factor"):  expectedKernels[3],
 				genSym("l_paren"): expectedKernels[4],
@@ -168,7 +174,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[7],
-			nextStates: map[symbol][]*lr0Item{
+			nextStates: map[symbol][]*lrItem{
 				genSym("factor"):  expectedKernels[10],
 				genSym("l_paren"): expectedKernels[4],
 				genSym("id"):      expectedKernels[5],
@@ -177,7 +183,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[8],
-			nextStates: map[symbol][]*lr0Item{
+			nextStates: map[symbol][]*lrItem{
 				genSym("add"):     expectedKernels[6],
 				genSym("r_paren"): expectedKernels[11],
 			},
@@ -185,7 +191,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[9],
-			nextStates: map[symbol][]*lr0Item{
+			nextStates: map[symbol][]*lrItem{
 				genSym("mul"): expectedKernels[7],
 			},
 			reducibleProds: []*production{
@@ -194,14 +200,14 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[10],
-			nextStates:  map[symbol][]*lr0Item{},
+			nextStates:  map[symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("term", "term", "mul", "factor"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[11],
-			nextStates:  map[symbol][]*lr0Item{},
+			nextStates:  map[symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("factor", "l_paren", "expr", "r_paren"),
 			},
@@ -257,10 +263,4 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 			}
 		})
 	}
-}
-
-type expectedLR0State struct {
-	kernelItems    []*lr0Item
-	nextStates     map[symbol][]*lr0Item
-	reducibleProds []*production
 }

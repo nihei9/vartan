@@ -605,19 +605,33 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	}, nil
 }
 
+type Class string
+
+const (
+	ClassSLR  Class = "SLR(1)"
+	ClassLALR Class = "LALR(1)"
+)
+
 type compileConfig struct {
 	descriptionFileName string
+	class               Class
 }
 
-type compileOption func(config *compileConfig)
+type CompileOption func(config *compileConfig)
 
-func EnableDescription(fileName string) compileOption {
+func EnableDescription(fileName string) CompileOption {
 	return func(config *compileConfig) {
 		config.descriptionFileName = fileName
 	}
 }
 
-func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error) {
+func SpecifyClass(class Class) CompileOption {
+	return func(config *compileConfig) {
+		config.class = class
+	}
+}
+
+func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error) {
 	config := &compileConfig{}
 	for _, opt := range opts {
 		opt(config)
@@ -669,36 +683,91 @@ func Compile(gram *Grammar, opts ...compileOption) (*spec.CompiledGrammar, error
 		return nil, err
 	}
 
-	followSet, err := genFollowSet(gram.productionSet, firstSet)
-	if err != nil {
-		return nil, err
-	}
-
 	lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
 	if err != nil {
 		return nil, err
 	}
 
-	slr := &slrTableBuilder{
-		automaton:    lr0,
-		prods:        gram.productionSet,
-		follow:       followSet,
-		termCount:    len(terms),
-		nonTermCount: len(nonTerms),
-		symTab:       gram.symbolTable,
-		sym2AnonPat:  gram.sym2AnonPat,
-	}
-	tab, err := slr.build()
-	if config.descriptionFileName != "" {
-		f, err := os.OpenFile(config.descriptionFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	var tab *ParsingTable
+	switch config.class {
+	case ClassSLR:
+		followSet, err := genFollowSet(gram.productionSet, firstSet)
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
-		slr.writeDescription(f)
-	}
-	if err != nil {
-		return nil, err
+
+		slr := &slrTableBuilder{
+			automaton:    lr0,
+			prods:        gram.productionSet,
+			follow:       followSet,
+			termCount:    len(terms),
+			nonTermCount: len(nonTerms),
+			symTab:       gram.symbolTable,
+			sym2AnonPat:  gram.sym2AnonPat,
+		}
+		tab, err = slr.build()
+
+		if config.descriptionFileName != "" {
+			f, err := os.OpenFile(config.descriptionFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			if err != nil {
+				return nil, err
+			}
+			defer f.Close()
+
+			dw := &descriptionWriter{
+				automaton:    slr.automaton,
+				prods:        slr.prods,
+				follow:       slr.follow,
+				termCount:    slr.termCount,
+				nonTermCount: slr.nonTermCount,
+				symTab:       slr.symTab,
+				sym2AnonPat:  slr.sym2AnonPat,
+				conflicts:    slr.conflicts,
+			}
+			dw.write(f)
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	case ClassLALR:
+		lalr1, err := genLALR1Automaton(lr0, gram.productionSet, firstSet)
+		if err != nil {
+			return nil, err
+		}
+
+		lalr := &lalrTableBuilder{
+			automaton:    lalr1,
+			prods:        gram.productionSet,
+			termCount:    len(terms),
+			nonTermCount: len(nonTerms),
+			symTab:       gram.symbolTable,
+			sym2AnonPat:  gram.sym2AnonPat,
+		}
+		tab, err = lalr.build()
+
+		if config.descriptionFileName != "" {
+			f, err := os.OpenFile(config.descriptionFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			if err != nil {
+				return nil, err
+			}
+			defer f.Close()
+
+			dw := &descriptionWriter{
+				automaton:    lalr.automaton.lr0Automaton,
+				prods:        lalr.prods,
+				termCount:    lalr.termCount,
+				nonTermCount: lalr.nonTermCount,
+				symTab:       lalr.symTab,
+				sym2AnonPat:  lalr.sym2AnonPat,
+				conflicts:    lalr.conflicts,
+			}
+			dw.write(f)
+		}
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	action := make([]int, len(tab.actionTable))

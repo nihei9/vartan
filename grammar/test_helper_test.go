@@ -35,10 +35,10 @@ func newTestProductionGenerator(t *testing.T, genSym testSymbolGenerator) testPr
 	}
 }
 
-type testLR0ItemGenerator func(lhs string, dot int, rhs ...string) *lr0Item
+type testLR0ItemGenerator func(lhs string, dot int, rhs ...string) *lrItem
 
 func newTestLR0ItemGenerator(t *testing.T, genProd testProductionGenerator) testLR0ItemGenerator {
-	return func(lhs string, dot int, rhs ...string) *lr0Item {
+	return func(lhs string, dot int, rhs ...string) *lrItem {
 		t.Helper()
 
 		prod := genProd(lhs, rhs...)
@@ -49,4 +49,16 @@ func newTestLR0ItemGenerator(t *testing.T, genProd testProductionGenerator) test
 
 		return item
 	}
+}
+
+func withLookAhead(item *lrItem, lookAhead ...symbol) *lrItem {
+	if item.lookAhead.symbols == nil {
+		item.lookAhead.symbols = map[symbol]struct{}{}
+	}
+
+	for _, a := range lookAhead {
+		item.lookAhead.symbols[a] = struct{}{}
+	}
+
+	return item
 }

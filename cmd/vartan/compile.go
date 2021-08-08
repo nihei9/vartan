@@ -18,6 +18,7 @@ import (
 var compileFlags = struct {
 	grammar *string
 	output  *string
+	class   *string
 }{}
 
 func init() {
@@ -29,6 +30,7 @@ func init() {
 	}
 	compileFlags.grammar = cmd.Flags().StringP("grammar", "g", "", "grammar file path (default stdin)")
 	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
+	compileFlags.class = cmd.Flags().StringP("class", "", "lalr", "LALR or SLR")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -103,7 +105,19 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		descFileName = fmt.Sprintf("%v.desc", strings.TrimSuffix(grmFileName, ".vr"))
 	}
 
-	cgram, err := grammar.Compile(gram, grammar.EnableDescription(descFileName))
+	opts := []grammar.CompileOption{
+		grammar.EnableDescription(descFileName),
+	}
+	switch strings.ToLower(*compileFlags.class) {
+	case "slr":
+		opts = append(opts, grammar.SpecifyClass(grammar.ClassSLR))
+	case "lalr":
+		opts = append(opts, grammar.SpecifyClass(grammar.ClassLALR))
+	default:
+		return fmt.Errorf("invalid class: %v", *compileFlags.class)
+	}
+
+	cgram, err := grammar.Compile(gram, opts...)
 	if err != nil {
 		return err
 	}

@@ -396,57 +396,64 @@ b: "a";
 			specErr: true,
 		},
 	}
-	for i, tt := range tests {
-		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
-			ast, err := spec.Parse(strings.NewReader(tt.specSrc))
-			if err != nil {
-				t.Fatal(err)
-			}
 
-			b := grammar.GrammarBuilder{
-				AST: ast,
-			}
-			g, err := b.Build()
-			if tt.specErr {
-				if err == nil {
-					t.Fatal("an expected error didn't occur")
-				}
-				// fmt.Printf("error: %v\n", err)
-				return
-			} else {
+	classes := []grammar.Class{
+		grammar.ClassSLR,
+		grammar.ClassLALR,
+	}
+
+	for i, tt := range tests {
+		for _, class := range classes {
+			t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
+				ast, err := spec.Parse(strings.NewReader(tt.specSrc))
 				if err != nil {
 					t.Fatal(err)
 				}
-			}
 
-			gram, err := grammar.Compile(g)
-			if err != nil {
-				t.Fatal(err)
-			}
+				b := grammar.GrammarBuilder{
+					AST: ast,
+				}
+				g, err := b.Build()
+				if tt.specErr {
+					if err == nil {
+						t.Fatal("an expected error didn't occur")
+					}
+					return
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
 
-			p, err := NewParser(gram, strings.NewReader(tt.src), MakeAST(), MakeCST())
-			if err != nil {
-				t.Fatal(err)
-			}
+				gram, err := grammar.Compile(g, grammar.SpecifyClass(class))
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			err = p.Parse()
-			if err != nil {
-				t.Fatal(err)
-			}
+				p, err := NewParser(gram, strings.NewReader(tt.src), MakeAST(), MakeCST())
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			if tt.cst != nil {
-				testTree(t, p.CST(), tt.cst)
-			}
+				err = p.Parse()
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			if tt.ast != nil {
-				testTree(t, p.AST(), tt.ast)
-			}
+				if tt.cst != nil {
+					testTree(t, p.CST(), tt.cst)
+				}
 
-			fmt.Println("CST:")
-			PrintTree(os.Stdout, p.CST())
-			fmt.Println("AST:")
-			PrintTree(os.Stdout, p.AST())
-		})
+				if tt.ast != nil {
+					testTree(t, p.AST(), tt.ast)
+				}
+
+				fmt.Println("CST:")
+				PrintTree(os.Stdout, p.CST())
+				fmt.Println("AST:")
+				PrintTree(os.Stdout, p.AST())
+			})
+		}
 	}
 }
 
