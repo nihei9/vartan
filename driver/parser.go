@@ -253,9 +253,11 @@ func (p *Parser) Parse() error {
 			eKinds, eof := p.expectedKinds(p.top())
 
 			var b strings.Builder
-			fmt.Fprintf(&b, "%v", eKinds[0])
-			for _, k := range eKinds[1:] {
-				fmt.Fprintf(&b, ", %v", k)
+			if len(eKinds) > 0 {
+				fmt.Fprintf(&b, "%v", eKinds[0])
+				for _, k := range eKinds[1:] {
+					fmt.Fprintf(&b, ", %v", k)
+				}
 			}
 			if eof {
 				if len(eKinds) > 0 {
