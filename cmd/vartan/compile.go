@@ -45,6 +45,7 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 
 	grmPath := *compileFlags.grammar
 	defer func() {
+		panicked := false
 		v := recover()
 		if v != nil {
 			err, ok := v.(error)
@@ -55,6 +56,7 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 			}
 
 			retErr = err
+			panicked = true
 		}
 
 		if retErr != nil {
@@ -71,7 +73,11 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 				}
 			}
 
-			fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
+			if panicked {
+				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
+			} else {
+				fmt.Fprintf(os.Stderr, "%v\n", retErr)
+			}
 		}
 	}()
 

@@ -34,6 +34,7 @@ func init() {
 
 func runParse(cmd *cobra.Command, args []string) (retErr error) {
 	defer func() {
+		panicked := false
 		v := recover()
 		if v != nil {
 			err, ok := v.(error)
@@ -44,10 +45,15 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			}
 
 			retErr = err
+			panicked = true
 		}
 
 		if retErr != nil {
-			fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
+			if panicked {
+				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
+			} else {
+				fmt.Fprintf(os.Stderr, "%v\n", retErr)
+			}
 		}
 	}()
 
