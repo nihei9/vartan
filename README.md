@@ -1,6 +1,6 @@
 # vartan
 
-vartan provides a compiler that generates a SLR parsing table and a driver for golang.
+vartan provides a compiler that generates a LALR(1) or SLR(1) parsing table and a driver for golang.
 
 [![Test](https://github.com/nihei9/vartan/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nihei9/vartan/actions/workflows/test.yml)
 
