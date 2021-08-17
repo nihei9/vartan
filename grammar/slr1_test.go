@@ -8,15 +8,25 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
-func TestGenLALR1Automaton(t *testing.T) {
-	// This grammar belongs to LALR(1) class, not SLR(1).
+func TestGenSLR1Automaton(t *testing.T) {
 	src := `
-S: L eq R | R;
-L: ref R | id;
-R: L;
-eq: '=';
-ref: '*';
-id: "[A-Za-z0-9_]+";
+expr
+    : expr add term
+    | term
+    ;
+term
+    : term mul factor
+    | factor
+    ;
+factor
+    : l_paren expr r_paren
+    | id
+    ;
+add: "\+";
+mul: "\*";
+l_paren: "\(";
+r_paren: "\)";
+id: "[A-Za-z_][0-9A-Za-z_]*";
 `
 
 	ast, err := spec.Parse(strings.NewReader(src))
@@ -44,12 +54,17 @@ id: "[A-Za-z0-9_]+";
 		t.Fatalf("failed to create a FIRST set: %v", err)
 	}
 
-	automaton, err := genLALR1Automaton(lr0, gram.productionSet, firstSet)
+	followSet, err := genFollowSet(gram.productionSet, firstSet)
 	if err != nil {
-		t.Fatalf("failed to create a LALR1 automaton: %v", err)
+		t.Fatalf("failed to create a FOLLOW set: %v", err)
+	}
+
+	automaton, err := genSLR1Automaton(lr0, gram.productionSet, followSet)
+	if err != nil {
+		t.Fatalf("failed to create a SLR1 automaton: %v", err)
 	}
 	if automaton == nil {
-		t.Fatalf("genLALR1Automaton returns nil without any error")
+		t.Fatalf("genSLR1Automaton returns nil without any error")
 	}
 
 	initialState := automaton.states[automaton.initialState]
@@ -63,35 +78,44 @@ id: "[A-Za-z0-9_]+";
 
 	expectedKernels := map[int][]*lrItem{
 		0: {
-			withLookAhead(genLR0Item("S'", 0, "S"), symbolEOF),
+			genLR0Item("expr'", 0, "expr"),
 		},
 		1: {
-			withLookAhead(genLR0Item("S'", 1, "S"), symbolEOF),
+			withLookAhead(genLR0Item("expr'", 1, "expr"), symbolEOF),
+			genLR0Item("expr", 1, "expr", "add", "term"),
 		},
 		2: {
-			withLookAhead(genLR0Item("S", 1, "L", "eq", "R"), symbolEOF),
-			withLookAhead(genLR0Item("R", 1, "L"), symbolEOF),
+			withLookAhead(genLR0Item("expr", 1, "term"), genSym("add"), genSym("r_paren"), symbolEOF),
+			genLR0Item("term", 1, "term", "mul", "factor"),
 		},
 		3: {
-			withLookAhead(genLR0Item("S", 1, "R"), symbolEOF),
+			withLookAhead(genLR0Item("term", 1, "factor"), genSym("add"), genSym("mul"), genSym("r_paren"), symbolEOF),
 		},
 		4: {
-			withLookAhead(genLR0Item("L", 1, "ref", "R"), genSym("eq"), symbolEOF),
+			genLR0Item("factor", 1, "l_paren", "expr", "r_paren"),
 		},
 		5: {
-			withLookAhead(genLR0Item("L", 1, "id"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("factor", 1, "id"), genSym("add"), genSym("mul"), genSym("r_paren"), symbolEOF),
 		},
 		6: {
-			withLookAhead(genLR0Item("S", 2, "L", "eq", "R"), symbolEOF),
+			genLR0Item("expr", 2, "expr", "add", "term"),
 		},
 		7: {
-			withLookAhead(genLR0Item("L", 2, "ref", "R"), genSym("eq"), symbolEOF),
+			genLR0Item("term", 2, "term", "mul", "factor"),
 		},
 		8: {
-			withLookAhead(genLR0Item("R", 1, "L"), genSym("eq"), symbolEOF),
+			genLR0Item("expr", 1, "expr", "add", "term"),
+			genLR0Item("factor", 2, "l_paren", "expr", "r_paren"),
 		},
 		9: {
-			withLookAhead(genLR0Item("S", 3, "L", "eq", "R"), symbolEOF),
+			withLookAhead(genLR0Item("expr", 3, "expr", "add", "term"), genSym("add"), genSym("r_paren"), symbolEOF),
+			genLR0Item("term", 1, "term", "mul", "factor"),
+		},
+		10: {
+			withLookAhead(genLR0Item("term", 3, "term", "mul", "factor"), genSym("add"), genSym("mul"), genSym("r_paren"), symbolEOF),
+		},
+		11: {
+			withLookAhead(genLR0Item("factor", 3, "l_paren", "expr", "r_paren"), genSym("add"), genSym("mul"), genSym("r_paren"), symbolEOF),
 		},
 	}
 
@@ -99,44 +123,47 @@ id: "[A-Za-z0-9_]+";
 		{
 			kernelItems: expectedKernels[0],
 			nextStates: map[symbol][]*lrItem{
-				genSym("S"):   expectedKernels[1],
-				genSym("L"):   expectedKernels[2],
-				genSym("R"):   expectedKernels[3],
-				genSym("ref"): expectedKernels[4],
-				genSym("id"):  expectedKernels[5],
+				genSym("expr"):    expectedKernels[1],
+				genSym("term"):    expectedKernels[2],
+				genSym("factor"):  expectedKernels[3],
+				genSym("l_paren"): expectedKernels[4],
+				genSym("id"):      expectedKernels[5],
 			},
 			reducibleProds: []*production{},
 		},
 		{
 			kernelItems: expectedKernels[1],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates: map[symbol][]*lrItem{
+				genSym("add"): expectedKernels[6],
+			},
 			reducibleProds: []*production{
-				genProd("S'", "S"),
+				genProd("expr'", "expr"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[2],
 			nextStates: map[symbol][]*lrItem{
-				genSym("eq"): expectedKernels[6],
+				genSym("mul"): expectedKernels[7],
 			},
 			reducibleProds: []*production{
-				genProd("R", "L"),
+				genProd("expr", "term"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[3],
 			nextStates:  map[symbol][]*lrItem{},
 			reducibleProds: []*production{
-				genProd("S", "R"),
+				genProd("term", "factor"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[4],
 			nextStates: map[symbol][]*lrItem{
-				genSym("R"):   expectedKernels[7],
-				genSym("L"):   expectedKernels[8],
-				genSym("ref"): expectedKernels[4],
-				genSym("id"):  expectedKernels[5],
+				genSym("expr"):    expectedKernels[8],
+				genSym("term"):    expectedKernels[2],
+				genSym("factor"):  expectedKernels[3],
+				genSym("l_paren"): expectedKernels[4],
+				genSym("id"):      expectedKernels[5],
 			},
 			reducibleProds: []*production{},
 		},
@@ -144,38 +171,57 @@ id: "[A-Za-z0-9_]+";
 			kernelItems: expectedKernels[5],
 			nextStates:  map[symbol][]*lrItem{},
 			reducibleProds: []*production{
-				genProd("L", "id"),
+				genProd("factor", "id"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[6],
 			nextStates: map[symbol][]*lrItem{
-				genSym("R"):   expectedKernels[9],
-				genSym("L"):   expectedKernels[8],
-				genSym("ref"): expectedKernels[4],
-				genSym("id"):  expectedKernels[5],
+				genSym("term"):    expectedKernels[9],
+				genSym("factor"):  expectedKernels[3],
+				genSym("l_paren"): expectedKernels[4],
+				genSym("id"):      expectedKernels[5],
 			},
 			reducibleProds: []*production{},
 		},
 		{
 			kernelItems: expectedKernels[7],
-			nextStates:  map[symbol][]*lrItem{},
-			reducibleProds: []*production{
-				genProd("L", "ref", "R"),
+			nextStates: map[symbol][]*lrItem{
+				genSym("factor"):  expectedKernels[10],
+				genSym("l_paren"): expectedKernels[4],
+				genSym("id"):      expectedKernels[5],
 			},
+			reducibleProds: []*production{},
 		},
 		{
 			kernelItems: expectedKernels[8],
-			nextStates:  map[symbol][]*lrItem{},
-			reducibleProds: []*production{
-				genProd("R", "L"),
+			nextStates: map[symbol][]*lrItem{
+				genSym("add"):     expectedKernels[6],
+				genSym("r_paren"): expectedKernels[11],
 			},
+			reducibleProds: []*production{},
 		},
 		{
 			kernelItems: expectedKernels[9],
+			nextStates: map[symbol][]*lrItem{
+				genSym("mul"): expectedKernels[7],
+			},
+			reducibleProds: []*production{
+				genProd("expr", "expr", "add", "term"),
+			},
+		},
+		{
+			kernelItems: expectedKernels[10],
 			nextStates:  map[symbol][]*lrItem{},
 			reducibleProds: []*production{
-				genProd("S", "L", "eq", "R"),
+				genProd("term", "term", "mul", "factor"),
+			},
+		},
+		{
+			kernelItems: expectedKernels[11],
+			nextStates:  map[symbol][]*lrItem{},
+			reducibleProds: []*production{
+				genProd("factor", "l_paren", "expr", "r_paren"),
 			},
 		},
 	}
@@ -229,7 +275,7 @@ id: "[A-Za-z0-9_]+";
 			// test next states
 			{
 				if len(state.next) != len(eState.nextStates) {
-					t.Errorf("next state count is mismatched; want: %v, got: %v", len(eState.nextStates), len(state.next))
+					t.Errorf("next state count is mismcthed; want: %v, got: %v", len(eState.nextStates), len(state.next))
 				}
 				for eSym, eKItems := range eState.nextStates {
 					nextStateKernel, err := newKernel(eKItems)

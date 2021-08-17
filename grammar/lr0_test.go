@@ -8,10 +8,11 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
-type expectedLR0State struct {
+type expectedLRState struct {
 	kernelItems    []*lrItem
 	nextStates     map[symbol][]*lrItem
 	reducibleProds []*production
+	emptyProdItems []*lrItem
 }
 
 func TestGenLR0Automaton(t *testing.T) {
@@ -107,7 +108,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 	}
 
-	expectedStates := []expectedLR0State{
+	expectedStates := []expectedLRState{
 		{
 			kernelItems: expectedKernels[0],
 			nextStates: map[symbol][]*lrItem{
@@ -258,6 +259,203 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 				for _, eProd := range eState.reducibleProds {
 					if _, ok := state.reducible[eProd.id]; !ok {
 						t.Errorf("reducible production was not found: %v", eProd.id)
+					}
+				}
+
+				if len(state.emptyProdItems) != len(eState.emptyProdItems) {
+					t.Errorf("empty production item is mismatched; want: %v, got: %v", len(eState.emptyProdItems), len(state.emptyProdItems))
+				}
+				for _, eItem := range eState.emptyProdItems {
+					found := false
+					for _, item := range state.emptyProdItems {
+						if item.id != eItem.id {
+							continue
+						}
+						found = true
+						break
+					}
+					if !found {
+						t.Errorf("empty production item not found: %v", eItem.id)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestLR0AutomatonContainingEmptyProduction(t *testing.T) {
+	src := `
+s
+    : foo bar
+    ;
+foo
+    :
+    ;
+bar
+    : BAR
+    |
+    ;
+BAR: "bar";
+`
+
+	ast, err := spec.Parse(strings.NewReader(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := GrammarBuilder{
+		AST: ast,
+	}
+	gram, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	automaton, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+	if err != nil {
+		t.Fatalf("failed to create a LR0 automaton: %v", err)
+	}
+	if automaton == nil {
+		t.Fatalf("genLR0Automaton returns nil without any error")
+	}
+
+	initialState := automaton.states[automaton.initialState]
+	if initialState == nil {
+		t.Errorf("failed to get an initial status: %v", automaton.initialState)
+	}
+
+	genSym := newTestSymbolGenerator(t, gram.symbolTable)
+	genProd := newTestProductionGenerator(t, genSym)
+	genLR0Item := newTestLR0ItemGenerator(t, genProd)
+
+	expectedKernels := map[int][]*lrItem{
+		0: {
+			genLR0Item("s'", 0, "s"),
+		},
+		1: {
+			genLR0Item("s'", 1, "s"),
+		},
+		2: {
+			genLR0Item("s", 1, "foo", "bar"),
+		},
+		3: {
+			genLR0Item("s", 2, "foo", "bar"),
+		},
+		4: {
+			genLR0Item("bar", 1, "BAR"),
+		},
+	}
+
+	expectedStates := []expectedLRState{
+		{
+			kernelItems: expectedKernels[0],
+			nextStates: map[symbol][]*lrItem{
+				genSym("s"):   expectedKernels[1],
+				genSym("foo"): expectedKernels[2],
+			},
+			reducibleProds: []*production{
+				genProd("foo"),
+			},
+			emptyProdItems: []*lrItem{
+				genLR0Item("foo", 0),
+			},
+		},
+		{
+			kernelItems: expectedKernels[1],
+			nextStates:  map[symbol][]*lrItem{},
+			reducibleProds: []*production{
+				genProd("s'", "s"),
+			},
+		},
+		{
+			kernelItems: expectedKernels[2],
+			nextStates: map[symbol][]*lrItem{
+				genSym("bar"): expectedKernels[3],
+				genSym("BAR"): expectedKernels[4],
+			},
+			reducibleProds: []*production{
+				genProd("bar"),
+			},
+			emptyProdItems: []*lrItem{
+				genLR0Item("bar", 0),
+			},
+		},
+		{
+			kernelItems: expectedKernels[3],
+			nextStates:  map[symbol][]*lrItem{},
+			reducibleProds: []*production{
+				genProd("s", "foo", "bar"),
+			},
+		},
+		{
+			kernelItems: expectedKernels[4],
+			nextStates:  map[symbol][]*lrItem{},
+			reducibleProds: []*production{
+				genProd("bar", "BAR"),
+			},
+		},
+	}
+
+	if len(automaton.states) != len(expectedStates) {
+		t.Errorf("state count is mismatched; want: %v, got: %v", len(expectedStates), len(automaton.states))
+	}
+
+	for i, eState := range expectedStates {
+		t.Run(fmt.Sprintf("state #%v", i), func(t *testing.T) {
+			k, err := newKernel(eState.kernelItems)
+			if err != nil {
+				t.Fatalf("failed to create a kernel item: %v", err)
+			}
+
+			state, ok := automaton.states[k.id]
+			if !ok {
+				t.Fatalf("a kernel was not found: %v", k.id)
+			}
+
+			// test next states
+			{
+				if len(state.next) != len(eState.nextStates) {
+					t.Errorf("next state count is mismcthed; want: %v, got: %v", len(eState.nextStates), len(state.next))
+				}
+				for eSym, eKItems := range eState.nextStates {
+					nextStateKernel, err := newKernel(eKItems)
+					if err != nil {
+						t.Fatalf("failed to create a kernel item: %v", err)
+					}
+					nextState, ok := state.next[eSym]
+					if !ok {
+						t.Fatalf("next state was not found; state: %v, symbol: %v (%v)", state.id, "expr", eSym)
+					}
+					if nextState != nextStateKernel.id {
+						t.Fatalf("a kernel ID of the next state is mismatched; want: %v, got: %v", nextStateKernel.id, nextState)
+					}
+				}
+			}
+
+			// test reducible productions
+			{
+				if len(state.reducible) != len(eState.reducibleProds) {
+					t.Errorf("reducible production count is mismatched; want: %v, got: %v", len(eState.reducibleProds), len(state.reducible))
+				}
+				for _, eProd := range eState.reducibleProds {
+					if _, ok := state.reducible[eProd.id]; !ok {
+						t.Errorf("reducible production was not found: %v", eProd.id)
+					}
+				}
+
+				if len(state.emptyProdItems) != len(eState.emptyProdItems) {
+					t.Errorf("empty production item is mismatched; want: %v, got: %v", len(eState.emptyProdItems), len(state.emptyProdItems))
+				}
+				for _, eItem := range eState.emptyProdItems {
+					found := false
+					for _, item := range state.emptyProdItems {
+						if item.id != eItem.id {
+							continue
+						}
+						found = true
+						break
+					}
+					if !found {
+						t.Errorf("empty production item not found: %v", eItem.id)
 					}
 				}
 			}

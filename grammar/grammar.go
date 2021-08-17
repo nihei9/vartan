@@ -696,10 +696,14 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			return nil, err
 		}
 
-		slr := &slrTableBuilder{
-			automaton:    lr0,
+		slr1, err := genSLR1Automaton(lr0, gram.productionSet, followSet)
+		if err != nil {
+			return nil, err
+		}
+
+		slr := &lrTableBuilder{
+			automaton:    slr1.lr0Automaton,
 			prods:        gram.productionSet,
-			follow:       followSet,
 			termCount:    len(terms),
 			nonTermCount: len(nonTerms),
 			symTab:       gram.symbolTable,
@@ -714,17 +718,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			}
 			defer f.Close()
 
-			dw := &descriptionWriter{
-				automaton:    slr.automaton,
-				prods:        slr.prods,
-				follow:       slr.follow,
-				termCount:    slr.termCount,
-				nonTermCount: slr.nonTermCount,
-				symTab:       slr.symTab,
-				sym2AnonPat:  slr.sym2AnonPat,
-				conflicts:    slr.conflicts,
-			}
-			dw.write(f)
+			slr.write(f)
 		}
 
 		if err != nil {
@@ -736,8 +730,8 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			return nil, err
 		}
 
-		lalr := &lalrTableBuilder{
-			automaton:    lalr1,
+		lalr := &lrTableBuilder{
+			automaton:    lalr1.lr0Automaton,
 			prods:        gram.productionSet,
 			termCount:    len(terms),
 			nonTermCount: len(nonTerms),
@@ -753,16 +747,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			}
 			defer f.Close()
 
-			dw := &descriptionWriter{
-				automaton:    lalr.automaton.lr0Automaton,
-				prods:        lalr.prods,
-				termCount:    lalr.termCount,
-				nonTermCount: lalr.nonTermCount,
-				symTab:       lalr.symTab,
-				sym2AnonPat:  lalr.sym2AnonPat,
-				conflicts:    lalr.conflicts,
-			}
-			dw.write(f)
+			lalr.write(f)
 		}
 
 		if err != nil {

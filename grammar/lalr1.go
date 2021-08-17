@@ -42,7 +42,24 @@ func genLALR1Automaton(lr0 *lr0Automaton, prods *productionSet, first *firstSet)
 					}
 
 					if p.isEmpty() {
-						state.emptyProdItems = append(state.emptyProdItems, item)
+						var reducibleItem *lrItem
+						for _, it := range state.emptyProdItems {
+							if it.id != item.id {
+								continue
+							}
+
+							reducibleItem = it
+							break
+						}
+						if reducibleItem == nil {
+							return nil, fmt.Errorf("reducible item not found: %v", item.id)
+						}
+						if reducibleItem.lookAhead.symbols == nil {
+							reducibleItem.lookAhead.symbols = map[symbol]struct{}{}
+						}
+						for a := range item.lookAhead.symbols {
+							reducibleItem.lookAhead.symbols[a] = struct{}{}
+						}
 
 						propDests = append(propDests, &stateAndLRItem{
 							kernelID: state.id,

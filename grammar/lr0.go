@@ -85,16 +85,28 @@ func genStateAndNeighbourKernels(k *kernel, prods *productionSet) (*lrState, []*
 	}
 
 	reducible := map[productionID]struct{}{}
+	var emptyProdItems []*lrItem
 	for _, item := range items {
-		if item.reducible {
-			reducible[item.prod] = struct{}{}
+		if !item.reducible {
+			continue
+		}
+
+		reducible[item.prod] = struct{}{}
+
+		prod, ok := prods.findByID(item.prod)
+		if !ok {
+			return nil, nil, fmt.Errorf("reducible production not found: %v", item.prod)
+		}
+		if prod.isEmpty() {
+			emptyProdItems = append(emptyProdItems, item)
 		}
 	}
 
 	return &lrState{
-		kernel:    k,
-		next:      next,
-		reducible: reducible,
+		kernel:         k,
+		next:           next,
+		reducible:      reducible,
+		emptyProdItems: emptyProdItems,
 	}, kernels, nil
 }
 

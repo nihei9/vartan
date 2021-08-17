@@ -65,8 +65,8 @@ id: "[A-Za-z0-9_]+";
 		nonTermCount = len(nonTermTexts)
 		termCount = len(termTexts)
 
-		lalr := &lalrTableBuilder{
-			automaton:    automaton,
+		lalr := &lrTableBuilder{
+			automaton:    automaton.lr0Automaton,
 			prods:        gram.productionSet,
 			termCount:    termCount,
 			nonTermCount: nonTermCount,
@@ -306,7 +306,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 `
 
 	var ptab *ParsingTable
-	var automaton *lr0Automaton
+	var automaton *slr1Automaton
 	var gram *Grammar
 	var nonTermCount int
 	var termCount int
@@ -330,7 +330,11 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		if err != nil {
 			t.Fatal(err)
 		}
-		automaton, err = genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		if err != nil {
+			t.Fatal(err)
+		}
+		automaton, err = genSLR1Automaton(lr0, gram.productionSet, follow)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -346,10 +350,9 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		nonTermCount = len(nonTermTexts)
 		termCount = len(termTexts)
 
-		slr := &slrTableBuilder{
-			automaton:    automaton,
+		slr := &lrTableBuilder{
+			automaton:    automaton.lr0Automaton,
 			prods:        gram.productionSet,
-			follow:       follow,
 			termCount:    termCount,
 			nonTermCount: nonTermCount,
 			symTab:       gram.symbolTable,
@@ -410,11 +413,6 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 	}
 
-	// expectedStates := []struct {
-	// 	kernelItems []*lrItem
-	// 	acts        map[symbol]testActionEntry
-	// 	goTos       map[symbol][]*lrItem
-	// }{
 	expectedStates := []expectedState{
 		{
 			kernelItems: expectedKernels[0],
@@ -664,85 +662,8 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 				t.Fatalf("state was not found: #%v", 0)
 			}
 
-			testAction(t, &eState, state, ptab, automaton, gram, termCount)
-			testGoTo(t, &eState, state, ptab, automaton, nonTermCount)
-
-			// ACTION
-			{
-				// nonEmptyEntries := map[symbolNum]struct{}{}
-				// for eSym, eAct := range eState.acts {
-				// 	nonEmptyEntries[eSym.num()] = struct{}{}
-
-				// 	ty, stateNum, prodNum := ptab.getAction(state.num, eSym.num())
-				// 	if ty != eAct.ty {
-				// 		t.Fatalf("action type is mismatched; want: %v, got: %v", eAct.ty, ty)
-				// 	}
-				// 	switch eAct.ty {
-				// 	case ActionTypeShift:
-				// 		eNextState, err := newKernel(eAct.nextState)
-				// 		if err != nil {
-				// 			t.Fatal(err)
-				// 		}
-				// 		nextState := findStateByNum(automaton.states, stateNum)
-				// 		if nextState == nil {
-				// 			t.Fatalf("state was not found; state: #%v", stateNum)
-				// 		}
-				// 		if nextState.id != eNextState.id {
-				// 			t.Fatalf("next state is mismatched; symbol: %v, want: %v, got: %v", eSym, eNextState.id, nextState.id)
-				// 		}
-				// 	case ActionTypeReduce:
-				// 		prod := findProductionByNum(gram.productionSet, prodNum)
-				// 		if prod == nil {
-				// 			t.Fatalf("production was not found: #%v", prodNum)
-				// 		}
-				// 		if prod.id != eAct.production.id {
-				// 			t.Fatalf("production is mismatched; symbol: %v, want: %v, got: %v", eSym, eAct.production.id, prod.id)
-				// 		}
-				// 	}
-				// }
-				// for symNum := 0; symNum < termCount; symNum++ {
-				// 	if _, checked := nonEmptyEntries[symbolNum(symNum)]; checked {
-				// 		continue
-				// 	}
-				// 	ty, stateNum, prodNum := ptab.getAction(state.num, symbolNum(symNum))
-				// 	if ty != ActionTypeError {
-				// 		t.Errorf("unexpected ACTION entry; state: #%v, symbol: #%v, action type: %v, next state: #%v, prodction: #%v", state.num, symNum, ty, stateNum, prodNum)
-				// 	}
-				// }
-			}
-
-			// GOTO
-			{
-				// nonEmptyEntries := map[symbolNum]struct{}{}
-				// for eSym, eGoTo := range eState.goTos {
-				// 	nonEmptyEntries[eSym.num()] = struct{}{}
-
-				// 	eNextState, err := newKernel(eGoTo)
-				// 	if err != nil {
-				// 		t.Fatal(err)
-				// 	}
-				// 	ty, stateNum := ptab.getGoTo(state.num, eSym.num())
-				// 	if ty != GoToTypeRegistered {
-				// 		t.Fatalf("GOTO entry was not found; state: #%v, symbol: #%v", state.num, eSym)
-				// 	}
-				// 	nextState := findStateByNum(automaton.states, stateNum)
-				// 	if nextState == nil {
-				// 		t.Fatalf("state was not found: #%v", stateNum)
-				// 	}
-				// 	if nextState.id != eNextState.id {
-				// 		t.Fatalf("next state is mismatched; symbol: %v, want: %v, got: %v", eSym, eNextState.id, nextState.id)
-				// 	}
-				// }
-				// for symNum := 0; symNum < nonTermCount; symNum++ {
-				// 	if _, checked := nonEmptyEntries[symbolNum(symNum)]; checked {
-				// 		continue
-				// 	}
-				// 	ty, _ := ptab.getGoTo(state.num, symbolNum(symNum))
-				// 	if ty != GoToTypeError {
-				// 		t.Errorf("unexpected GOTO entry; state: #%v, symbol: #%v", state.num, symNum)
-				// 	}
-				// }
-			}
+			testAction(t, &eState, state, ptab, automaton.lr0Automaton, gram, termCount)
+			testGoTo(t, &eState, state, ptab, automaton.lr0Automaton, nonTermCount)
 		})
 	}
 }
