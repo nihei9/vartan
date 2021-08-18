@@ -36,24 +36,29 @@ r_paren: "\)";
 id: "[A-Za-z_][0-9A-Za-z_]*";
 `
 
-	ast, err := spec.Parse(strings.NewReader(src))
-	if err != nil {
-		t.Fatal(err)
-	}
-	b := GrammarBuilder{
-		AST: ast,
-	}
-	gram, err := b.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
+	var gram *Grammar
+	var automaton *lr0Automaton
+	{
+		ast, err := spec.Parse(strings.NewReader(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := GrammarBuilder{
+			AST: ast,
+		}
 
-	automaton, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
-	if err != nil {
-		t.Fatalf("failed to create a LR0 automaton: %v", err)
-	}
-	if automaton == nil {
-		t.Fatalf("genLR0Automaton returns nil without any error")
+		gram, err = b.Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		automaton, err = genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		if err != nil {
+			t.Fatalf("failed to create a LR0 automaton: %v", err)
+		}
+		if automaton == nil {
+			t.Fatalf("genLR0Automaton returns nil without any error")
+		}
 	}
 
 	initialState := automaton.states[automaton.initialState]
@@ -108,7 +113,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 	}
 
-	expectedStates := []expectedLRState{
+	expectedStates := []*expectedLRState{
 		{
 			kernelItems: expectedKernels[0],
 			nextStates: map[symbol][]*lrItem{
@@ -215,72 +220,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 	}
 
-	if len(automaton.states) != len(expectedStates) {
-		t.Errorf("state count is mismatched; want: %v, got: %v", len(expectedStates), len(automaton.states))
-	}
-
-	for i, eState := range expectedStates {
-		t.Run(fmt.Sprintf("state #%v", i), func(t *testing.T) {
-			k, err := newKernel(eState.kernelItems)
-			if err != nil {
-				t.Fatalf("failed to create a kernel item: %v", err)
-			}
-
-			state, ok := automaton.states[k.id]
-			if !ok {
-				t.Fatalf("a kernel was not found: %v", k.id)
-			}
-
-			// test next states
-			{
-				if len(state.next) != len(eState.nextStates) {
-					t.Errorf("next state count is mismcthed; want: %v, got: %v", len(eState.nextStates), len(state.next))
-				}
-				for eSym, eKItems := range eState.nextStates {
-					nextStateKernel, err := newKernel(eKItems)
-					if err != nil {
-						t.Fatalf("failed to create a kernel item: %v", err)
-					}
-					nextState, ok := state.next[eSym]
-					if !ok {
-						t.Fatalf("next state was not found; state: %v, symbol: %v (%v)", state.id, "expr", eSym)
-					}
-					if nextState != nextStateKernel.id {
-						t.Fatalf("a kernel ID of the next state is mismatched; want: %v, got: %v", nextStateKernel.id, nextState)
-					}
-				}
-			}
-
-			// test reducible productions
-			{
-				if len(state.reducible) != len(eState.reducibleProds) {
-					t.Errorf("reducible production count is mismatched; want: %v, got: %v", len(eState.reducibleProds), len(state.reducible))
-				}
-				for _, eProd := range eState.reducibleProds {
-					if _, ok := state.reducible[eProd.id]; !ok {
-						t.Errorf("reducible production was not found: %v", eProd.id)
-					}
-				}
-
-				if len(state.emptyProdItems) != len(eState.emptyProdItems) {
-					t.Errorf("empty production item is mismatched; want: %v, got: %v", len(eState.emptyProdItems), len(state.emptyProdItems))
-				}
-				for _, eItem := range eState.emptyProdItems {
-					found := false
-					for _, item := range state.emptyProdItems {
-						if item.id != eItem.id {
-							continue
-						}
-						found = true
-						break
-					}
-					if !found {
-						t.Errorf("empty production item not found: %v", eItem.id)
-					}
-				}
-			}
-		})
-	}
+	testLRAutomaton(t, expectedStates, automaton)
 }
 
 func TestLR0AutomatonContainingEmptyProduction(t *testing.T) {
@@ -298,24 +238,29 @@ bar
 BAR: "bar";
 `
 
-	ast, err := spec.Parse(strings.NewReader(src))
-	if err != nil {
-		t.Fatal(err)
-	}
-	b := GrammarBuilder{
-		AST: ast,
-	}
-	gram, err := b.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
+	var gram *Grammar
+	var automaton *lr0Automaton
+	{
+		ast, err := spec.Parse(strings.NewReader(src))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	automaton, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
-	if err != nil {
-		t.Fatalf("failed to create a LR0 automaton: %v", err)
-	}
-	if automaton == nil {
-		t.Fatalf("genLR0Automaton returns nil without any error")
+		b := GrammarBuilder{
+			AST: ast,
+		}
+		gram, err = b.Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		automaton, err = genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		if err != nil {
+			t.Fatalf("failed to create a LR0 automaton: %v", err)
+		}
+		if automaton == nil {
+			t.Fatalf("genLR0Automaton returns nil without any error")
+		}
 	}
 
 	initialState := automaton.states[automaton.initialState]
@@ -345,7 +290,7 @@ BAR: "bar";
 		},
 	}
 
-	expectedStates := []expectedLRState{
+	expectedStates := []*expectedLRState{
 		{
 			kernelItems: expectedKernels[0],
 			nextStates: map[symbol][]*lrItem{
@@ -395,11 +340,15 @@ BAR: "bar";
 		},
 	}
 
-	if len(automaton.states) != len(expectedStates) {
-		t.Errorf("state count is mismatched; want: %v, got: %v", len(expectedStates), len(automaton.states))
+	testLRAutomaton(t, expectedStates, automaton)
+}
+
+func testLRAutomaton(t *testing.T, expected []*expectedLRState, automaton *lr0Automaton) {
+	if len(automaton.states) != len(expected) {
+		t.Errorf("state count is mismatched; want: %v, got: %v", len(expected), len(automaton.states))
 	}
 
-	for i, eState := range expectedStates {
+	for i, eState := range expected {
 		t.Run(fmt.Sprintf("state #%v", i), func(t *testing.T) {
 			k, err := newKernel(eState.kernelItems)
 			if err != nil {
@@ -409,6 +358,36 @@ BAR: "bar";
 			state, ok := automaton.states[k.id]
 			if !ok {
 				t.Fatalf("a kernel was not found: %v", k.id)
+			}
+
+			// test look-ahead symbols
+			{
+				if len(state.kernel.items) != len(eState.kernelItems) {
+					t.Errorf("kernels is mismatched; want: %v, got: %v", len(eState.kernelItems), len(state.kernel.items))
+				}
+				for _, eKItem := range eState.kernelItems {
+					var kItem *lrItem
+					for _, it := range state.kernel.items {
+						if it.id != eKItem.id {
+							continue
+						}
+						kItem = it
+						break
+					}
+					if kItem == nil {
+						t.Fatalf("kernel item not found; want: %v, got: %v", eKItem.id, kItem.id)
+					}
+
+					if len(kItem.lookAhead.symbols) != len(eKItem.lookAhead.symbols) {
+						t.Errorf("look-ahead symbols are mismatched; want: %v symbols, got: %v symbols", len(eKItem.lookAhead.symbols), len(kItem.lookAhead.symbols))
+					}
+
+					for eSym := range eKItem.lookAhead.symbols {
+						if _, ok := kItem.lookAhead.symbols[eSym]; !ok {
+							t.Errorf("look-ahead symbol not found: %v", eSym)
+						}
+					}
+				}
 			}
 
 			// test next states

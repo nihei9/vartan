@@ -1,7 +1,6 @@
 package grammar
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -19,37 +18,39 @@ ref: '*';
 id: "[A-Za-z0-9_]+";
 `
 
-	ast, err := spec.Parse(strings.NewReader(src))
-	if err != nil {
-		t.Fatal(err)
-	}
-	b := GrammarBuilder{
-		AST: ast,
-	}
-	gram, err := b.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
+	var gram *Grammar
+	var automaton *lalr1Automaton
+	{
+		ast, err := spec.Parse(strings.NewReader(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := GrammarBuilder{
+			AST: ast,
+		}
 
-	lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
-	if err != nil {
-		t.Fatalf("failed to create a LR0 automaton: %v", err)
-	}
-	if lr0 == nil {
-		t.Fatalf("genLR0Automaton returns nil without any error")
-	}
+		gram, err = b.Build()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	firstSet, err := genFirstSet(gram.productionSet)
-	if err != nil {
-		t.Fatalf("failed to create a FIRST set: %v", err)
-	}
+		lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		if err != nil {
+			t.Fatalf("failed to create a LR0 automaton: %v", err)
+		}
 
-	automaton, err := genLALR1Automaton(lr0, gram.productionSet, firstSet)
-	if err != nil {
-		t.Fatalf("failed to create a LALR1 automaton: %v", err)
-	}
-	if automaton == nil {
-		t.Fatalf("genLALR1Automaton returns nil without any error")
+		firstSet, err := genFirstSet(gram.productionSet)
+		if err != nil {
+			t.Fatalf("failed to create a FIRST set: %v", err)
+		}
+
+		automaton, err = genLALR1Automaton(lr0, gram.productionSet, firstSet)
+		if err != nil {
+			t.Fatalf("failed to create a LALR1 automaton: %v", err)
+		}
+		if automaton == nil {
+			t.Fatalf("genLALR1Automaton returns nil without any error")
+		}
 	}
 
 	initialState := automaton.states[automaton.initialState]
@@ -95,7 +96,7 @@ id: "[A-Za-z0-9_]+";
 		},
 	}
 
-	expectedStates := []expectedLRState{
+	expectedStates := []*expectedLRState{
 		{
 			kernelItems: expectedKernels[0],
 			nextStates: map[symbol][]*lrItem{
@@ -180,100 +181,5 @@ id: "[A-Za-z0-9_]+";
 		},
 	}
 
-	if len(automaton.states) != len(expectedStates) {
-		t.Errorf("state count is mismatched; want: %v, got: %v", len(expectedStates), len(automaton.states))
-	}
-
-	for i, eState := range expectedStates {
-		t.Run(fmt.Sprintf("state #%v", i), func(t *testing.T) {
-			k, err := newKernel(eState.kernelItems)
-			if err != nil {
-				t.Fatalf("failed to create a kernel item: %v", err)
-			}
-
-			state, ok := automaton.states[k.id]
-			if !ok {
-				t.Fatalf("a kernel was not found: %v", k.id)
-			}
-
-			// test look-ahead symbols
-			{
-				if len(state.kernel.items) != len(eState.kernelItems) {
-					t.Errorf("kernels is mismatched; want: %v, got: %v", len(eState.kernelItems), len(state.kernel.items))
-				}
-				for _, eKItem := range eState.kernelItems {
-					var kItem *lrItem
-					for _, it := range state.kernel.items {
-						if it.id != eKItem.id {
-							continue
-						}
-						kItem = it
-						break
-					}
-					if kItem == nil {
-						t.Fatalf("kernel item not found; want: %v, got: %v", eKItem.id, kItem.id)
-					}
-
-					if len(kItem.lookAhead.symbols) != len(eKItem.lookAhead.symbols) {
-						t.Errorf("look-ahead symbols are mismatched; want: %v symbols, got: %v symbols", len(eKItem.lookAhead.symbols), len(kItem.lookAhead.symbols))
-					}
-
-					for eSym := range eKItem.lookAhead.symbols {
-						if _, ok := kItem.lookAhead.symbols[eSym]; !ok {
-							t.Errorf("look-ahead symbol not found: %v", eSym)
-						}
-					}
-				}
-			}
-
-			// test next states
-			{
-				if len(state.next) != len(eState.nextStates) {
-					t.Errorf("next state count is mismatched; want: %v, got: %v", len(eState.nextStates), len(state.next))
-				}
-				for eSym, eKItems := range eState.nextStates {
-					nextStateKernel, err := newKernel(eKItems)
-					if err != nil {
-						t.Fatalf("failed to create a kernel item: %v", err)
-					}
-					nextState, ok := state.next[eSym]
-					if !ok {
-						t.Fatalf("next state was not found; state: %v, symbol: %v (%v)", state.id, "expr", eSym)
-					}
-					if nextState != nextStateKernel.id {
-						t.Fatalf("a kernel ID of the next state is mismatched; want: %v, got: %v", nextStateKernel.id, nextState)
-					}
-				}
-			}
-
-			// test reducible productions
-			{
-				if len(state.reducible) != len(eState.reducibleProds) {
-					t.Errorf("reducible production count is mismatched; want: %v, got: %v", len(eState.reducibleProds), len(state.reducible))
-				}
-				for _, eProd := range eState.reducibleProds {
-					if _, ok := state.reducible[eProd.id]; !ok {
-						t.Errorf("reducible production was not found: %v", eProd.id)
-					}
-				}
-
-				if len(state.emptyProdItems) != len(eState.emptyProdItems) {
-					t.Errorf("empty production item is mismatched; want: %v, got: %v", len(eState.emptyProdItems), len(state.emptyProdItems))
-				}
-				for _, eItem := range eState.emptyProdItems {
-					found := false
-					for _, item := range state.emptyProdItems {
-						if item.id != eItem.id {
-							continue
-						}
-						found = true
-						break
-					}
-					if !found {
-						t.Errorf("empty production item not found: %v", eItem.id)
-					}
-				}
-			}
-		})
-	}
+	testLRAutomaton(t, expectedStates, automaton.lr0Automaton)
 }
