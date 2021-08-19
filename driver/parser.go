@@ -42,7 +42,7 @@ func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix s
 
 		var prefix string
 		if i >= num-1 {
-			prefix = "    "
+			prefix = "   "
 		} else {
 			prefix = "│  "
 		}

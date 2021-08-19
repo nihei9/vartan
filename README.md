@@ -56,20 +56,20 @@ $ echo -n 'foo + bar * baz * 100' | vartan parse expr.json
 expr
 ├─ expr
 │  └─ term
-│      └─ factor
-│          └─ id "foo"
+│     └─ factor
+│        └─ id "foo"
 ├─ add_op "+"
 └─ term
-    ├─ term
-    │  ├─ term
-    │  │  └─ factor
-    │  │      └─ id "bar"
-    │  ├─ mul_op "*"
-    │  └─ factor
-    │      └─ id "baz"
-    ├─ mul_op "*"
-    └─ factor
-        └─ number "100"
+   ├─ term
+   │  ├─ term
+   │  │  └─ factor
+   │  │     └─ id "bar"
+   │  ├─ mul_op "*"
+   │  └─ factor
+   │     └─ id "baz"
+   ├─ mul_op "*"
+   └─ factor
+      └─ number "100"
 ```
 
 When `vartan parse` command successfully parses the input data, it prints a CST or an AST (if any).
