@@ -688,7 +688,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 		return nil, err
 	}
 
-	var tab *ParsingTable
+	var automaton *lr0Automaton
 	switch config.class {
 	case ClassSLR:
 		followSet, err := genFollowSet(gram.productionSet, firstSet)
@@ -701,44 +701,30 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			return nil, err
 		}
 
-		slr := &lrTableBuilder{
-			automaton:    slr1.lr0Automaton,
-			prods:        gram.productionSet,
-			termCount:    len(terms),
-			nonTermCount: len(nonTerms),
-			symTab:       gram.symbolTable,
-			sym2AnonPat:  gram.sym2AnonPat,
-		}
-		tab, err = slr.build()
-
-		if config.descriptionFileName != "" {
-			f, err := os.OpenFile(config.descriptionFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-			if err != nil {
-				return nil, err
-			}
-			defer f.Close()
-
-			slr.write(f)
-		}
-
-		if err != nil {
-			return nil, err
-		}
+		automaton = slr1.lr0Automaton
 	case ClassLALR:
 		lalr1, err := genLALR1Automaton(lr0, gram.productionSet, firstSet)
 		if err != nil {
 			return nil, err
 		}
 
-		lalr := &lrTableBuilder{
-			automaton:    lalr1.lr0Automaton,
+		automaton = lalr1.lr0Automaton
+	}
+
+	var tab *ParsingTable
+	{
+		b := &lrTableBuilder{
+			automaton:    automaton,
 			prods:        gram.productionSet,
 			termCount:    len(terms),
 			nonTermCount: len(nonTerms),
 			symTab:       gram.symbolTable,
 			sym2AnonPat:  gram.sym2AnonPat,
 		}
-		tab, err = lalr.build()
+		tab, err = b.build()
+		if err != nil {
+			return nil, err
+		}
 
 		if config.descriptionFileName != "" {
 			f, err := os.OpenFile(config.descriptionFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
@@ -747,11 +733,11 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			}
 			defer f.Close()
 
-			lalr.write(f)
+			b.writeDescription(f, tab)
 		}
 
-		if err != nil {
-			return nil, err
+		if len(b.conflicts) > 0 {
+			fmt.Fprintf(os.Stderr, "%v conflicts\n", len(b.conflicts))
 		}
 	}
 

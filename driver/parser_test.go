@@ -10,22 +10,22 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
+func termNode(kind string, text string, children ...*Node) *Node {
+	return &Node{
+		KindName: kind,
+		Text:     text,
+		Children: children,
+	}
+}
+
+func nonTermNode(kind string, children ...*Node) *Node {
+	return &Node{
+		KindName: kind,
+		Children: children,
+	}
+}
+
 func TestParser_Parse(t *testing.T) {
-	termNode := func(kind string, text string, children ...*Node) *Node {
-		return &Node{
-			KindName: kind,
-			Text:     text,
-			Children: children,
-		}
-	}
-
-	nonTermNode := func(kind string, children ...*Node) *Node {
-		return &Node{
-			KindName: kind,
-			Children: children,
-		}
-	}
-
 	tests := []struct {
 		specSrc string
 		src     string

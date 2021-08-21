@@ -116,48 +116,12 @@ func (t *ParsingTable) getGoTo(state stateNum, sym symbolNum) (GoToType, stateNu
 	return t.goToTable[pos].describe()
 }
 
-func (t *ParsingTable) writeShiftAction(state stateNum, sym symbol, nextState stateNum) conflict {
-	pos := state.Int()*t.terminalCount + sym.num().Int()
-	act := t.actionTable[pos]
-	if !act.isEmpty() {
-		ty, _, p := act.describe()
-		if ty == ActionTypeReduce {
-			return &shiftReduceConflict{
-				state:     state,
-				sym:       sym,
-				nextState: nextState,
-				prodNum:   p,
-			}
-		}
-	}
-	t.actionTable[pos] = newShiftActionEntry(nextState)
-
-	return nil
+func (t *ParsingTable) readAction(row int, col int) actionEntry {
+	return t.actionTable[row*t.terminalCount+col]
 }
 
-func (t *ParsingTable) writeReduceAction(state stateNum, sym symbol, prod productionNum) conflict {
-	pos := state.Int()*t.terminalCount + sym.num().Int()
-	act := t.actionTable[pos]
-	if !act.isEmpty() {
-		ty, s, p := act.describe()
-		if ty == ActionTypeReduce && p != prod {
-			return &reduceReduceConflict{
-				state:    state,
-				sym:      sym,
-				prodNum1: p,
-				prodNum2: prod,
-			}
-		}
-		return &shiftReduceConflict{
-			state:     state,
-			sym:       sym,
-			nextState: s,
-			prodNum:   prod,
-		}
-	}
-	t.actionTable[pos] = newReduceActionEntry(prod)
-
-	return nil
+func (t *ParsingTable) writeAction(row int, col int, act actionEntry) {
+	t.actionTable[row*t.terminalCount+col] = act
 }
 
 func (t *ParsingTable) writeGoTo(state stateNum, sym symbol, nextState stateNum) {
@@ -191,7 +155,6 @@ func (b *lrTableBuilder) build() (*ParsingTable, error) {
 		}
 	}
 
-	var conflicts []conflict
 	for _, state := range b.automaton.states {
 		var eTerms []int
 
@@ -199,12 +162,7 @@ func (b *lrTableBuilder) build() (*ParsingTable, error) {
 			nextState := b.automaton.states[kID]
 			if sym.isTerminal() {
 				eTerms = append(eTerms, sym.num().Int())
-
-				c := ptab.writeShiftAction(state.num, sym, nextState.num)
-				if c != nil {
-					conflicts = append(conflicts, c)
-					continue
-				}
+				b.writeShiftAction(ptab, state.num, sym, nextState.num)
 			} else {
 				ptab.writeGoTo(state.num, sym, nextState.num)
 			}
@@ -241,28 +199,78 @@ func (b *lrTableBuilder) build() (*ParsingTable, error) {
 
 			for a := range reducibleItem.lookAhead.symbols {
 				eTerms = append(eTerms, a.num().Int())
-
-				c := ptab.writeReduceAction(state.num, a, reducibleProd.num)
-				if c != nil {
-					conflicts = append(conflicts, c)
-					continue
-				}
+				b.writeReduceAction(ptab, state.num, a, reducibleProd.num)
 			}
 		}
 
 		ptab.expectedTerminals[state.num] = eTerms
 	}
 
-	b.conflicts = conflicts
-
-	if len(conflicts) > 0 {
-		return nil, fmt.Errorf("%v conflicts", len(conflicts))
-	}
-
 	return ptab, nil
 }
 
-func (b *lrTableBuilder) write(w io.Writer) {
+// writeShiftAction writes a shift action to the parsing table. When a shift/reduce conflict occurred,
+// we prioritize the shift action.
+func (b *lrTableBuilder) writeShiftAction(tab *ParsingTable, state stateNum, sym symbol, nextState stateNum) {
+	act := tab.readAction(state.Int(), sym.num().Int())
+	if !act.isEmpty() {
+		ty, _, p := act.describe()
+		if ty == ActionTypeReduce {
+			b.conflicts = append(b.conflicts, &shiftReduceConflict{
+				state:     state,
+				sym:       sym,
+				nextState: nextState,
+				prodNum:   p,
+			})
+		}
+	}
+
+	tab.writeAction(state.Int(), sym.num().Int(), newShiftActionEntry(nextState))
+}
+
+// writeReduceAction writes a reduce action to the parsing table. When a shift/reduce conflict occurred,
+// we prioritize the shift action, and when a reduce/reduce conflict we prioritize the action that reduces
+// teh production with higher priority. Productions defined earlier in the grammar file have a higher priority.
+func (b *lrTableBuilder) writeReduceAction(tab *ParsingTable, state stateNum, sym symbol, prod productionNum) {
+	act := tab.readAction(state.Int(), sym.num().Int())
+	if !act.isEmpty() {
+		ty, s, p := act.describe()
+		switch ty {
+		case ActionTypeReduce:
+			if p == prod {
+				return
+			}
+
+			b.conflicts = append(b.conflicts, &reduceReduceConflict{
+				state:    state,
+				sym:      sym,
+				prodNum1: p,
+				prodNum2: prod,
+			})
+
+			if p < prod {
+				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(p))
+			} else {
+				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
+			}
+		case ActionTypeShift:
+			b.conflicts = append(b.conflicts, &shiftReduceConflict{
+				state:     state,
+				sym:       sym,
+				nextState: s,
+				prodNum:   prod,
+			})
+
+			tab.writeAction(state.Int(), sym.num().Int(), newShiftActionEntry(s))
+		}
+
+		return
+	}
+
+	tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
+}
+
+func (b *lrTableBuilder) writeDescription(w io.Writer, tab *ParsingTable) {
 	conflicts := map[stateNum][]conflict{}
 	for _, con := range b.conflicts {
 		switch c := con.(type) {
@@ -411,12 +419,24 @@ func (b *lrTableBuilder) write(w io.Writer) {
 
 		cons, ok := conflicts[state.num]
 		if ok {
+			syms := map[symbol]struct{}{}
 			for _, con := range cons {
 				switch c := con.(type) {
 				case *shiftReduceConflict:
 					fmt.Fprintf(w, "    shift/reduce conflict (shift %v, reduce %v) on %v\n", c.nextState, c.prodNum, b.symbolToText(c.sym))
+					syms[c.sym] = struct{}{}
 				case *reduceReduceConflict:
 					fmt.Fprintf(w, "    reduce/reduce conflict (reduce %v and %v) on %v\n", c.prodNum1, c.prodNum2, b.symbolToText(c.sym))
+					syms[c.sym] = struct{}{}
+				}
+			}
+			for sym := range syms {
+				ty, s, p := tab.getAction(state.num, sym.num())
+				switch ty {
+				case ActionTypeShift:
+					fmt.Fprintf(w, "        adopted shift  %4v on %v\n", s, b.symbolToText(sym))
+				case ActionTypeReduce:
+					fmt.Fprintf(w, "        adopted reduce %4v on %v\n", p, b.symbolToText(sym))
 				}
 			}
 			fmt.Fprintf(w, "\n")
