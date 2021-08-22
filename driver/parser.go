@@ -13,6 +13,8 @@ import (
 type Node struct {
 	KindName string
 	Text     string
+	Row      int
+	Col      int
 	Children []*Node
 }
 
@@ -126,6 +128,8 @@ func (p *Parser) Parse() error {
 		switch {
 		case act < 0: // Shift
 			tokText := tok.Text()
+			tokRow := tok.Row
+			tokCol := tok.Col
 			tok, err = p.shift(act * -1)
 			if err != nil {
 				return err
@@ -139,12 +143,16 @@ func (p *Parser) Parse() error {
 					ast = &Node{
 						KindName: p.gram.ParsingTable.Terminals[tsym],
 						Text:     tokText,
+						Row:      tokRow,
+						Col:      tokCol,
 					}
 				}
 				if p.makeCST {
 					cst = &Node{
 						KindName: p.gram.ParsingTable.Terminals[tsym],
 						Text:     tokText,
+						Row:      tokRow,
+						Col:      tokCol,
 					}
 				}
 
@@ -247,7 +255,7 @@ func (p *Parser) Parse() error {
 			if tok.EOF {
 				tokText = "<EOF>"
 			} else {
-				tokText = fmt.Sprintf("%v (%v)", tok.KindName.String(), tok.Text())
+				tokText = fmt.Sprintf("%v:%v: %v (%v)", tok.Row+1, tok.Col+1, tok.KindName.String(), tok.Text())
 			}
 
 			eKinds, eof := p.expectedKinds(p.top())
@@ -280,7 +288,7 @@ func (p *Parser) nextToken() (*mldriver.Token, error) {
 			return nil, err
 		}
 		if tok.Invalid {
-			return nil, fmt.Errorf("invalid token: '%v'", tok.Text())
+			return nil, fmt.Errorf("invalid token: %v:%v: '%v'", tok.Row+1, tok.Col+1, tok.Text())
 		}
 
 		if skip[tok.KindID] > 0 {
