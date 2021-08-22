@@ -29,6 +29,7 @@ const (
 	tokenKindTreeNodeClose   = tokenKind(")")
 	tokenKindPosition        = tokenKind("$")
 	tokenKindExpantion       = tokenKind("...")
+	tokenKindMetaDataMarker  = tokenKind("%")
 	tokenKindNewline         = tokenKind("newline")
 	tokenKindEOF             = tokenKind("eof")
 	tokenKindInvalid         = tokenKind("invalid")
@@ -258,6 +259,8 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		return newPositionToken(num, newPosition(l.row)), nil
 	case "expansion":
 		return newSymbolToken(tokenKindExpantion, newPosition(l.row)), nil
+	case "metadata_marker":
+		return newSymbolToken(tokenKindMetaDataMarker, newPosition(l.row)), nil
 	default:
 		return newInvalidToken(tok.Text(), newPosition(l.row)), nil
 	}

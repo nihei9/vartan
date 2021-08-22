@@ -68,6 +68,251 @@ id: "[A-Za-z0-9_]+";
 				),
 			),
 		},
+		{
+			caption: "left associativities defined earlier in the grammar have higher precedence",
+			specSrc: `
+%left mul
+%left add
+
+expr
+    : expr add expr
+    | expr mul expr
+	| id
+    ;
+
+id: "[A-Za-z0-9_]+";
+add: '+';
+mul: '*';
+`,
+			src: `a+b*c*d+e`,
+			cst: nonTermNode("expr",
+				nonTermNode("expr",
+					nonTermNode("expr",
+						termNode("id", "a"),
+					),
+					termNode("add", "+"),
+					nonTermNode("expr",
+						nonTermNode("expr",
+							nonTermNode("expr",
+								termNode("id", "b"),
+							),
+							termNode("mul", "*"),
+							nonTermNode("expr",
+								termNode("id", "c"),
+							),
+						),
+						termNode("mul", "*"),
+						nonTermNode("expr",
+							termNode("id", "d"),
+						),
+					),
+				),
+				termNode("add", "+"),
+				nonTermNode("expr",
+					termNode("id", "e"),
+				),
+			),
+		},
+		{
+			caption: "left associativities defined in the same line have the same precedence",
+			specSrc: `
+%left add sub
+
+expr
+    : expr add expr
+    | expr sub expr
+	| id
+    ;
+
+id: "[A-Za-z0-9_]+";
+add: '+';
+sub: '-';
+`,
+			src: `a-b+c+d-e`,
+			cst: nonTermNode("expr",
+				nonTermNode("expr",
+					nonTermNode("expr",
+						nonTermNode("expr",
+							nonTermNode("expr",
+								termNode("id", "a"),
+							),
+							termNode("sub", "-"),
+							nonTermNode("expr",
+								termNode("id", "b"),
+							),
+						),
+						termNode("add", "+"),
+						nonTermNode("expr",
+							termNode("id", "c"),
+						),
+					),
+					termNode("add", "+"),
+					nonTermNode("expr",
+						termNode("id", "d"),
+					),
+				),
+				termNode("sub", "-"),
+				nonTermNode("expr",
+					termNode("id", "e"),
+				),
+			),
+		},
+		{
+			caption: "right associativities defined earlier in the grammar have higher precedence",
+			specSrc: `
+%right r1
+%right r2
+
+expr
+    : expr r2 expr
+    | expr r1 expr
+	| id
+    ;
+
+whitespaces: "[\u{0009}\u{0020}]+" #skip;
+r1: 'r1';
+r2: 'r2';
+id: "[A-Za-z0-9_]+";
+`,
+			src: `a r2 b r1 c r1 d r2 e`,
+			cst: nonTermNode("expr",
+				nonTermNode("expr",
+					termNode("id", "a"),
+				),
+				termNode("r2", "r2"),
+				nonTermNode("expr",
+					nonTermNode("expr",
+						nonTermNode("expr",
+							termNode("id", "b"),
+						),
+						termNode("r1", "r1"),
+						nonTermNode("expr",
+							nonTermNode("expr",
+								termNode("id", "c"),
+							),
+							termNode("r1", "r1"),
+							nonTermNode("expr",
+								termNode("id", "d"),
+							),
+						),
+					),
+					termNode("r2", "r2"),
+					nonTermNode("expr",
+						termNode("id", "e"),
+					),
+				),
+			),
+		},
+		{
+			caption: "right associativities defined in the same line have the same precedence",
+			specSrc: `
+%right r1 r2
+
+expr
+    : expr r2 expr
+    | expr r1 expr
+	| id
+    ;
+
+whitespaces: "[\u{0009}\u{0020}]+" #skip;
+r1: 'r1';
+r2: 'r2';
+id: "[A-Za-z0-9_]+";
+`,
+			src: `a r2 b r1 c r1 d r2 e`,
+			cst: nonTermNode("expr",
+				nonTermNode("expr",
+					termNode("id", "a"),
+				),
+				termNode("r2", "r2"),
+				nonTermNode("expr",
+					nonTermNode("expr",
+						termNode("id", "b"),
+					),
+					termNode("r1", "r1"),
+					nonTermNode("expr",
+						nonTermNode("expr",
+							termNode("id", "c"),
+						),
+						termNode("r1", "r1"),
+						nonTermNode("expr",
+							nonTermNode("expr",
+								termNode("id", "d"),
+							),
+							termNode("r2", "r2"),
+							nonTermNode("expr",
+								termNode("id", "e"),
+							),
+						),
+					),
+				),
+			),
+		},
+		{
+			caption: "left and right associativities can be mixed",
+			specSrc: `
+%left mul div
+%left add sub
+%right assign
+
+expr
+    : expr add expr
+    | expr sub expr
+    | expr mul expr
+    | expr div expr
+	| expr assign expr
+	| id
+    ;
+
+id: "[A-Za-z0-9_]+";
+add: '+';
+sub: '-';
+mul: '*';
+div: '/';
+assign: '=';
+`,
+			src: `x=y=a+b*c-d/e`,
+			cst: nonTermNode(
+				"expr",
+				nonTermNode("expr",
+					termNode("id", "x"),
+				),
+				termNode("assign", "="),
+				nonTermNode("expr",
+					nonTermNode("expr",
+						termNode("id", "y"),
+					),
+					termNode("assign", "="),
+					nonTermNode("expr",
+						nonTermNode("expr",
+							nonTermNode("expr",
+								termNode("id", "a"),
+							),
+							termNode("add", "+"),
+							nonTermNode("expr",
+								nonTermNode("expr",
+									termNode("id", "b"),
+								),
+								termNode("mul", "*"),
+								nonTermNode("expr",
+									termNode("id", "c"),
+								),
+							),
+						),
+						termNode("sub", "-"),
+						nonTermNode("expr",
+							nonTermNode("expr",
+								termNode("id", "d"),
+							),
+							termNode("div", "/"),
+							nonTermNode("expr",
+								termNode("id", "e"),
+							),
+						),
+					),
+				),
+			),
+		},
 	}
 
 	for _, tt := range tests {

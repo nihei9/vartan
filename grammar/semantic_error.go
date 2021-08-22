@@ -15,6 +15,8 @@ func (e *SemanticError) Error() string {
 }
 
 var (
+	semErrMDInvalidName       = newSemanticError("invalid meta data name")
+	semErrMDInvalidParam      = newSemanticError("invalid parameter")
 	semErrUnusedProduction    = newSemanticError("unused production")
 	semErrUnusedTerminal      = newSemanticError("unused terminal")
 	semErrTermCannotBeSkipped = newSemanticError("a terminal used in productions cannot be skipped")

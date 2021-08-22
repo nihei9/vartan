@@ -136,6 +136,7 @@ type lrTableBuilder struct {
 	nonTermCount int
 	symTab       *symbolTable
 	sym2AnonPat  map[symbol]string
+	precAndAssoc *precAndAssoc
 
 	conflicts []conflict
 }
@@ -222,6 +223,12 @@ func (b *lrTableBuilder) writeShiftAction(tab *ParsingTable, state stateNum, sym
 				nextState: nextState,
 				prodNum:   p,
 			})
+
+			if b.resolveConflict(sym.num(), p) == ActionTypeShift {
+				tab.writeAction(state.Int(), sym.num().Int(), newShiftActionEntry(nextState))
+			}
+
+			return
 		}
 	}
 
@@ -230,7 +237,7 @@ func (b *lrTableBuilder) writeShiftAction(tab *ParsingTable, state stateNum, sym
 
 // writeReduceAction writes a reduce action to the parsing table. When a shift/reduce conflict occurred,
 // we prioritize the shift action, and when a reduce/reduce conflict we prioritize the action that reduces
-// teh production with higher priority. Productions defined earlier in the grammar file have a higher priority.
+// the production with higher priority. Productions defined earlier in the grammar file have a higher priority.
 func (b *lrTableBuilder) writeReduceAction(tab *ParsingTable, state stateNum, sym symbol, prod productionNum) {
 	act := tab.readAction(state.Int(), sym.num().Int())
 	if !act.isEmpty() {
@@ -261,13 +268,31 @@ func (b *lrTableBuilder) writeReduceAction(tab *ParsingTable, state stateNum, sy
 				prodNum:   prod,
 			})
 
-			tab.writeAction(state.Int(), sym.num().Int(), newShiftActionEntry(s))
+			if b.resolveConflict(sym.num(), prod) == ActionTypeReduce {
+				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
+			}
 		}
 
 		return
 	}
 
 	tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
+}
+
+func (b *lrTableBuilder) resolveConflict(sym symbolNum, prod productionNum) ActionType {
+	symPrec := b.precAndAssoc.terminalPrecedence(sym)
+	prodPrec := b.precAndAssoc.productionPredence(prod)
+	if symPrec < prodPrec {
+		return ActionTypeShift
+	}
+	if symPrec == prodPrec {
+		assoc := b.precAndAssoc.productionAssociativity(prod)
+		if assoc != assocTypeLeft {
+			return ActionTypeShift
+		}
+	}
+
+	return ActionTypeReduce
 }
 
 func (b *lrTableBuilder) writeDescription(w io.Writer, tab *ParsingTable) {

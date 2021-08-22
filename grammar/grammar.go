@@ -16,6 +16,58 @@ type astActionEntry struct {
 	expansion bool
 }
 
+type assocType string
+
+const (
+	assocTypeNil   = assocType("")
+	assocTypeLeft  = assocType("left")
+	assocTypeRight = assocType("right")
+)
+
+const (
+	precNil = 0
+	precMin = 1
+)
+
+// precAndAssoc represents precedence and associativities of terminal symbols and productions.
+// We use the priority of the production to resolve shift/reduce conflicts.
+type precAndAssoc struct {
+	// termPrec represents the precedence of the terminal symbols.
+	termPrec map[symbolNum]int
+
+	// prodPrec and prodAssoc represent the precedence and the associativities of the production.
+	// These values are inherited from the right-most symbols in the RHS of the productions.
+	prodPrec  map[productionNum]int
+	prodAssoc map[productionNum]assocType
+}
+
+func (pa *precAndAssoc) terminalPrecedence(sym symbolNum) int {
+	prec, ok := pa.termPrec[sym]
+	if !ok {
+		return precNil
+	}
+
+	return prec
+}
+
+func (pa *precAndAssoc) productionPredence(prod productionNum) int {
+	prec, ok := pa.prodPrec[prod]
+	if !ok {
+		return precNil
+	}
+
+	return prec
+}
+
+func (pa *precAndAssoc) productionAssociativity(prod productionNum) assocType {
+	assoc, ok := pa.prodAssoc[prod]
+	if !ok {
+		return assocTypeNil
+	}
+
+	return assoc
+}
+
 type Grammar struct {
 	lexSpec              *mlspec.LexSpec
 	skipLexKinds         []mlspec.LexKindName
@@ -24,6 +76,7 @@ type Grammar struct {
 	augmentedStartSymbol symbol
 	symbolTable          *symbolTable
 	astActions           map[productionID][]*astActionEntry
+	precAndAssoc         *precAndAssoc
 }
 
 type GrammarBuilder struct {
@@ -39,6 +92,11 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 	}
 
 	prodsAndActs, err := b.genProductionsAndActions(b.AST, symTabAndLexSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs.prods)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +151,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		augmentedStartSymbol: prodsAndActs.augStartSym,
 		symbolTable:          symTabAndLexSpec.symTab,
 		astActions:           prodsAndActs.astActs,
+		precAndAssoc:         pa,
 	}, nil
 }
 
@@ -130,7 +189,6 @@ func findUsedAndUnusedSymbols(root *spec.RootNode) (*usedAndUnusedSymbols, error
 		markUsedSymbols(mark, map[string]bool{}, prods, start)
 	}
 
-	// usedProds := make(map[string]*spec.ProductionNode, len(prods))
 	usedTerms := make(map[string]*spec.ProductionNode, len(lexProds))
 	unusedProds := map[string]*spec.ProductionNode{}
 	unusedTerms := map[string]*spec.ProductionNode{}
@@ -605,6 +663,93 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	}, nil
 }
 
+func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionSet) (*precAndAssoc, error) {
+	termPrec := map[symbolNum]int{}
+	termAssoc := map[symbolNum]assocType{}
+	{
+		precN := precMin
+		for _, md := range b.AST.MetaData {
+			var assocTy assocType
+			switch md.Name {
+			case "left":
+				assocTy = assocTypeLeft
+			case "right":
+				assocTy = assocTypeRight
+			default:
+				return nil, &verr.SpecError{
+					Cause: semErrMDInvalidName,
+					Row:   md.Pos.Row,
+				}
+			}
+
+			if len(md.Parameters) == 0 {
+				return nil, &verr.SpecError{
+					Cause:  semErrMDInvalidParam,
+					Detail: "associativity needs at least one symbol",
+					Row:    md.Pos.Row,
+				}
+			}
+
+			for _, p := range md.Parameters {
+				sym, ok := symTab.toSymbol(p.ID)
+				if !ok {
+					return nil, &verr.SpecError{
+						Cause:  semErrMDInvalidParam,
+						Detail: fmt.Sprintf("'%v' is undefined", p.ID),
+						Row:    p.Pos.Row,
+					}
+				}
+				if !sym.isTerminal() {
+					return nil, &verr.SpecError{
+						Cause:  semErrMDInvalidParam,
+						Detail: fmt.Sprintf("associativity can take only terminal symbol ('%v' is a non-terminal)", p.ID),
+						Row:    p.Pos.Row,
+					}
+				}
+
+				termPrec[sym.num()] = precN
+				termAssoc[sym.num()] = assocTy
+			}
+
+			precN++
+		}
+	}
+
+	prodPrec := map[productionNum]int{}
+	prodAssoc := map[productionNum]assocType{}
+	for _, prod := range prods.getAllProductions() {
+		mostRightTerm := symbolNil
+		for _, sym := range prod.rhs {
+			if !sym.isTerminal() {
+				continue
+			}
+			mostRightTerm = sym
+		}
+		if mostRightTerm.isNil() {
+			continue
+		}
+
+		prec, ok := termPrec[mostRightTerm.num()]
+		if !ok {
+			continue
+		}
+
+		assoc, ok := termAssoc[mostRightTerm.num()]
+		if !ok {
+			continue
+		}
+
+		prodPrec[prod.num] = prec
+		prodAssoc[prod.num] = assoc
+	}
+
+	return &precAndAssoc{
+		termPrec:  termPrec,
+		prodPrec:  prodPrec,
+		prodAssoc: prodAssoc,
+	}, nil
+}
+
 type Class string
 
 const (
@@ -720,6 +865,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			nonTermCount: len(nonTerms),
 			symTab:       gram.symbolTable,
 			sym2AnonPat:  gram.sym2AnonPat,
+			precAndAssoc: gram.precAndAssoc,
 		}
 		tab, err = b.build()
 		if err != nil {

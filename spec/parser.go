@@ -8,6 +8,7 @@ import (
 )
 
 type RootNode struct {
+	MetaData       []*DirectiveNode
 	Productions    []*ProductionNode
 	LexProductions []*ProductionNode
 	Fragments      []*FragmentNode
@@ -135,10 +136,17 @@ func (p *parser) parseRoot() *RootNode {
 		}
 	}()
 
+	var metadata []*DirectiveNode
 	var prods []*ProductionNode
 	var lexProds []*ProductionNode
 	var fragments []*FragmentNode
 	for {
+		md := p.parseMetaData()
+		if md != nil {
+			metadata = append(metadata, md)
+			continue
+		}
+
 		fragment := p.parseFragment()
 		if fragment != nil {
 			fragments = append(fragments, fragment)
@@ -161,9 +169,58 @@ func (p *parser) parseRoot() *RootNode {
 	}
 
 	return &RootNode{
+		MetaData:       metadata,
 		Productions:    prods,
 		LexProductions: lexProds,
 		Fragments:      fragments,
+	}
+}
+
+func (p *parser) parseMetaData() *DirectiveNode {
+	defer func() {
+		err := recover()
+		if err == nil {
+			return
+		}
+
+		specErr, ok := err.(*verr.SpecError)
+		if !ok {
+			panic(err)
+		}
+
+		p.errs = append(p.errs, specErr)
+		p.skipOverTo(tokenKindNewline)
+
+		return
+	}()
+
+	p.consume(tokenKindNewline)
+
+	if !p.consume(tokenKindMetaDataMarker) {
+		return nil
+	}
+	mdPos := p.lastTok.pos
+
+	if !p.consume(tokenKindID) {
+		raiseSyntaxError(p.pos.Row, synErrNoProductionName)
+	}
+	name := p.lastTok.text
+
+	var params []*ParameterNode
+	for {
+		if !p.consume(tokenKindID) {
+			break
+		}
+		params = append(params, &ParameterNode{
+			ID:  p.lastTok.text,
+			Pos: p.lastTok.pos,
+		})
+	}
+
+	return &DirectiveNode{
+		Name:       name,
+		Parameters: params,
+		Pos:        mdPos,
 	}
 }
 

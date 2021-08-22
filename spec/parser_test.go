@@ -8,6 +8,18 @@ import (
 )
 
 func TestParse(t *testing.T) {
+	leftAssoc := func(params ...*ParameterNode) *DirectiveNode {
+		return &DirectiveNode{
+			Name:       "left",
+			Parameters: params,
+		}
+	}
+	rightAssoc := func(params ...*ParameterNode) *DirectiveNode {
+		return &DirectiveNode{
+			Name:       "right",
+			Parameters: params,
+		}
+	}
 	prod := func(lhs string, alts ...*AlternativeNode) *ProductionNode {
 		return &ProductionNode{
 			LHS: lhs,
@@ -537,6 +549,80 @@ fragment number: "[0-9]";
 				},
 			},
 		},
+		{
+			caption: "a grammar can contain left and right associativities",
+			src: `
+%left l1 l2
+%left l3
+%right r1 r2
+%right r3
+
+s
+    : id l1 id l2 id l3 id
+    | id r1 id r2 id r3 id
+    ;
+
+whitespaces: "[\u{0009}\u{0020}]+" #skip;
+l1: 'l1';
+l2: 'l2';
+l3: 'l3';
+r1: 'r1';
+r2: 'r2';
+r3: 'r3';
+id: "[A-Za-z0-9_]+";
+`,
+			ast: &RootNode{
+				MetaData: []*DirectiveNode{
+					withDirPos(
+						leftAssoc(
+							withParamPos(idParam("l1"), newPosition(2)),
+							withParamPos(idParam("l2"), newPosition(2)),
+						),
+						newPosition(2),
+					),
+					withDirPos(
+						leftAssoc(
+							withParamPos(idParam("l3"), newPosition(3)),
+						),
+						newPosition(3),
+					),
+					withDirPos(
+						rightAssoc(
+							withParamPos(idParam("r1"), newPosition(4)),
+							withParamPos(idParam("r2"), newPosition(4)),
+						),
+						newPosition(4),
+					),
+					withDirPos(
+						rightAssoc(
+							withParamPos(idParam("r3"), newPosition(5)),
+						),
+						newPosition(5),
+					),
+				},
+				Productions: []*ProductionNode{
+					prod("s",
+						alt(id(`id`), id(`l1`), id(`id`), id(`l2`), id(`id`), id(`l3`), id(`id`)),
+						alt(id(`id`), id(`r1`), id(`id`), id(`r2`), id(`id`), id(`r3`), id(`id`)),
+					),
+				},
+				LexProductions: []*ProductionNode{
+					prod("whitespaces",
+						withAltDir(
+							alt(pat(`[\u{0009}\u{0020}]+`)),
+							dir("skip"),
+						),
+					),
+					prod("l1", alt(pat(`l1`))),
+					prod("l2", alt(pat(`l2`))),
+					prod("l3", alt(pat(`l3`))),
+					prod("r1", alt(pat(`r1`))),
+					prod("r2", alt(pat(`r2`))),
+					prod("r3", alt(pat(`r3`))),
+					prod("id", alt(pat(`[A-Za-z0-9_]+`))),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.caption, func(t *testing.T) {
@@ -570,6 +656,12 @@ func testRootNode(t *testing.T, root, expected *RootNode, checkPosition bool) {
 	t.Helper()
 	if len(root.Productions) != len(expected.Productions) {
 		t.Fatalf("unexpected length of productions; want: %v, got: %v", len(expected.Productions), len(root.Productions))
+	}
+	if len(root.MetaData) != len(expected.MetaData) {
+		t.Fatalf("unexpected length of meta data; want: %v, got: %v", len(expected.MetaData), len(root.MetaData))
+	}
+	for i, md := range root.MetaData {
+		testDirective(t, md, expected.MetaData[i], true)
 	}
 	for i, prod := range root.Productions {
 		testProductionNode(t, prod, expected.Productions[i], checkPosition)

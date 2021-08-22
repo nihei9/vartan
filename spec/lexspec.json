@@ -101,6 +101,10 @@
 		{
 			"kind": "directive_marker",
 			"pattern": "#"
+		},
+		{
+			"kind": "metadata_marker",
+			"pattern": "%"
 		}
 	]
 }

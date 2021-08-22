@@ -395,6 +395,58 @@ b: "a";
 `,
 			specErr: true,
 		},
+		// Invalid associativity type
+		{
+			specSrc: `
+%foo
+
+s
+    : a
+    ;
+
+a: 'a';
+`,
+			specErr: true,
+		},
+		// Associativity needs at least one symbol.
+		{
+			specSrc: `
+%left
+
+s
+    : a
+    ;
+
+a: 'a';
+`,
+			specErr: true,
+		},
+		// Associativity cannot take an undefined symbol.
+		{
+			specSrc: `
+%left b
+
+s
+    : a
+    ;
+
+a: 'a';
+`,
+			specErr: true,
+		},
+		// Associativity cannot take a non-terminal symbol.
+		{
+			specSrc: `
+%left s
+
+s
+    : a
+    ;
+
+a: 'a';
+`,
+			specErr: true,
+		},
 	}
 
 	classes := []grammar.Class{
