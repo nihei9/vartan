@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.0
+
+* [00f8b09](https://github.com/nihei9/vartan/commit/00f8b091a9f1eb3ed0348900784be07c326c0dc1) - Support LALR(1) class.
+* [05738fa](https://github.com/nihei9/vartan/commit/05738faa189e50b6c0ecc52f0e2dbad6bcedb218) - Print a stack trace only when a panic occured.
+* [118732e](https://github.com/nihei9/vartan/commit/118732eccef2350bf4e20e389b35b2433613b1ab) - Fix panic on a syntax error.
+* [6c2036e](https://github.com/nihei9/vartan/commit/6c2036e86fc37a5361d6daf64b914f1af66559ef) - Fix indents of a tree.
+* [94e2400](https://github.com/nihei9/vartan/commit/94e2400aa8e6017165ab22ba5f2f70a6d0682f63) - Resolve conflicts by default rules. When a shift/reduce conflict occurred, we prioritize the shift action, and when a reduce/reduce conflict occurred, we prioritize the production defined earlier in the grammar file.
+* [4d879b9](https://github.com/nihei9/vartan/commit/4d879b95d5368d578a39baaefba0de743a764105) - Support `%left` and `%right` to specify precedences and associativities.
+* [02674d7](https://github.com/nihei9/vartan/commit/02674d7264aea363a8f7b7839ab77ce64ba720db) - Add a column number to an error message.
+* [dc78a8b](https://github.com/nihei9/vartan/commit/dc78a8b9b9496a6e26ac8ebb925bd708a83af307) - Add a column number to a token.
+* [6cfbd0a](https://github.com/nihei9/vartan/commit/6cfbd0a8bb969d440bbf836947ae4a12cda56ab3) - Fix panic on no productions.
+
+[Changes](https://github.com/nihei9/vartan/compare/v0.1.1...v0.2.0)
+
 ## v0.1.1
 
 * [bb878f9](https://github.com/nihei9/vartan/commit/bb878f980b26f4a90a0ba7ec18e6a044a04e7d14) - Fix the name of the EOF symbol in the description file. The EOF is displayed as _\<EOF>_, not _e1_.
