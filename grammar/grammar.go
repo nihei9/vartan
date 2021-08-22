@@ -116,6 +116,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 				Cause:  semErrTermCannotBeSkipped,
 				Detail: sym,
 				Row:    prod.Pos.Row,
+				Col:    prod.Pos.Col,
 			})
 			continue
 		}
@@ -128,6 +129,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 			Cause:  semErrUnusedProduction,
 			Detail: sym,
 			Row:    prod.Pos.Row,
+			Col:    prod.Pos.Col,
 		})
 	}
 
@@ -136,6 +138,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 			Cause:  semErrUnusedTerminal,
 			Detail: sym,
 			Row:    prod.Pos.Row,
+			Col:    prod.Pos.Col,
 		})
 	}
 
@@ -310,6 +313,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 				Cause:  semErrDuplicateTerminal,
 				Detail: prod.LHS,
 				Row:    prod.Pos.Row,
+				Col:    prod.Pos.Col,
 			})
 			continue
 		}
@@ -341,6 +345,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 				Cause:  semErrDuplicateTerminal,
 				Detail: fragment.LHS,
 				Row:    fragment.Pos.Row,
+				Col:    fragment.Pos.Col,
 			})
 			continue
 		}
@@ -376,6 +381,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 					Cause:  semErrDirInvalidParam,
 					Detail: fmt.Sprintf("'mode' directive needs an ID parameter"),
 					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
 				}, nil
 			}
 			for _, param := range dir.Parameters {
@@ -384,6 +390,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 						Cause:  semErrDirInvalidParam,
 						Detail: fmt.Sprintf("'mode' directive needs an ID parameter"),
 						Row:    param.Pos.Row,
+						Col:    param.Pos.Col,
 					}, nil
 				}
 				modes = append(modes, mlspec.LexModeName(param.ID))
@@ -393,6 +400,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 				Cause:  semErrDirInvalidName,
 				Detail: dir.Name,
 				Row:    dir.Pos.Row,
+				Col:    dir.Pos.Col,
 			}, nil
 		}
 	}
@@ -410,6 +418,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 					Cause:  semErrDirInvalidParam,
 					Detail: fmt.Sprintf("'skip' directive needs no parameter"),
 					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
 				}, nil
 			}
 			skip = true
@@ -419,6 +428,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 					Cause:  semErrDirInvalidParam,
 					Detail: fmt.Sprintf("'push' directive needs an ID parameter"),
 					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
 				}, nil
 			}
 			push = mlspec.LexModeName(dir.Parameters[0].ID)
@@ -428,6 +438,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 					Cause:  semErrDirInvalidParam,
 					Detail: fmt.Sprintf("'pop' directive needs no parameter"),
 					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
 				}, nil
 			}
 			pop = true
@@ -436,6 +447,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 				Cause:  semErrDirInvalidName,
 				Detail: dir.Name,
 				Row:    dir.Pos.Row,
+				Col:    dir.Pos.Col,
 			}, nil
 		}
 	}
@@ -499,6 +511,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 				Cause:  semErrDuplicateName,
 				Detail: prod.LHS,
 				Row:    prod.Pos.Row,
+				Col:    prod.Pos.Col,
 			})
 		}
 	}
@@ -530,6 +543,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 							Cause:  semErrUndefinedSym,
 							Detail: elem.ID,
 							Row:    elem.Pos.Row,
+							Col:    elem.Pos.Col,
 						})
 						continue LOOP_RHS
 					}
@@ -545,10 +559,13 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 				// Report the line number of a duplicate alternative.
 				// When the alternative is empty, we report the position of its LHS.
 				var row int
+				var col int
 				if len(alt.Elements) > 0 {
 					row = alt.Elements[0].Pos.Row
+					col = alt.Elements[0].Pos.Col
 				} else {
 					row = prod.Pos.Row
+					col = prod.Pos.Col
 				}
 
 				var detail string
@@ -574,6 +591,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 					Cause:  semErrDuplicateProduction,
 					Detail: detail,
 					Row:    row,
+					Col:    col,
 				})
 				continue LOOP_RHS
 			}
@@ -588,6 +606,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 							Cause:  semErrDirInvalidParam,
 							Detail: fmt.Sprintf("'ast' directive needs a tree parameter"),
 							Row:    dir.Pos.Row,
+							Col:    dir.Pos.Col,
 						})
 						continue LOOP_RHS
 					}
@@ -598,6 +617,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 							Cause:  semErrDirInvalidParam,
 							Detail: fmt.Sprintf("a name of a tree structure must be the same ID as an LHS of a production; LHS: %v", lhsText),
 							Row:    param.Pos.Row,
+							Col:    param.Pos.Col,
 						})
 						continue LOOP_RHS
 					}
@@ -608,6 +628,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 								Cause:  semErrDirInvalidParam,
 								Detail: fmt.Sprintf("a position must be less than or equal to the length of an alternativ (%v)", len(alt.Elements)),
 								Row:    c.Pos.Row,
+								Col:    c.Pos.Col,
 							})
 							continue LOOP_RHS
 						}
@@ -620,6 +641,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 									Cause:  semErrDirInvalidParam,
 									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a pattern ($%v: %v)", c.Position, elem.Pattern),
 									Row:    c.Pos.Row,
+									Col:    c.Pos.Col,
 								})
 								continue LOOP_RHS
 							}
@@ -633,6 +655,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 									Cause:  semErrDirInvalidParam,
 									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a terminal symbol ($%v: %v)", c.Position, elem.ID),
 									Row:    c.Pos.Row,
+									Col:    c.Pos.Col,
 								})
 								continue LOOP_RHS
 							}
@@ -649,6 +672,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						Cause:  semErrDirInvalidName,
 						Detail: fmt.Sprintf("invalid directive name '%v'", dir.Name),
 						Row:    dir.Pos.Row,
+						Col:    dir.Pos.Col,
 					})
 					continue LOOP_RHS
 				}
@@ -679,6 +703,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 				return nil, &verr.SpecError{
 					Cause: semErrMDInvalidName,
 					Row:   md.Pos.Row,
+					Col:   md.Pos.Col,
 				}
 			}
 
@@ -687,6 +712,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 					Cause:  semErrMDInvalidParam,
 					Detail: "associativity needs at least one symbol",
 					Row:    md.Pos.Row,
+					Col:    md.Pos.Col,
 				}
 			}
 
@@ -697,6 +723,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 						Cause:  semErrMDInvalidParam,
 						Detail: fmt.Sprintf("'%v' is undefined", p.ID),
 						Row:    p.Pos.Row,
+						Col:    p.Pos.Col,
 					}
 				}
 				if !sym.isTerminal() {
@@ -704,6 +731,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 						Cause:  semErrMDInvalidParam,
 						Detail: fmt.Sprintf("associativity can take only terminal symbol ('%v' is a non-terminal)", p.ID),
 						Row:    p.Pos.Row,
+						Col:    p.Pos.Col,
 					}
 				}
 

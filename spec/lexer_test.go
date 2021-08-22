@@ -9,23 +9,23 @@ import (
 
 func TestLexer_Run(t *testing.T) {
 	idTok := func(text string) *token {
-		return newIDToken(text, newPosition(1))
+		return newIDToken(text, newPosition(1, 0))
 	}
 
 	termPatTok := func(text string) *token {
-		return newTerminalPatternToken(text, newPosition(1))
+		return newTerminalPatternToken(text, newPosition(1, 0))
 	}
 
 	symTok := func(kind tokenKind) *token {
-		return newSymbolToken(kind, newPosition(1))
+		return newSymbolToken(kind, newPosition(1, 0))
 	}
 
 	posTok := func(num int) *token {
-		return newPositionToken(num, newPosition(1))
+		return newPositionToken(num, newPosition(1, 0))
 	}
 
 	invalidTok := func(text string) *token {
-		return newInvalidToken(text, newPosition(1))
+		return newInvalidToken(text, newPosition(1, 0))
 	}
 
 	tests := []struct {

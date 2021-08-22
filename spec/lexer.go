@@ -37,11 +37,13 @@ const (
 
 type Position struct {
 	Row int
+	Col int
 }
 
-func newPosition(row int) Position {
+func newPosition(row, col int) Position {
 	return Position{
 		Row: row,
+		Col: col,
 	}
 }
 
@@ -101,7 +103,6 @@ type lexer struct {
 	s   *mlspec.CompiledLexSpec
 	d   *mldriver.Lexer
 	buf *token
-	row int
 }
 
 //go:embed clexspec.json
@@ -118,9 +119,8 @@ func newLexer(src io.Reader) (*lexer, error) {
 		return nil, err
 	}
 	return &lexer{
-		s:   s,
-		d:   d,
-		row: 1,
+		s: s,
+		d: d,
 	}, nil
 }
 
@@ -159,7 +159,7 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			return nil, err
 		}
 		if tok.Invalid {
-			return newInvalidToken(tok.Text(), newPosition(l.row)), nil
+			return newInvalidToken(tok.Text(), newPosition(tok.Row+1, tok.Col+1)), nil
 		}
 		if tok.EOF {
 			return newEOFToken(), nil
@@ -176,20 +176,19 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 
 	switch tok.KindName {
 	case "newline":
-		row := l.row
-		l.row++
-		return newSymbolToken(tokenKindNewline, newPosition(row)), nil
+		return newSymbolToken(tokenKindNewline, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "kw_fragment":
-		return newSymbolToken(tokenKindKWFragment, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindKWFragment, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "identifier":
 		if strings.HasPrefix(tok.Text(), "_") {
 			return nil, &verr.SpecError{
 				Cause:  synErrAutoGenID,
 				Detail: tok.Text(),
-				Row:    l.row,
+				Row:    tok.Row + 1,
+				Col:    tok.Col + 1,
 			}
 		}
-		return newIDToken(tok.Text(), newPosition(l.row)), nil
+		return newIDToken(tok.Text(), newPosition(tok.Row+1, tok.Col+1)), nil
 	case "terminal_open":
 		var b strings.Builder
 		for {
@@ -200,7 +199,8 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			if tok.EOF {
 				return nil, &verr.SpecError{
 					Cause: synErrUnclosedTerminal,
-					Row:   l.row,
+					Row:   tok.Row + 1,
+					Col:   tok.Col + 1,
 				}
 			}
 			switch tok.KindName {
@@ -210,17 +210,19 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			case "escape_symbol":
 				return nil, &verr.SpecError{
 					Cause: synErrIncompletedEscSeq,
-					Row:   l.row,
+					Row:   tok.Row + 1,
+					Col:   tok.Col + 1,
 				}
 			case "terminal_close":
 				pat := b.String()
 				if pat == "" {
 					return nil, &verr.SpecError{
 						Cause: synErrEmptyPattern,
-						Row:   l.row,
+						Row:   tok.Row + 1,
+						Col:   tok.Col + 1,
 					}
 				}
-				return newTerminalPatternToken(pat, newPosition(l.row)), nil
+				return newTerminalPatternToken(pat, newPosition(tok.Row+1, tok.Col+1)), nil
 			}
 		}
 	case "literal_pattern":
@@ -228,22 +230,23 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		if pat == "" {
 			return nil, &verr.SpecError{
 				Cause: synErrEmptyPattern,
-				Row:   l.row,
+				Row:   tok.Row + 1,
+				Col:   tok.Col + 1,
 			}
 		}
-		return newTerminalPatternToken(mlspec.EscapePattern(pat), newPosition(l.row)), nil
+		return newTerminalPatternToken(mlspec.EscapePattern(pat), newPosition(tok.Row+1, tok.Col+1)), nil
 	case "colon":
-		return newSymbolToken(tokenKindColon, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindColon, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "or":
-		return newSymbolToken(tokenKindOr, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindOr, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "semicolon":
-		return newSymbolToken(tokenKindSemicolon, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindSemicolon, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "directive_marker":
-		return newSymbolToken(tokenKindDirectiveMarker, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindDirectiveMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "tree_node_open":
-		return newSymbolToken(tokenKindTreeNodeOpen, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindTreeNodeOpen, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "tree_node_close":
-		return newSymbolToken(tokenKindTreeNodeClose, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindTreeNodeClose, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "position":
 		// Remove '$' character and convert to an integer.
 		num, err := strconv.Atoi(tok.Text()[1:])
@@ -253,15 +256,16 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		if num == 0 {
 			return nil, &verr.SpecError{
 				Cause: synErrZeroPos,
-				Row:   l.row,
+				Row:   tok.Row + 1,
+				Col:   tok.Col + 1,
 			}
 		}
-		return newPositionToken(num, newPosition(l.row)), nil
+		return newPositionToken(num, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "expansion":
-		return newSymbolToken(tokenKindExpantion, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindExpantion, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "metadata_marker":
-		return newSymbolToken(tokenKindMetaDataMarker, newPosition(l.row)), nil
+		return newSymbolToken(tokenKindMetaDataMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	default:
-		return newInvalidToken(tok.Text(), newPosition(l.row)), nil
+		return newInvalidToken(tok.Text(), newPosition(tok.Row+1, tok.Col+1)), nil
 	}
 }

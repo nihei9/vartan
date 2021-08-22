@@ -39,6 +39,7 @@ type SpecError struct {
 	FilePath   string
 	SourceName string
 	Row        int
+	Col        int
 }
 
 func (e *SpecError) Error() string {
@@ -46,8 +47,8 @@ func (e *SpecError) Error() string {
 	if e.SourceName != "" {
 		fmt.Fprintf(&b, "%v: ", e.SourceName)
 	}
-	if e.Row != 0 {
-		fmt.Fprintf(&b, "%v: ", e.Row)
+	if e.Row != 0 && e.Col != 0 {
+		fmt.Fprintf(&b, "%v:%v: ", e.Row, e.Col)
 	}
 	fmt.Fprintf(&b, "error: %v", e.Cause)
 	if e.Detail != "" {

@@ -111,6 +111,12 @@ func TestParse(t *testing.T) {
 		frag.Pos = pos
 		return frag
 	}
+	newPos := func(row int) Position {
+		return Position{
+			Row: row,
+			Col: 0,
+		}
+	}
 
 	tests := []struct {
 		caption       string
@@ -256,13 +262,13 @@ foo: 'foo';
 								alt(
 									withElemPos(
 										id("foo"),
-										newPosition(6),
+										newPos(6),
 									),
 								),
-								newPosition(6),
+								newPos(6),
 							),
 						),
-						newPosition(5),
+						newPos(5),
 					),
 				},
 				LexProductions: []*ProductionNode{
@@ -272,13 +278,13 @@ foo: 'foo';
 								alt(
 									withElemPos(
 										pat(`foo`),
-										newPosition(13),
+										newPos(13),
 									),
 								),
-								newPosition(13),
+								newPos(13),
 							),
 						),
-						newPosition(13),
+						newPos(13),
 					),
 				},
 			},
@@ -463,42 +469,42 @@ fragment number: "[0-9]";
 								withAltPos(
 									withAltDir(
 										alt(
-											withElemPos(id("exp"), newPosition(4)),
-											withElemPos(pat(`\+`), newPosition(4)),
-											withElemPos(id("id"), newPosition(4)),
+											withElemPos(id("exp"), newPos(4)),
+											withElemPos(pat(`\+`), newPos(4)),
+											withElemPos(id("id"), newPos(4)),
 										),
 										withDirPos(
 											dir("ast",
 												withParamPos(
 													treeParam("exp",
-														withTreeChildPos(pos(1), newPosition(4)),
-														withTreeChildPos(pos(2), newPosition(4))),
-													newPosition(4),
+														withTreeChildPos(pos(1), newPos(4)),
+														withTreeChildPos(pos(2), newPos(4))),
+													newPos(4),
 												),
 											),
-											newPosition(4),
+											newPos(4),
 										),
 									),
-									newPosition(4),
+									newPos(4),
 								),
 								withAltPos(
 									alt(
-										withElemPos(id("id"), newPosition(5)),
+										withElemPos(id("id"), newPos(5)),
 									),
-									newPosition(5),
+									newPos(5),
 								),
 							),
 							withDirPos(
 								dir("mode",
 									withParamPos(
 										idParam("default"),
-										newPosition(2),
+										newPos(2),
 									),
 								),
-								newPosition(2),
+								newPos(2),
 							),
 						),
-						newPosition(3),
+						newPos(3),
 					),
 				},
 				LexProductions: []*ProductionNode{
@@ -509,18 +515,18 @@ fragment number: "[0-9]";
 									alt(
 										withElemPos(
 											pat(`\u{0020}+`),
-											newPosition(7),
+											newPos(7),
 										),
 									),
 									withDirPos(
 										dir("skip"),
-										newPosition(7),
+										newPos(7),
 									),
 								),
-								newPosition(7),
+								newPos(7),
 							),
 						),
-						newPosition(7),
+						newPos(7),
 					),
 					withProdPos(
 						prod("id",
@@ -528,23 +534,23 @@ fragment number: "[0-9]";
 								alt(
 									withElemPos(
 										pat(`\f{letter}(\f{letter}|\f{number})*`),
-										newPosition(8),
+										newPos(8),
 									),
 								),
-								newPosition(8),
+								newPos(8),
 							),
 						),
-						newPosition(8),
+						newPos(8),
 					),
 				},
 				Fragments: []*FragmentNode{
 					withFragmentPos(
 						frag("letter", "[A-Za-z_]"),
-						newPosition(9),
+						newPos(9),
 					),
 					withFragmentPos(
 						frag("number", "[0-9]"),
-						newPosition(10),
+						newPos(10),
 					),
 				},
 			},
@@ -575,29 +581,29 @@ id: "[A-Za-z0-9_]+";
 				MetaData: []*DirectiveNode{
 					withDirPos(
 						leftAssoc(
-							withParamPos(idParam("l1"), newPosition(2)),
-							withParamPos(idParam("l2"), newPosition(2)),
+							withParamPos(idParam("l1"), newPos(2)),
+							withParamPos(idParam("l2"), newPos(2)),
 						),
-						newPosition(2),
+						newPos(2),
 					),
 					withDirPos(
 						leftAssoc(
-							withParamPos(idParam("l3"), newPosition(3)),
+							withParamPos(idParam("l3"), newPos(3)),
 						),
-						newPosition(3),
+						newPos(3),
 					),
 					withDirPos(
 						rightAssoc(
-							withParamPos(idParam("r1"), newPosition(4)),
-							withParamPos(idParam("r2"), newPosition(4)),
+							withParamPos(idParam("r1"), newPos(4)),
+							withParamPos(idParam("r2"), newPos(4)),
 						),
-						newPosition(4),
+						newPos(4),
 					),
 					withDirPos(
 						rightAssoc(
-							withParamPos(idParam("r3"), newPosition(5)),
+							withParamPos(idParam("r3"), newPos(5)),
 						),
-						newPosition(5),
+						newPos(5),
 					),
 				},
 				Productions: []*ProductionNode{
