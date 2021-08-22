@@ -95,6 +95,9 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 	if err != nil {
 		return nil, err
 	}
+	if prodsAndActs == nil && len(b.errs) > 0 {
+		return nil, b.errs
+	}
 
 	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs.prods)
 	if err != nil {
