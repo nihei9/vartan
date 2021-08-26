@@ -447,6 +447,94 @@ a: 'a';
 `,
 			specErr: true,
 		},
+		// The grammar can contain the 'error' symbol.
+		{
+			specSrc: `
+s
+    : id id id ';'
+    | error ';'
+    ;
+
+ws: "[\u{0009}\u{0020}]+" #skip;
+id: "[A-Za-z_]+";
+`,
+			src: `foo bar baz ;`,
+		},
+		// The grammar can contain the 'recover' directive.
+		{
+			specSrc: `
+seq
+    : seq elem
+    | elem
+    ;
+elem
+    : id id id ';'
+    | error ';' #recover
+    ;
+
+ws: "[\u{0009}\u{0020}]+" #skip;
+id: "[A-Za-z_]+";
+`,
+			src: `a b c ; d e f ;`,
+		},
+		// The 'recover' directive cannot take a parameter.
+		{
+			specSrc: `
+seq
+    : seq elem
+    | elem
+    ;
+elem
+    : id id id ';'
+    | error ';' #recover foo
+    ;
+
+ws: "[\u{0009}\u{0020}]+" #skip;
+id: "[A-Za-z_]+";
+`,
+			src:     `a b c ; d e f ;`,
+			specErr: true,
+		},
+		// You cannot use the error symbol as a non-terminal symbol.
+		{
+			specSrc: `
+s
+    : foo
+    ;
+error
+    : bar
+    ;
+
+foo: 'foo';
+bar: 'bar';
+`,
+			specErr: true,
+		},
+		// You cannot use the error symbol as a terminal symbol.
+		{
+			specSrc: `
+s
+    : foo
+    | error
+    ;
+
+foo: 'foo';
+error: 'error';
+`,
+			specErr: true,
+		},
+		// You cannot use the error symbol as a terminal symbol, even if given the skip directive.
+		{
+			specSrc: `
+s
+    : foo
+    ;
+
+foo: 'foo';
+error: 'error' #skip;
+`,
+			specErr: true,
+		},
 	}
 
 	classes := []grammar.Class{
@@ -490,6 +578,10 @@ a: 'a';
 				err = p.Parse()
 				if err != nil {
 					t.Fatal(err)
+				}
+
+				if len(p.SyntaxErrors()) > 0 {
+					t.Fatalf("unexpected syntax errors occurred: %+v", p.SyntaxErrors())
 				}
 
 				if tt.cst != nil {

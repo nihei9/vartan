@@ -68,15 +68,21 @@ func (pa *precAndAssoc) productionAssociativity(prod productionNum) assocType {
 	return assoc
 }
 
+const reservedSymbolNameError = "error"
+
 type Grammar struct {
 	lexSpec              *mlspec.LexSpec
 	skipLexKinds         []mlspec.LexKindName
 	sym2AnonPat          map[symbol]string
 	productionSet        *productionSet
 	augmentedStartSymbol symbol
+	errorSymbol          symbol
 	symbolTable          *symbolTable
 	astActions           map[productionID][]*astActionEntry
 	precAndAssoc         *precAndAssoc
+
+	// recoverProductions is a set of productions having the recover directive.
+	recoverProductions map[productionID]struct{}
 }
 
 type GrammarBuilder struct {
@@ -155,8 +161,10 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		sym2AnonPat:          symTabAndLexSpec.sym2AnonPat,
 		productionSet:        prodsAndActs.prods,
 		augmentedStartSymbol: prodsAndActs.augStartSym,
+		errorSymbol:          symTabAndLexSpec.errSym,
 		symbolTable:          symTabAndLexSpec.symTab,
 		astActions:           prodsAndActs.astActs,
+		recoverProductions:   prodsAndActs.recoverProds,
 		precAndAssoc:         pa,
 	}, nil
 }
@@ -193,6 +201,9 @@ func findUsedAndUnusedSymbols(root *spec.RootNode) (*usedAndUnusedSymbols, error
 		start := root.Productions[0]
 		mark[start.LHS] = true
 		markUsedSymbols(mark, map[string]bool{}, prods, start)
+
+		// We don't have to check the error symbol because the error symbol doesn't have a production.
+		delete(mark, reservedSymbolNameError)
 	}
 
 	usedTerms := make(map[string]*spec.ProductionNode, len(lexProds))
@@ -255,6 +266,7 @@ type symbolTableAndLexSpec struct {
 	anonPat2Sym map[string]symbol
 	sym2AnonPat map[symbol]string
 	lexSpec     *mlspec.LexSpec
+	errSym      symbol
 	skip        []mlspec.LexKindName
 	skipSyms    []string
 }
@@ -264,6 +276,16 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	// Thus anonymous patterns must be registered to `symTab` and `entries` before named patterns.
 	symTab := newSymbolTable()
 	entries := []*mlspec.LexEntry{}
+
+	// We need to register the reserved symbol before registering others.
+	var errSym symbol
+	{
+		sym, err := symTab.registerTerminalSymbol(reservedSymbolNameError)
+		if err != nil {
+			return nil, err
+		}
+		errSym = sym
+	}
 
 	anonPat2Sym := map[string]symbol{}
 	sym2AnonPat := map[symbol]string{}
@@ -311,13 +333,22 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	skipKinds := []mlspec.LexKindName{}
 	skipSyms := []string{}
 	for _, prod := range root.LexProductions {
-		if _, exist := symTab.toSymbol(prod.LHS); exist {
-			b.errs = append(b.errs, &verr.SpecError{
-				Cause:  semErrDuplicateTerminal,
-				Detail: prod.LHS,
-				Row:    prod.Pos.Row,
-				Col:    prod.Pos.Col,
-			})
+		if sym, exist := symTab.toSymbol(prod.LHS); exist {
+			if sym == errSym {
+				b.errs = append(b.errs, &verr.SpecError{
+					Cause: semErrErrSymIsReserved,
+					Row:   prod.Pos.Row,
+					Col:   prod.Pos.Col,
+				})
+			} else {
+				b.errs = append(b.errs, &verr.SpecError{
+					Cause:  semErrDuplicateTerminal,
+					Detail: prod.LHS,
+					Row:    prod.Pos.Row,
+					Col:    prod.Pos.Col,
+				})
+			}
+
 			continue
 		}
 
@@ -368,6 +399,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		lexSpec: &mlspec.LexSpec{
 			Entries: entries,
 		},
+		errSym:   errSym,
 		skip:     skipKinds,
 		skipSyms: skipSyms,
 	}, nil
@@ -465,14 +497,16 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 }
 
 type productionsAndActions struct {
-	prods       *productionSet
-	augStartSym symbol
-	astActs     map[productionID][]*astActionEntry
+	prods        *productionSet
+	augStartSym  symbol
+	astActs      map[productionID][]*astActionEntry
+	recoverProds map[productionID]struct{}
 }
 
 func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTableAndLexSpec) (*productionsAndActions, error) {
 	symTab := symTabAndLexSpec.symTab
 	anonPat2Sym := symTabAndLexSpec.anonPat2Sym
+	errSym := symTabAndLexSpec.errSym
 
 	if len(root.Productions) == 0 {
 		b.errs = append(b.errs, &verr.SpecError{
@@ -484,6 +518,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	prods := newProductionSet()
 	var augStartSym symbol
 	astActs := map[productionID][]*astActionEntry{}
+	recoverProds := map[productionID]struct{}{}
 
 	startProd := root.Productions[0]
 	augStartText := fmt.Sprintf("%s'", startProd.LHS)
@@ -492,16 +527,33 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	if err != nil {
 		return nil, err
 	}
+	if augStartSym == errSym {
+		b.errs = append(b.errs, &verr.SpecError{
+			Cause: semErrErrSymIsReserved,
+			Row:   startProd.Pos.Row,
+			Col:   startProd.Pos.Col,
+		})
+	}
+
 	startSym, err := symTab.registerNonTerminalSymbol(startProd.LHS)
 	if err != nil {
 		return nil, err
 	}
+	if startSym == errSym {
+		b.errs = append(b.errs, &verr.SpecError{
+			Cause: semErrErrSymIsReserved,
+			Row:   startProd.Pos.Row,
+			Col:   startProd.Pos.Col,
+		})
+	}
+
 	p, err := newProduction(augStartSym, []symbol{
 		startSym,
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	prods.append(p)
 
 	for _, prod := range root.Productions {
@@ -515,6 +567,13 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 				Detail: prod.LHS,
 				Row:    prod.Pos.Row,
 				Col:    prod.Pos.Col,
+			})
+		}
+		if sym == errSym {
+			b.errs = append(b.errs, &verr.SpecError{
+				Cause: semErrErrSymIsReserved,
+				Row:   prod.Pos.Row,
+				Col:   prod.Pos.Col,
 			})
 		}
 	}
@@ -670,6 +729,17 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						}
 					}
 					astActs[p.id] = astAct
+				case "recover":
+					if len(dir.Parameters) > 0 {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("'recover' directive needs no parameter"),
+							Row:    dir.Pos.Row,
+							Col:    dir.Pos.Col,
+						})
+						continue LOOP_RHS
+					}
+					recoverProds[p.id] = struct{}{}
 				default:
 					b.errs = append(b.errs, &verr.SpecError{
 						Cause:  semErrDirInvalidName,
@@ -684,9 +754,10 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	}
 
 	return &productionsAndActions{
-		prods:       prods,
-		augStartSym: augStartSym,
-		astActs:     astActs,
+		prods:        prods,
+		augStartSym:  augStartSym,
+		astActs:      astActs,
+		recoverProds: recoverProds,
 	}, nil
 }
 
@@ -859,7 +930,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 		return nil, err
 	}
 
-	lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+	lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol, gram.errorSymbol)
 	if err != nil {
 		return nil, err
 	}
@@ -929,10 +1000,15 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 
 	lhsSyms := make([]int, len(gram.productionSet.getAllProductions())+1)
 	altSymCounts := make([]int, len(gram.productionSet.getAllProductions())+1)
+	recoverProds := make([]int, len(gram.productionSet.getAllProductions())+1)
 	astActEnties := make([][]int, len(gram.productionSet.getAllProductions())+1)
 	for _, p := range gram.productionSet.getAllProductions() {
 		lhsSyms[p.num] = p.lhs.num().Int()
 		altSymCounts[p.num] = p.rhsLen
+
+		if _, ok := gram.recoverProductions[p.id]; ok {
+			recoverProds[p.num] = 1
+		}
 
 		astAct, ok := gram.astActions[p.id]
 		if !ok {
@@ -972,6 +1048,9 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			NonTerminals:            nonTerms,
 			NonTerminalCount:        tab.nonTerminalCount,
 			EOFSymbol:               symbolEOF.num().Int(),
+			ErrorSymbol:             gram.errorSymbol.num().Int(),
+			ErrorTrapperStates:      tab.errorTrapperStates,
+			RecoverProductions:      recoverProds,
 			ExpectedTerminals:       tab.expectedTerminals,
 		},
 		ASTAction: &spec.ASTAction{

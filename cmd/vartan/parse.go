@@ -96,7 +96,31 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		return err
 	}
 
-	if !*parseFlags.onlyParse {
+	synErrs := p.SyntaxErrors()
+	for _, synErr := range synErrs {
+		tok := synErr.Token
+
+		var msg string
+		switch {
+		case tok.EOF:
+			msg = "<eof>"
+		case tok.Invalid:
+			msg = fmt.Sprintf("'%v' (<invalid>)", tok.Text())
+		default:
+			msg = fmt.Sprintf("'%v' (%v)", tok.Text(), tok.KindName)
+		}
+
+		fmt.Fprintf(os.Stderr, "%v:%v: %v: %v", synErr.Row+1, synErr.Col+1, synErr.Message, msg)
+		if len(synErrs) > 0 {
+			fmt.Fprintf(os.Stderr, "; expected: %v", synErr.ExpectedTerminals[0])
+			for _, t := range synErr.ExpectedTerminals[1:] {
+				fmt.Fprintf(os.Stderr, ", %v", t)
+			}
+		}
+		fmt.Fprintf(os.Stderr, "\n")
+	}
+
+	if len(synErrs) == 0 && !*parseFlags.onlyParse {
 		var tree *driver.Node
 		if *parseFlags.cst {
 			tree = p.CST()

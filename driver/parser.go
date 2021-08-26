@@ -3,7 +3,6 @@ package driver
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	mldriver "github.com/nihei9/maleeni/driver"
 	mlspec "github.com/nihei9/maleeni/spec"
@@ -53,6 +52,14 @@ func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix s
 	}
 }
 
+type SyntaxError struct {
+	Row               int
+	Col               int
+	Message           string
+	Token             *mldriver.Token
+	ExpectedTerminals []string
+}
+
 type ParserOption func(p *Parser) error
 
 func MakeAST() ParserOption {
@@ -84,6 +91,9 @@ type Parser struct {
 	makeAST    bool
 	makeCST    bool
 	needSemAct bool
+	onError    bool
+	shiftCount int
+	synErrs    []*SyntaxError
 }
 
 func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) (*Parser, error) {
@@ -117,6 +127,8 @@ func (p *Parser) Parse() error {
 	if err != nil {
 		return err
 	}
+
+ACTION_LOOP:
 	for {
 		var tsym int
 		if tok.EOF {
@@ -130,9 +142,20 @@ func (p *Parser) Parse() error {
 			tokText := tok.Text()
 			tokRow := tok.Row
 			tokCol := tok.Col
-			tok, err = p.shift(act * -1)
+			p.shift(act * -1)
+			tok, err = p.nextToken()
 			if err != nil {
 				return err
+			}
+
+			if p.onError {
+				// When the parser performs shift three times, the parser recovers from the error state.
+				if p.shiftCount < 3 {
+					p.shiftCount++
+				} else {
+					p.onError = false
+					p.shiftCount = 0
+				}
 			}
 
 			// semantic action
@@ -173,9 +196,15 @@ func (p *Parser) Parse() error {
 				return nil
 			}
 
+			prodNum := act
+
+			if p.onError && p.gram.ParsingTable.RecoverProductions[prodNum] != 0 {
+				p.onError = false
+				p.shiftCount = 0
+			}
+
 			// semantic action
 			if p.needSemAct {
-				prodNum := act
 				lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
 
 				// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.
@@ -251,31 +280,80 @@ func (p *Parser) Parse() error {
 				})
 			}
 		default:
-			var tokText string
-			if tok.EOF {
-				tokText = "<EOF>"
-			} else {
-				tokText = fmt.Sprintf("%v:%v: %v (%v)", tok.Row+1, tok.Col+1, tok.KindName.String(), tok.Text())
+			if p.onError {
+				tok, err = p.nextToken()
+				if err != nil {
+					return err
+				}
+				if tok.EOF {
+					return nil
+				}
+
+				continue ACTION_LOOP
 			}
 
-			eKinds, eof := p.expectedKinds(p.top())
-
-			var b strings.Builder
-			if len(eKinds) > 0 {
-				fmt.Fprintf(&b, "%v", eKinds[0])
-				for _, k := range eKinds[1:] {
-					fmt.Fprintf(&b, ", %v", k)
+			var eKindNames []string
+			{
+				eKinds, eof := p.expectedKinds(p.top())
+				for _, k := range eKinds {
+					eKindNames = append(eKindNames, k.String())
+				}
+				if eof {
+					eKindNames = append(eKindNames, "<EOF>")
 				}
 			}
-			if eof {
-				if len(eKinds) > 0 {
-					fmt.Fprintf(&b, ", <EOF>")
+
+			p.synErrs = append(p.synErrs, &SyntaxError{
+				Row:               tok.Row,
+				Col:               tok.Col,
+				Message:           "unexpected token",
+				Token:             tok,
+				ExpectedTerminals: eKindNames,
+			})
+
+			for {
+				if p.gram.ParsingTable.ErrorTrapperStates[p.top()] != 0 {
+					p.onError = true
+					p.shiftCount = 0
+
+					errSym := p.gram.ParsingTable.ErrorSymbol
+					act := p.gram.ParsingTable.Action[p.top()*termCount+errSym]
+					if act >= 0 {
+						return fmt.Errorf("an entry must be a shift action by the error symbol; entry: %v, state: %v, symbol: %v", act, p.top(), p.gram.ParsingTable.Terminals[errSym])
+					}
+					p.shift(act * -1)
+
+					// semantic action
+					if p.needSemAct {
+						var ast *Node
+						var cst *Node
+						if p.makeAST {
+							ast = &Node{
+								KindName: p.gram.ParsingTable.Terminals[errSym],
+							}
+						}
+						if p.makeCST {
+							cst = &Node{
+								KindName: p.gram.ParsingTable.Terminals[errSym],
+							}
+						}
+
+						p.semStack = append(p.semStack, &semanticFrame{
+							cst: cst,
+							ast: ast,
+						})
+					}
+
+					continue ACTION_LOOP
+				}
+
+				if p.top() != p.gram.ParsingTable.InitialState {
+					p.pop(1)
+					p.semStack = p.semStack[:len(p.semStack)-1]
 				} else {
-					fmt.Fprintf(&b, "<EOF>")
+					return nil
 				}
 			}
-
-			return fmt.Errorf("unexpected token: %v, expected: %v", tokText, b.String())
 		}
 	}
 }
@@ -283,12 +361,12 @@ func (p *Parser) Parse() error {
 func (p *Parser) nextToken() (*mldriver.Token, error) {
 	skip := p.gram.LexicalSpecification.Maleeni.Skip
 	for {
+		// We don't have to check whether the token is invalid because the kind ID of the invalid token is 0,
+		// and the parsing table doesn't have an entry corresponding to the kind ID 0. Thus we can detect
+		// a syntax error because the parser cannot find an entry corresponding to the invalid token.
 		tok, err := p.lex.Next()
 		if err != nil {
 			return nil, err
-		}
-		if tok.Invalid {
-			return nil, fmt.Errorf("invalid token: %v:%v: '%v'", tok.Row+1, tok.Col+1, tok.Text())
 		}
 
 		if skip[tok.KindID] > 0 {
@@ -299,9 +377,8 @@ func (p *Parser) nextToken() (*mldriver.Token, error) {
 	}
 }
 
-func (p *Parser) shift(nextState int) (*mldriver.Token, error) {
+func (p *Parser) shift(nextState int) {
 	p.push(nextState)
-	return p.nextToken()
 }
 
 func (p *Parser) reduce(prodNum int) bool {
@@ -337,13 +414,23 @@ func (p *Parser) AST() *Node {
 	return p.ast
 }
 
+func (p *Parser) SyntaxErrors() []*SyntaxError {
+	return p.synErrs
+}
+
 func (p *Parser) expectedKinds(state int) ([]mlspec.LexKindName, bool) {
 	kinds := []mlspec.LexKindName{}
 	eof := false
 	terms := p.gram.ParsingTable.ExpectedTerminals[state]
 	for _, tsym := range terms {
-		if tsym == 1 {
+		if tsym == p.gram.ParsingTable.EOFSymbol {
 			eof = true
+			continue
+		}
+
+		// We don't add the error symbol to the look-ahead symbols because users cannot input the error symbol
+		// intentionally.
+		if tsym == p.gram.ParsingTable.ErrorSymbol {
 			continue
 		}
 

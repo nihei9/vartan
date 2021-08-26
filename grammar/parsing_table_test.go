@@ -45,7 +45,7 @@ id: "[A-Za-z0-9_]+";
 		if err != nil {
 			t.Fatal(err)
 		}
-		lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol, gram.errorSymbol)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -330,7 +330,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		if err != nil {
 			t.Fatal(err)
 		}
-		lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol, gram.errorSymbol)
 		if err != nil {
 			t.Fatal(err)
 		}

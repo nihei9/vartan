@@ -52,7 +52,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 			t.Fatal(err)
 		}
 
-		automaton, err = genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		automaton, err = genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol, gram.errorSymbol)
 		if err != nil {
 			t.Fatalf("failed to create a LR0 automaton: %v", err)
 		}
@@ -254,7 +254,7 @@ BAR: "bar";
 			t.Fatal(err)
 		}
 
-		automaton, err = genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol)
+		automaton, err = genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol, gram.errorSymbol)
 		if err != nil {
 			t.Fatalf("failed to create a LR0 automaton: %v", err)
 		}

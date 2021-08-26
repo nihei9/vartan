@@ -33,6 +33,9 @@ type ParsingTable struct {
 	NonTerminals            []string `json:"non_terminals"`
 	NonTerminalCount        int      `json:"non_terminal_count"`
 	EOFSymbol               int      `json:"eof_symbol"`
+	ErrorSymbol             int      `json:"error_symbol"`
+	ErrorTrapperStates      []int    `json:"error_trapper_states"`
+	RecoverProductions      []int    `json:"recover_productions"`
 	ExpectedTerminals       [][]int  `json:"expected_terminals"`
 }
 

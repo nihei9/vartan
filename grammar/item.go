@@ -195,4 +195,10 @@ type lrState struct {
 	// s → ・A
 	// s → ・ε
 	emptyProdItems []*lrItem
+
+	// When isErrorTrapper is `true`, the item can shift the `error` symbol. The item has the following form.
+	// The `α` and `β` can be empty.
+	//
+	// A → α・error β
+	isErrorTrapper bool
 }

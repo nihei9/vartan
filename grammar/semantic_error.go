@@ -25,6 +25,7 @@ var (
 	semErrDuplicateProduction = newSemanticError("duplicate production")
 	semErrDuplicateTerminal   = newSemanticError("duplicate terminal")
 	semErrDuplicateName       = newSemanticError("duplicate names are not allowed between terminals and non-terminals")
+	semErrErrSymIsReserved    = newSemanticError("symbol 'error' is reserved as a terminal symbol")
 	semErrDirInvalidName      = newSemanticError("invalid directive name")
 	semErrDirInvalidParam     = newSemanticError("invalid parameter")
 )

@@ -10,7 +10,7 @@ type lr0Automaton struct {
 	states       map[kernelID]*lrState
 }
 
-func genLR0Automaton(prods *productionSet, startSym symbol) (*lr0Automaton, error) {
+func genLR0Automaton(prods *productionSet, startSym symbol, errSym symbol) (*lr0Automaton, error) {
 	if !startSym.isStart() {
 		return nil, fmt.Errorf("passed symbold is not a start symbol")
 	}
@@ -44,7 +44,7 @@ func genLR0Automaton(prods *productionSet, startSym symbol) (*lr0Automaton, erro
 	for len(uncheckedKernels) > 0 {
 		nextUncheckedKernels := []*kernel{}
 		for _, k := range uncheckedKernels {
-			state, neighbours, err := genStateAndNeighbourKernels(k, prods)
+			state, neighbours, err := genStateAndNeighbourKernels(k, prods, errSym)
 			if err != nil {
 				return nil, err
 			}
@@ -67,7 +67,7 @@ func genLR0Automaton(prods *productionSet, startSym symbol) (*lr0Automaton, erro
 	return automaton, nil
 }
 
-func genStateAndNeighbourKernels(k *kernel, prods *productionSet) (*lrState, []*kernel, error) {
+func genStateAndNeighbourKernels(k *kernel, prods *productionSet, errSym symbol) (*lrState, []*kernel, error) {
 	items, err := genLR0Closure(k, prods)
 	if err != nil {
 		return nil, nil, err
@@ -86,19 +86,22 @@ func genStateAndNeighbourKernels(k *kernel, prods *productionSet) (*lrState, []*
 
 	reducible := map[productionID]struct{}{}
 	var emptyProdItems []*lrItem
+	isErrorTrapper := false
 	for _, item := range items {
-		if !item.reducible {
-			continue
+		if item.dottedSymbol == errSym {
+			isErrorTrapper = true
 		}
 
-		reducible[item.prod] = struct{}{}
+		if item.reducible {
+			reducible[item.prod] = struct{}{}
 
-		prod, ok := prods.findByID(item.prod)
-		if !ok {
-			return nil, nil, fmt.Errorf("reducible production not found: %v", item.prod)
-		}
-		if prod.isEmpty() {
-			emptyProdItems = append(emptyProdItems, item)
+			prod, ok := prods.findByID(item.prod)
+			if !ok {
+				return nil, nil, fmt.Errorf("reducible production not found: %v", item.prod)
+			}
+			if prod.isEmpty() {
+				emptyProdItems = append(emptyProdItems, item)
+			}
 		}
 	}
 
@@ -107,6 +110,7 @@ func genStateAndNeighbourKernels(k *kernel, prods *productionSet) (*lrState, []*
 		next:           next,
 		reducible:      reducible,
 		emptyProdItems: emptyProdItems,
+		isErrorTrapper: isErrorTrapper,
 	}, kernels, nil
 }
 
