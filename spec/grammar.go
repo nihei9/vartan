@@ -18,6 +18,7 @@ type Maleeni struct {
 	KindToTerminal []int                   `json:"kind_to_terminal"`
 	TerminalToKind []int                   `json:"terminal_to_kind"`
 	Skip           []int                   `json:"skip"`
+	KindAliases    []string                `json:"kind_aliases"`
 }
 
 type ParsingTable struct {

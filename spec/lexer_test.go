@@ -16,6 +16,10 @@ func TestLexer_Run(t *testing.T) {
 		return newTerminalPatternToken(text, newPosition(1, 0))
 	}
 
+	strTok := func(text string) *token {
+		return newStringLiteralToken(text, newPosition(1, 0))
+	}
+
 	symTok := func(kind tokenKind) *token {
 		return newSymbolToken(kind, newPosition(1, 0))
 	}
@@ -40,7 +44,7 @@ func TestLexer_Run(t *testing.T) {
 			tokens: []*token{
 				idTok("id"),
 				termPatTok("terminal"),
-				termPatTok(`\.\*\+\?\|\(\)\[\\`),
+				strTok(`.*+?|()[\`),
 				symTok(tokenKindColon),
 				symTok(tokenKindOr),
 				symTok(tokenKindSemicolon),

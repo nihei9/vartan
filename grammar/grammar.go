@@ -73,6 +73,7 @@ const reservedSymbolNameError = "error"
 type Grammar struct {
 	lexSpec              *mlspec.LexSpec
 	skipLexKinds         []mlspec.LexKindName
+	kindAliases          map[symbol]string
 	sym2AnonPat          map[symbol]string
 	productionSet        *productionSet
 	augmentedStartSymbol symbol
@@ -158,6 +159,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 	return &Grammar{
 		lexSpec:              symTabAndLexSpec.lexSpec,
 		skipLexKinds:         symTabAndLexSpec.skip,
+		kindAliases:          symTabAndLexSpec.aliases,
 		sym2AnonPat:          symTabAndLexSpec.sym2AnonPat,
 		productionSet:        prodsAndActs.prods,
 		augmentedStartSymbol: prodsAndActs.augStartSym,
@@ -269,6 +271,7 @@ type symbolTableAndLexSpec struct {
 	errSym      symbol
 	skip        []mlspec.LexKindName
 	skipSyms    []string
+	aliases     map[symbol]string
 }
 
 func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, error) {
@@ -332,6 +335,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 
 	skipKinds := []mlspec.LexKindName{}
 	skipSyms := []string{}
+	aliases := map[symbol]string{}
 	for _, prod := range root.LexProductions {
 		if sym, exist := symTab.toSymbol(prod.LHS); exist {
 			if sym == errSym {
@@ -352,12 +356,12 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 			continue
 		}
 
-		_, err := symTab.registerTerminalSymbol(prod.LHS)
+		lhsSym, err := symTab.registerTerminalSymbol(prod.LHS)
 		if err != nil {
 			return nil, err
 		}
 
-		entry, skip, specErr, err := genLexEntry(prod)
+		entry, skip, alias, specErr, err := genLexEntry(prod)
 		if err != nil {
 			return nil, err
 		}
@@ -368,6 +372,9 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		if skip {
 			skipKinds = append(skipKinds, mlspec.LexKindName(prod.LHS))
 			skipSyms = append(skipSyms, prod.LHS)
+		}
+		if alias != "" {
+			aliases[lhsSym] = alias
 		}
 		entries = append(entries, entry)
 	}
@@ -402,17 +409,18 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		errSym:   errSym,
 		skip:     skipKinds,
 		skipSyms: skipSyms,
+		aliases:  aliases,
 	}, nil
 }
 
-func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecError, error) {
+func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *verr.SpecError, error) {
 	var modes []mlspec.LexModeName
 	if prod.Directive != nil {
 		dir := prod.Directive
 		switch dir.Name {
 		case "mode":
 			if len(dir.Parameters) == 0 {
-				return nil, false, &verr.SpecError{
+				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
 					Detail: fmt.Sprintf("'mode' directive needs an ID parameter"),
 					Row:    dir.Pos.Row,
@@ -421,7 +429,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 			}
 			for _, param := range dir.Parameters {
 				if param.ID == "" {
-					return nil, false, &verr.SpecError{
+					return nil, false, "", &verr.SpecError{
 						Cause:  semErrDirInvalidParam,
 						Detail: fmt.Sprintf("'mode' directive needs an ID parameter"),
 						Row:    param.Pos.Row,
@@ -431,7 +439,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 				modes = append(modes, mlspec.LexModeName(param.ID))
 			}
 		default:
-			return nil, false, &verr.SpecError{
+			return nil, false, "", &verr.SpecError{
 				Cause:  semErrDirInvalidName,
 				Detail: dir.Name,
 				Row:    dir.Pos.Row,
@@ -444,12 +452,13 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 	var skip bool
 	var push mlspec.LexModeName
 	var pop bool
+	var alias string
 	if alt.Directive != nil {
 		dir := alt.Directive
 		switch dir.Name {
 		case "skip":
 			if len(dir.Parameters) > 0 {
-				return nil, false, &verr.SpecError{
+				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
 					Detail: fmt.Sprintf("'skip' directive needs no parameter"),
 					Row:    dir.Pos.Row,
@@ -459,7 +468,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 			skip = true
 		case "push":
 			if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
-				return nil, false, &verr.SpecError{
+				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
 					Detail: fmt.Sprintf("'push' directive needs an ID parameter"),
 					Row:    dir.Pos.Row,
@@ -469,7 +478,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 			push = mlspec.LexModeName(dir.Parameters[0].ID)
 		case "pop":
 			if len(dir.Parameters) > 0 {
-				return nil, false, &verr.SpecError{
+				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
 					Detail: fmt.Sprintf("'pop' directive needs no parameter"),
 					Row:    dir.Pos.Row,
@@ -477,8 +486,18 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 				}, nil
 			}
 			pop = true
+		case "alias":
+			if len(dir.Parameters) != 1 || dir.Parameters[0].String == "" {
+				return nil, false, "", &verr.SpecError{
+					Cause:  semErrDirInvalidParam,
+					Detail: fmt.Sprintf("'alias' directive needs a string parameter"),
+					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
+				}, nil
+			}
+			alias = dir.Parameters[0].String
 		default:
-			return nil, false, &verr.SpecError{
+			return nil, false, "", &verr.SpecError{
 				Cause:  semErrDirInvalidName,
 				Detail: dir.Name,
 				Row:    dir.Pos.Row,
@@ -493,7 +512,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 		Pattern: mlspec.LexPattern(alt.Elements[0].Pattern),
 		Push:    push,
 		Pop:     pop,
-	}, skip, nil, nil
+	}, skip, alias, nil, nil
 }
 
 type productionsAndActions struct {
@@ -920,6 +939,11 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 		return nil, err
 	}
 
+	kindAliases := make([]string, gram.symbolTable.termNum.Int())
+	for _, sym := range gram.symbolTable.terminalSymbols() {
+		kindAliases[sym.num().Int()] = gram.kindAliases[sym]
+	}
+
 	nonTerms, err := gram.symbolTable.nonTerminalTexts()
 	if err != nil {
 		return nil, err
@@ -1033,6 +1057,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 				KindToTerminal: kind2Term,
 				TerminalToKind: term2Kind,
 				Skip:           skip,
+				KindAliases:    kindAliases,
 			},
 		},
 		ParsingTable: &spec.ParsingTable{

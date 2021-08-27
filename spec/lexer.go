@@ -21,11 +21,12 @@ const (
 	tokenKindKWFragment      = tokenKind("fragment")
 	tokenKindID              = tokenKind("id")
 	tokenKindTerminalPattern = tokenKind("terminal pattern")
+	tokenKindStringLiteral   = tokenKind("string")
 	tokenKindColon           = tokenKind(":")
 	tokenKindOr              = tokenKind("|")
 	tokenKindSemicolon       = tokenKind(";")
 	tokenKindDirectiveMarker = tokenKind("#")
-	tokenKindTreeNodeOpen    = tokenKind("'(")
+	tokenKindTreeNodeOpen    = tokenKind("#(")
 	tokenKindTreeNodeClose   = tokenKind(")")
 	tokenKindPosition        = tokenKind("$")
 	tokenKindExpantion       = tokenKind("...")
@@ -72,6 +73,14 @@ func newIDToken(text string, pos Position) *token {
 func newTerminalPatternToken(text string, pos Position) *token {
 	return &token{
 		kind: tokenKindTerminalPattern,
+		text: text,
+		pos:  pos,
+	}
+}
+
+func newStringLiteralToken(text string, pos Position) *token {
+	return &token{
+		kind: tokenKindStringLiteral,
 		text: text,
 		pos:  pos,
 	}
@@ -234,7 +243,7 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 				Col:   tok.Col + 1,
 			}
 		}
-		return newTerminalPatternToken(mlspec.EscapePattern(pat), newPosition(tok.Row+1, tok.Col+1)), nil
+		return newStringLiteralToken(pat, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "colon":
 		return newSymbolToken(tokenKindColon, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "or":

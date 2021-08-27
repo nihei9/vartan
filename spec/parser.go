@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	mlspec "github.com/nihei9/maleeni/spec"
 	verr "github.com/nihei9/vartan/error"
 )
 
@@ -47,9 +48,10 @@ type DirectiveNode struct {
 }
 
 type ParameterNode struct {
-	ID   string
-	Tree *TreeStructNode
-	Pos  Position
+	ID     string
+	String string
+	Tree   *TreeStructNode
+	Pos    Position
 }
 
 type TreeStructNode struct {
@@ -262,10 +264,15 @@ func (p *parser) parseFragment() *FragmentNode {
 		raiseSyntaxError(p.pos.Row, synErrNoColon)
 	}
 
-	if !p.consume(tokenKindTerminalPattern) {
+	var rhs string
+	switch {
+	case p.consume(tokenKindTerminalPattern):
+		rhs = p.lastTok.text
+	case p.consume(tokenKindStringLiteral):
+		rhs = mlspec.EscapePattern(p.lastTok.text)
+	default:
 		raiseSyntaxError(p.pos.Row, synErrFragmentNoPattern)
 	}
-	rhs := p.lastTok.text
 
 	p.consume(tokenKindNewline)
 
@@ -398,6 +405,11 @@ func (p *parser) parseElement() *ElementNode {
 			Pattern: p.lastTok.text,
 			Pos:     p.lastTok.pos,
 		}
+	case p.consume(tokenKindStringLiteral):
+		return &ElementNode{
+			Pattern: mlspec.EscapePattern(p.lastTok.text),
+			Pos:     p.lastTok.pos,
+		}
 	}
 	return nil
 }
@@ -435,6 +447,11 @@ func (p *parser) parseParameter() *ParameterNode {
 		return &ParameterNode{
 			ID:  p.lastTok.text,
 			Pos: p.lastTok.pos,
+		}
+	case p.consume(tokenKindStringLiteral):
+		return &ParameterNode{
+			String: p.lastTok.text,
+			Pos:    p.lastTok.pos,
 		}
 	case p.consume(tokenKindTreeNodeOpen):
 		if !p.consume(tokenKindID) {

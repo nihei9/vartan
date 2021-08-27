@@ -5,7 +5,6 @@ import (
 	"io"
 
 	mldriver "github.com/nihei9/maleeni/driver"
-	mlspec "github.com/nihei9/maleeni/spec"
 	"github.com/nihei9/vartan/spec"
 )
 
@@ -292,23 +291,12 @@ ACTION_LOOP:
 				continue ACTION_LOOP
 			}
 
-			var eKindNames []string
-			{
-				eKinds, eof := p.expectedKinds(p.top())
-				for _, k := range eKinds {
-					eKindNames = append(eKindNames, k.String())
-				}
-				if eof {
-					eKindNames = append(eKindNames, "<EOF>")
-				}
-			}
-
 			p.synErrs = append(p.synErrs, &SyntaxError{
 				Row:               tok.Row,
 				Col:               tok.Col,
 				Message:           "unexpected token",
 				Token:             tok,
-				ExpectedTerminals: eKindNames,
+				ExpectedTerminals: p.expectedTerms(p.top()),
 			})
 
 			for {
@@ -418,26 +406,30 @@ func (p *Parser) SyntaxErrors() []*SyntaxError {
 	return p.synErrs
 }
 
-func (p *Parser) expectedKinds(state int) ([]mlspec.LexKindName, bool) {
-	kinds := []mlspec.LexKindName{}
-	eof := false
+func (p *Parser) expectedTerms(state int) []string {
+	kinds := []string{}
 	terms := p.gram.ParsingTable.ExpectedTerminals[state]
+	aliases := p.gram.LexicalSpecification.Maleeni.KindAliases
 	for _, tsym := range terms {
-		if tsym == p.gram.ParsingTable.EOFSymbol {
-			eof = true
-			continue
-		}
-
 		// We don't add the error symbol to the look-ahead symbols because users cannot input the error symbol
 		// intentionally.
 		if tsym == p.gram.ParsingTable.ErrorSymbol {
 			continue
 		}
 
-		kindID := p.gram.LexicalSpecification.Maleeni.TerminalToKind[tsym]
-		kindName := p.gram.LexicalSpecification.Maleeni.Spec.KindNames[kindID]
-		kinds = append(kinds, kindName)
+		if tsym == p.gram.ParsingTable.EOFSymbol {
+			kinds = append(kinds, "<eof>")
+			continue
+		}
+
+		if alias := aliases[tsym]; alias != "" {
+			kinds = append(kinds, alias)
+		} else {
+			term2Kind := p.gram.LexicalSpecification.Maleeni.TerminalToKind
+			kindNames := p.gram.LexicalSpecification.Maleeni.Spec.KindNames
+			kinds = append(kinds, kindNames[term2Kind[tsym]].String())
+		}
 	}
 
-	return kinds, eof
+	return kinds
 }
