@@ -57,18 +57,40 @@
 		},
 		{
 			"modes": ["terminal"],
-			"kind": "escape_symbol",
-			"pattern": "\\\\"
-		},
-		{
-			"modes": ["terminal"],
 			"kind": "terminal_close",
 			"pattern": "\"",
 			"pop": true
 		},
 		{
-			"kind": "literal_pattern",
-			"pattern": "'[^']*'"
+			"kind": "string_literal_open",
+			"pattern": "'",
+			"push": "string_literal"
+		},
+		{
+			"modes": ["string_literal"],
+			"kind": "char_seq",
+			"pattern": "[^'\\\\]+"
+		},
+		{
+			"modes": ["string_literal"],
+			"kind": "escaped_quot",
+			"pattern": "\\\\'"
+		},
+		{
+			"modes": ["string_literal"],
+			"kind": "escaped_back_slash",
+			"pattern": "\\\\\\\\"
+		},
+		{
+			"modes": ["string_literal"],
+			"kind": "string_literal_close",
+			"pattern": "'",
+			"pop": true
+		},
+		{
+			"modes": ["terminal", "string_literal"],
+			"kind": "escape_symbol",
+			"pattern": "\\\\"
 		},
 		{
 			"kind": "colon",

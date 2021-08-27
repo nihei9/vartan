@@ -214,7 +214,9 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			}
 			switch tok.KindName {
 			case "pattern":
-				// Remove '\' character.
+				// The escape sequences in a pattern string are interpreted by the lexer, except for the \".
+				// We must interpret the \" before passing them to the lexer because they are delimiters for
+				// the pattern strings.
 				fmt.Fprintf(&b, strings.ReplaceAll(tok.Text(), `\"`, `"`))
 			case "escape_symbol":
 				return nil, &verr.SpecError{
@@ -234,16 +236,47 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 				return newTerminalPatternToken(pat, newPosition(tok.Row+1, tok.Col+1)), nil
 			}
 		}
-	case "literal_pattern":
-		pat := strings.Trim(tok.Text(), "'")
-		if pat == "" {
-			return nil, &verr.SpecError{
-				Cause: synErrEmptyPattern,
-				Row:   tok.Row + 1,
-				Col:   tok.Col + 1,
+	case "string_literal_open":
+		var b strings.Builder
+		for {
+			tok, err := l.d.Next()
+			if err != nil {
+				return nil, err
+			}
+			if tok.EOF {
+				return nil, &verr.SpecError{
+					Cause: synErrUnclosedString,
+					Row:   tok.Row + 1,
+					Col:   tok.Col + 1,
+				}
+			}
+			switch tok.KindName {
+			case "char_seq":
+				fmt.Fprintf(&b, tok.Text())
+			case "escaped_quot":
+				// Remove '\' character.
+				fmt.Fprintf(&b, `'`)
+			case "escaped_back_slash":
+				// Remove '\' character.
+				fmt.Fprintf(&b, `\`)
+			case "escape_symbol":
+				return nil, &verr.SpecError{
+					Cause: synErrIncompletedEscSeq,
+					Row:   tok.Row + 1,
+					Col:   tok.Col + 1,
+				}
+			case "string_literal_close":
+				str := b.String()
+				if str == "" {
+					return nil, &verr.SpecError{
+						Cause: synErrEmptyString,
+						Row:   tok.Row + 1,
+						Col:   tok.Col + 1,
+					}
+				}
+				return newStringLiteralToken(str, newPosition(tok.Row+1, tok.Col+1)), nil
 			}
 		}
-		return newStringLiteralToken(pat, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "colon":
 		return newSymbolToken(tokenKindColon, newPosition(tok.Row+1, tok.Col+1)), nil
 	case "or":

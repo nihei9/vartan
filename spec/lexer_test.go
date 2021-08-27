@@ -40,11 +40,11 @@ func TestLexer_Run(t *testing.T) {
 	}{
 		{
 			caption: "the lexer can recognize all kinds of tokens",
-			src:     `id"terminal"'.*+?|()[\':|;#()$1...#%`,
+			src:     `id"terminal"'string':|;#()$1...#%`,
 			tokens: []*token{
 				idTok("id"),
 				termPatTok("terminal"),
-				strTok(`.*+?|()[\`),
+				strTok(`string`),
 				symTok(tokenKindColon),
 				symTok(tokenKindOr),
 				symTok(tokenKindSemicolon),
@@ -66,10 +66,18 @@ func TestLexer_Run(t *testing.T) {
 			},
 		},
 		{
-			caption: "the lexer can recognize character sequences and escape sequences in terminal",
+			caption: "the lexer can recognize character sequences and escape sequences in a terminal",
 			src:     `"abc\"\\"`,
 			tokens: []*token{
 				termPatTok(`abc"\\`),
+				newEOFToken(),
+			},
+		},
+		{
+			caption: "the lexer can recognize character sequences and escape sequences in a string literal",
+			src:     `'.*+?|()[\'\\'`,
+			tokens: []*token{
+				strTok(`.*+?|()['\`),
 				newEOFToken(),
 			},
 		},
@@ -79,9 +87,9 @@ func TestLexer_Run(t *testing.T) {
 			err:     synErrEmptyPattern,
 		},
 		{
-			caption: "a literal pattern must include at least one character",
+			caption: "a string must include at least one character",
 			src:     `''`,
-			err:     synErrEmptyPattern,
+			err:     synErrEmptyString,
 		},
 		{
 			caption: "the lexer can recognize newlines and combine consecutive newlines into one",
@@ -126,8 +134,18 @@ bar // This is the fourth comment.
 			err:     synErrUnclosedTerminal,
 		},
 		{
-			caption: "an incompleted terminal is not a valid token",
+			caption: "an incompleted terminal in a pattern is not a valid token",
 			src:     `"\`,
+			err:     synErrIncompletedEscSeq,
+		},
+		{
+			caption: "an unclosed string is not a valid token",
+			src:     `'abc`,
+			err:     synErrUnclosedString,
+		},
+		{
+			caption: "an incompleted terminal in a string is not a valid token",
+			src:     `'\`,
 			err:     synErrIncompletedEscSeq,
 		},
 		{
