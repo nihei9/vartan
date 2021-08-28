@@ -36,9 +36,10 @@ type AlternativeNode struct {
 }
 
 type ElementNode struct {
-	ID      string
-	Pattern string
-	Pos     Position
+	ID        string
+	Pattern   string
+	Literally bool
+	Pos       Position
 }
 
 type DirectiveNode struct {
@@ -407,8 +408,9 @@ func (p *parser) parseElement() *ElementNode {
 		}
 	case p.consume(tokenKindStringLiteral):
 		return &ElementNode{
-			Pattern: mlspec.EscapePattern(p.lastTok.text),
-			Pos:     p.lastTok.pos,
+			Pattern:   p.lastTok.text,
+			Literally: true,
+			Pos:       p.lastTok.pos,
 		}
 	}
 	return nil

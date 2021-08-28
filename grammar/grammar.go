@@ -292,25 +292,34 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 
 	anonPat2Sym := map[string]symbol{}
 	sym2AnonPat := map[symbol]string{}
+	aliases := map[symbol]string{}
 	{
+		knownPats := map[string]struct{}{}
 		anonPats := []string{}
+		literalPats := map[string]struct{}{}
 		for _, prod := range root.Productions {
 			for _, alt := range prod.RHS {
 				for _, elem := range alt.Elements {
 					if elem.Pattern == "" {
 						continue
 					}
-					exist := false
-					for _, p := range anonPats {
-						if p == elem.Pattern {
-							exist = true
-							break
-						}
+
+					var pattern string
+					if elem.Literally {
+						pattern = mlspec.EscapePattern(elem.Pattern)
+					} else {
+						pattern = elem.Pattern
 					}
-					if exist {
+
+					if _, ok := knownPats[pattern]; ok {
 						continue
 					}
-					anonPats = append(anonPats, elem.Pattern)
+
+					knownPats[pattern] = struct{}{}
+					anonPats = append(anonPats, pattern)
+					if elem.Literally {
+						literalPats[pattern] = struct{}{}
+					}
 				}
 			}
 		}
@@ -326,6 +335,10 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 			anonPat2Sym[p] = sym
 			sym2AnonPat[sym] = p
 
+			if _, ok := literalPats[p]; ok {
+				aliases[sym] = p
+			}
+
 			entries = append(entries, &mlspec.LexEntry{
 				Kind:    mlspec.LexKindName(kind),
 				Pattern: mlspec.LexPattern(p),
@@ -335,7 +348,6 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 
 	skipKinds := []mlspec.LexKindName{}
 	skipSyms := []string{}
-	aliases := map[symbol]string{}
 	for _, prod := range root.LexProductions {
 		if sym, exist := symTab.toSymbol(prod.LHS); exist {
 			if sym == errSym {
@@ -449,10 +461,20 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 	}
 
 	alt := prod.RHS[0]
+	elem := alt.Elements[0]
+
+	var pattern string
+	var alias string
+	if elem.Literally {
+		pattern = mlspec.EscapePattern(elem.Pattern)
+		alias = elem.Pattern
+	} else {
+		pattern = elem.Pattern
+	}
+
 	var skip bool
 	var push mlspec.LexModeName
 	var pop bool
-	var alias string
 	if alt.Directive != nil {
 		dir := alt.Directive
 		switch dir.Name {
@@ -509,7 +531,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 	return &mlspec.LexEntry{
 		Modes:   modes,
 		Kind:    mlspec.LexKindName(prod.LHS),
-		Pattern: mlspec.LexPattern(alt.Elements[0].Pattern),
+		Pattern: mlspec.LexPattern(pattern),
 		Push:    push,
 		Pop:     pop,
 	}, skip, alias, nil, nil
@@ -610,11 +632,18 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 			for i, elem := range alt.Elements {
 				var sym symbol
 				if elem.Pattern != "" {
+					var pattern string
+					if elem.Literally {
+						pattern = mlspec.EscapePattern(elem.Pattern)
+					} else {
+						pattern = elem.Pattern
+					}
+
 					var ok bool
-					sym, ok = anonPat2Sym[elem.Pattern]
+					sym, ok = anonPat2Sym[pattern]
 					if !ok {
 						// All patterns are assumed to be pre-detected, so it's a bug if we cannot find them here.
-						return nil, fmt.Errorf("pattern '%v' is undefined", elem.Pattern)
+						return nil, fmt.Errorf("pattern '%v' is undefined", pattern)
 					}
 				} else {
 					var ok bool
