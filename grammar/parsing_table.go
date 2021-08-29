@@ -347,6 +347,19 @@ func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec
 				term.Pattern = pat
 			}
 
+			prec := b.precAndAssoc.terminalPrecedence(sym.num())
+			if prec != precNil {
+				term.Precedence = prec
+			}
+
+			assoc := b.precAndAssoc.terminalAssociativity(sym.num())
+			switch assoc {
+			case assocTypeLeft:
+				term.Associativity = "l"
+			case assocTypeRight:
+				term.Associativity = "r"
+			}
+
 			terms[sym.num()] = term
 		}
 	}
@@ -382,11 +395,26 @@ func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec
 				}
 			}
 
-			prods[p.num.Int()] = &spec.Production{
+			prod := &spec.Production{
 				Number: p.num.Int(),
 				LHS:    p.lhs.num().Int(),
 				RHS:    rhs,
 			}
+
+			prec := b.precAndAssoc.productionPredence(p.num)
+			if prec != precNil {
+				prod.Precedence = prec
+			}
+
+			assoc := b.precAndAssoc.productionAssociativity(p.num)
+			switch assoc {
+			case assocTypeLeft:
+				prod.Associativity = "l"
+			case assocTypeRight:
+				prod.Associativity = "r"
+			}
+
+			prods[p.num.Int()] = prod
 		}
 	}
 

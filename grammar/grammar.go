@@ -33,8 +33,9 @@ const (
 // precAndAssoc represents precedence and associativities of terminal symbols and productions.
 // We use the priority of the production to resolve shift/reduce conflicts.
 type precAndAssoc struct {
-	// termPrec represents the precedence of the terminal symbols.
-	termPrec map[symbolNum]int
+	// termPrec and termAssoc represent the precedence of the terminal symbols.
+	termPrec  map[symbolNum]int
+	termAssoc map[symbolNum]assocType
 
 	// prodPrec and prodAssoc represent the precedence and the associativities of the production.
 	// These values are inherited from the right-most symbols in the RHS of the productions.
@@ -49,6 +50,15 @@ func (pa *precAndAssoc) terminalPrecedence(sym symbolNum) int {
 	}
 
 	return prec
+}
+
+func (pa *precAndAssoc) terminalAssociativity(sym symbolNum) assocType {
+	assoc, ok := pa.termAssoc[sym]
+	if !ok {
+		return assocTypeNil
+	}
+
+	return assoc
 }
 
 func (pa *precAndAssoc) productionPredence(prod productionNum) int {
@@ -896,6 +906,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 
 	return &precAndAssoc{
 		termPrec:  termPrec,
+		termAssoc: termAssoc,
 		prodPrec:  prodPrec,
 		prodAssoc: prodAssoc,
 	}, nil

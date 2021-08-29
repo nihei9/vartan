@@ -153,12 +153,40 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 			return "No conflict was detected."
 		},
 		"printTerminal": func(term spec.Terminal) string {
-			if term.Alias != "" {
-				return fmt.Sprintf("%4v %v (%v)", term.Number, term.Name, term.Alias)
+			var prec string
+			if term.Precedence != 0 {
+				prec = fmt.Sprintf("%2v", term.Precedence)
+			} else {
+				prec = " -"
 			}
-			return fmt.Sprintf("%4v %v", term.Number, term.Name)
+
+			var assoc string
+			if term.Associativity != "" {
+				assoc = term.Associativity
+			} else {
+				assoc = "-"
+			}
+
+			if term.Alias != "" {
+				return fmt.Sprintf("%4v %v %v %v (%v)", term.Number, prec, assoc, term.Name, term.Alias)
+			}
+			return fmt.Sprintf("%4v %v %v %v", term.Number, prec, assoc, term.Name)
 		},
 		"printProduction": func(prod spec.Production) string {
+			var prec string
+			if prod.Precedence != 0 {
+				prec = fmt.Sprintf("%2v", prod.Precedence)
+			} else {
+				prec = " -"
+			}
+
+			var assoc string
+			if prod.Associativity != "" {
+				assoc = prod.Associativity
+			} else {
+				assoc = "-"
+			}
+
 			var b strings.Builder
 			fmt.Fprintf(&b, "%v →", nonTermName(prod.LHS))
 			if len(prod.RHS) > 0 {
@@ -173,7 +201,7 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 				fmt.Fprintf(&b, " ε")
 			}
 
-			return fmt.Sprintf("%4v %v", prod.Number, b.String())
+			return fmt.Sprintf("%4v %v %v %v", prod.Number, prec, assoc, b.String())
 		},
 		"printItem": func(item spec.Item) string {
 			prod := desc.Productions[item.Production]

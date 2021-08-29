@@ -1,11 +1,13 @@
 package spec
 
 type Terminal struct {
-	Number    int    `json:"number"`
-	Name      string `json:"name"`
-	Anonymous bool   `json:"anonymous"`
-	Alias     string `json:"alias"`
-	Pattern   string `json:"pattern"`
+	Number        int    `json:"number"`
+	Name          string `json:"name"`
+	Anonymous     bool   `json:"anonymous"`
+	Alias         string `json:"alias"`
+	Pattern       string `json:"pattern"`
+	Precedence    int    `json:"prec"`
+	Associativity string `json:"assoc"`
 }
 
 type NonTerminal struct {
@@ -14,9 +16,11 @@ type NonTerminal struct {
 }
 
 type Production struct {
-	Number int   `json:"number"`
-	LHS    int   `json:"lhs"`
-	RHS    []int `json:"rhs"`
+	Number        int    `json:"number"`
+	LHS           int    `json:"lhs"`
+	RHS           []int  `json:"rhs"`
+	Precedence    int    `json:"prec"`
+	Associativity string `json:"assoc"`
 }
 
 type Item struct {
