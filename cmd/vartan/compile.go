@@ -108,7 +108,7 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 	var descFileName string
 	{
 		_, grmFileName := filepath.Split(grmPath)
-		descFileName = fmt.Sprintf("%v.desc", strings.TrimSuffix(grmFileName, ".vr"))
+		descFileName = fmt.Sprintf("%v-description.json", strings.TrimSuffix(grmFileName, ".vr"))
 	}
 
 	opts := []grammar.CompileOption{

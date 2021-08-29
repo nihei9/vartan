@@ -2,9 +2,9 @@ package grammar
 
 import (
 	"fmt"
-	"io"
 	"sort"
-	"strings"
+
+	"github.com/nihei9/vartan/spec"
 )
 
 type ActionType string
@@ -318,217 +318,234 @@ func (b *lrTableBuilder) resolveConflict(sym symbolNum, prod productionNum) Acti
 	return ActionTypeReduce
 }
 
-func (b *lrTableBuilder) writeDescription(w io.Writer, tab *ParsingTable) {
-	conflicts := map[stateNum][]conflict{}
-	for _, con := range b.conflicts {
-		switch c := con.(type) {
-		case *shiftReduceConflict:
-			conflicts[c.state] = append(conflicts[c.state], c)
-		case *reduceReduceConflict:
-			conflicts[c.state] = append(conflicts[c.state], c)
+func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec.Description, error) {
+	var terms []*spec.Terminal
+	{
+		termSyms := b.symTab.terminalSymbols()
+		terms = make([]*spec.Terminal, len(termSyms)+2)
+
+		terms[symbolEOF.num()] = &spec.Terminal{
+			Number: symbolEOF.num().Int(),
+			Name:   "<eof>",
 		}
-	}
 
-	fmt.Fprintf(w, "# Conflicts\n\n")
-
-	if len(b.conflicts) > 0 {
-		fmt.Fprintf(w, "%v conflics:\n\n", len(b.conflicts))
-
-		for _, conflict := range b.conflicts {
-			switch c := conflict.(type) {
-			case *shiftReduceConflict:
-				fmt.Fprintf(w, "%v: shift/reduce conflict (shift %v, reduce %v) on %v\n", c.state, c.nextState, c.prodNum, b.symbolToText(c.sym))
-			case *reduceReduceConflict:
-				fmt.Fprintf(w, "%v: reduce/reduce conflict (reduce %v and %v) on %v\n", c.state, c.prodNum1, c.prodNum2, b.symbolToText(c.sym))
-			}
-		}
-		fmt.Fprintf(w, "\n")
-	} else {
-		fmt.Fprintf(w, "no conflicts\n\n")
-	}
-
-	fmt.Fprintf(w, "# Terminals\n\n")
-
-	termSyms := b.symTab.terminalSymbols()
-
-	fmt.Fprintf(w, "%v symbols:\n\n", len(termSyms))
-
-	for _, sym := range termSyms {
-		text, ok := b.symTab.toText(sym)
-		if !ok {
-			text = fmt.Sprintf("<symbol not found: %v>", sym)
-		}
-		if strings.HasPrefix(text, "_") {
-			fmt.Fprintf(w, "%4v %v: \"%v\"\n", sym.num(), text, b.sym2AnonPat[sym])
-		} else {
-			fmt.Fprintf(w, "%4v %v\n", sym.num(), text)
-		}
-	}
-
-	fmt.Fprintf(w, "\n")
-
-	fmt.Fprintf(w, "# Productions\n\n")
-
-	fmt.Fprintf(w, "%v productions:\n\n", len(b.prods.getAllProductions()))
-
-	for _, prod := range b.prods.getAllProductions() {
-		fmt.Fprintf(w, "%4v %v\n", prod.num, b.productionToString(prod, -1))
-	}
-
-	fmt.Fprintf(w, "\n# States\n\n")
-
-	fmt.Fprintf(w, "%v states:\n\n", len(b.automaton.states))
-
-	for _, state := range b.automaton.states {
-		fmt.Fprintf(w, "state %v\n", state.num)
-		for _, item := range state.items {
-			prod, ok := b.prods.findByID(item.prod)
+		for _, sym := range termSyms {
+			name, ok := b.symTab.toText(sym)
 			if !ok {
-				fmt.Fprintf(w, "<production not found>\n")
-				continue
+				return nil, fmt.Errorf("failed to generate terminals: symbol not found: %v", sym)
 			}
-			fmt.Fprintf(w, "    %v\n", b.productionToString(prod, item.dot))
+
+			term := &spec.Terminal{
+				Number: sym.num().Int(),
+				Name:   name,
+				Alias:  gram.kindAliases[sym],
+			}
+
+			pat, ok := b.sym2AnonPat[sym]
+			if ok {
+				term.Anonymous = true
+				term.Pattern = pat
+			}
+
+			terms[sym.num()] = term
+		}
+	}
+
+	var nonTerms []*spec.NonTerminal
+	{
+		nonTermSyms := b.symTab.nonTerminalSymbols()
+		nonTerms = make([]*spec.NonTerminal, len(nonTermSyms)+1)
+		for _, sym := range nonTermSyms {
+			name, ok := b.symTab.toText(sym)
+			if !ok {
+				return nil, fmt.Errorf("failed to generate non-terminals: symbol not found: %v", sym)
+			}
+
+			nonTerms[sym.num()] = &spec.NonTerminal{
+				Number: sym.num().Int(),
+				Name:   name,
+			}
+		}
+	}
+
+	var prods []*spec.Production
+	{
+		ps := gram.productionSet.getAllProductions()
+		prods = make([]*spec.Production, len(ps)+1)
+		for _, p := range ps {
+			rhs := make([]int, len(p.rhs))
+			for i, e := range p.rhs {
+				if e.isTerminal() {
+					rhs[i] = e.num().Int()
+				} else {
+					rhs[i] = e.num().Int() * -1
+				}
+			}
+
+			prods[p.num.Int()] = &spec.Production{
+				Number: p.num.Int(),
+				LHS:    p.lhs.num().Int(),
+				RHS:    rhs,
+			}
+		}
+	}
+
+	var states []*spec.State
+	{
+		srConflicts := map[stateNum][]*shiftReduceConflict{}
+		rrConflicts := map[stateNum][]*reduceReduceConflict{}
+		for _, con := range b.conflicts {
+			switch c := con.(type) {
+			case *shiftReduceConflict:
+				srConflicts[c.state] = append(srConflicts[c.state], c)
+			case *reduceReduceConflict:
+				rrConflicts[c.state] = append(rrConflicts[c.state], c)
+			}
 		}
 
-		fmt.Fprintf(w, "\n")
+		states = make([]*spec.State, len(b.automaton.states))
+		for _, s := range b.automaton.states {
+			kernel := make([]*spec.Item, len(s.items))
+			for i, item := range s.items {
+				p, ok := b.prods.findByID(item.prod)
+				if !ok {
+					return nil, fmt.Errorf("failed to generate states: production of kernel item not found: %v", item.prod)
+				}
 
-		var shiftRecs []string
-		var reduceRecs []string
-		var gotoRecs []string
-		var accRec string
-		{
-			for sym, kID := range state.next {
+				kernel[i] = &spec.Item{
+					Production: p.num.Int(),
+					Dot:        item.dot,
+				}
+			}
+
+			sort.Slice(kernel, func(i, j int) bool {
+				if kernel[i].Production < kernel[j].Production {
+					return true
+				}
+				if kernel[i].Production > kernel[j].Production {
+					return false
+				}
+				return kernel[i].Dot < kernel[j].Dot
+			})
+
+			var shift []*spec.Transition
+			var goTo []*spec.Transition
+			for sym, kID := range s.next {
 				nextState := b.automaton.states[kID]
 				if sym.isTerminal() {
-					shiftRecs = append(shiftRecs, fmt.Sprintf("shift  %4v on %v", nextState.num, b.symbolToText(sym)))
+					shift = append(shift, &spec.Transition{
+						Symbol: sym.num().Int(),
+						State:  nextState.num.Int(),
+					})
 				} else {
-					gotoRecs = append(gotoRecs, fmt.Sprintf("goto   %4v on %v", nextState.num, b.symbolToText(sym)))
+					goTo = append(goTo, &spec.Transition{
+						Symbol: sym.num().Int(),
+						State:  nextState.num.Int(),
+					})
 				}
 			}
 
-			for prodID := range state.reducible {
-				prod, ok := b.prods.findByID(prodID)
+			sort.Slice(shift, func(i, j int) bool {
+				return shift[i].State < shift[j].State
+			})
+
+			sort.Slice(goTo, func(i, j int) bool {
+				return goTo[i].State < goTo[j].State
+			})
+
+			var reduce []*spec.Reduce
+			for _, item := range s.items {
+				if !item.reducible {
+					continue
+				}
+
+				syms := make([]int, len(item.lookAhead.symbols))
+				i := 0
+				for a := range item.lookAhead.symbols {
+					syms[i] = a.num().Int()
+					i++
+				}
+
+				sort.Slice(syms, func(i, j int) bool {
+					return syms[i] < syms[j]
+				})
+
+				prod, ok := gram.productionSet.findByID(item.prod)
 				if !ok {
-					reduceRecs = append(reduceRecs, "<production not found>")
-					continue
-				}
-				if prod.lhs.isStart() {
-					accRec = "accept on <EOF>"
-					continue
+					return nil, fmt.Errorf("failed to generate states: reducible production not found: %v", item.prod)
 				}
 
-				var reducibleItem *lrItem
-				for _, item := range state.items {
-					if item.prod != prodID {
-						continue
+				reduce = append(reduce, &spec.Reduce{
+					LookAhead:  syms,
+					Production: prod.num.Int(),
+				})
+
+				sort.Slice(reduce, func(i, j int) bool {
+					return reduce[i].Production < reduce[j].Production
+				})
+			}
+
+			sr := []*spec.SRConflict{}
+			rr := []*spec.RRConflict{}
+			{
+				for _, c := range srConflicts[s.num] {
+					conflict := &spec.SRConflict{
+						Symbol:     c.sym.num().Int(),
+						State:      c.nextState.Int(),
+						Production: c.prodNum.Int(),
 					}
 
-					reducibleItem = item
-					break
-				}
-				if reducibleItem == nil {
-					for _, item := range state.emptyProdItems {
-						if item.prod != prodID {
-							continue
-						}
-
-						reducibleItem = item
-						break
+					ty, s, p := tab.getAction(s.num, c.sym.num())
+					switch ty {
+					case ActionTypeShift:
+						n := s.Int()
+						conflict.AdoptedState = &n
+					case ActionTypeReduce:
+						n := p.Int()
+						conflict.AdoptedProduction = &n
 					}
-					if reducibleItem == nil {
-						reduceRecs = append(reduceRecs, "<item not found>")
-						continue
+
+					sr = append(sr, conflict)
+				}
+
+				sort.Slice(sr, func(i, j int) bool {
+					return sr[i].Symbol < sr[j].Symbol
+				})
+
+				for _, c := range rrConflicts[s.num] {
+					conflict := &spec.RRConflict{
+						Symbol:      c.sym.num().Int(),
+						Production1: c.prodNum1.Int(),
+						Production2: c.prodNum2.Int(),
 					}
+
+					_, _, p := tab.getAction(s.num, c.sym.num())
+					conflict.AdoptedProduction = p.Int()
+
+					rr = append(rr, conflict)
 				}
-				for a := range reducibleItem.lookAhead.symbols {
-					reduceRecs = append(reduceRecs, fmt.Sprintf("reduce %4v on %v", prod.num, b.symbolToText(a)))
-				}
+
+				sort.Slice(rr, func(i, j int) bool {
+					return rr[i].Symbol < rr[j].Symbol
+				})
+			}
+
+			states[s.num.Int()] = &spec.State{
+				Number:     s.num.Int(),
+				Kernel:     kernel,
+				Shift:      shift,
+				Reduce:     reduce,
+				GoTo:       goTo,
+				SRConflict: sr,
+				RRConflict: rr,
 			}
 		}
-
-		if len(shiftRecs) > 0 || len(reduceRecs) > 0 {
-			for _, rec := range shiftRecs {
-				fmt.Fprintf(w, "    %v\n", rec)
-			}
-			for _, rec := range reduceRecs {
-				fmt.Fprintf(w, "    %v\n", rec)
-			}
-			fmt.Fprintf(w, "\n")
-		}
-		if len(gotoRecs) > 0 {
-			for _, rec := range gotoRecs {
-				fmt.Fprintf(w, "    %v\n", rec)
-			}
-			fmt.Fprintf(w, "\n")
-		}
-		if accRec != "" {
-			fmt.Fprintf(w, "    %v\n\n", accRec)
-		}
-
-		cons, ok := conflicts[state.num]
-		if ok {
-			syms := map[symbol]struct{}{}
-			for _, con := range cons {
-				switch c := con.(type) {
-				case *shiftReduceConflict:
-					fmt.Fprintf(w, "    shift/reduce conflict (shift %v, reduce %v) on %v\n", c.nextState, c.prodNum, b.symbolToText(c.sym))
-					syms[c.sym] = struct{}{}
-				case *reduceReduceConflict:
-					fmt.Fprintf(w, "    reduce/reduce conflict (reduce %v and %v) on %v\n", c.prodNum1, c.prodNum2, b.symbolToText(c.sym))
-					syms[c.sym] = struct{}{}
-				}
-			}
-			for sym := range syms {
-				ty, s, p := tab.getAction(state.num, sym.num())
-				switch ty {
-				case ActionTypeShift:
-					fmt.Fprintf(w, "        adopted shift  %4v on %v\n", s, b.symbolToText(sym))
-				case ActionTypeReduce:
-					fmt.Fprintf(w, "        adopted reduce %4v on %v\n", p, b.symbolToText(sym))
-				}
-			}
-			fmt.Fprintf(w, "\n")
-		}
-	}
-}
-
-func (b *lrTableBuilder) productionToString(prod *production, dot int) string {
-	var w strings.Builder
-	fmt.Fprintf(&w, "%v →", b.symbolToText(prod.lhs))
-	for n, rhs := range prod.rhs {
-		if n == dot {
-			fmt.Fprintf(&w, " ・")
-		}
-		fmt.Fprintf(&w, " %v", b.symbolToText(rhs))
-	}
-	if dot == len(prod.rhs) {
-		fmt.Fprintf(&w, " ・")
 	}
 
-	return w.String()
-}
-
-func (b *lrTableBuilder) symbolToText(sym symbol) string {
-	if sym.isNil() {
-		return "<NULL>"
-	}
-	if sym.isEOF() {
-		return "<EOF>"
-	}
-
-	text, ok := b.symTab.toText(sym)
-	if !ok {
-		return fmt.Sprintf("<symbol not found: %v>", sym)
-	}
-
-	if strings.HasPrefix(text, "_") {
-		pat, ok := b.sym2AnonPat[sym]
-		if !ok {
-			return fmt.Sprintf("<pattern not found: %v>", text)
-		}
-
-		return fmt.Sprintf(`"%v"`, pat)
-	}
-
-	return text
+	return &spec.Description{
+		Terminals:    terms,
+		NonTerminals: nonTerms,
+		Productions:  prods,
+		States:       states,
+	}, nil
 }

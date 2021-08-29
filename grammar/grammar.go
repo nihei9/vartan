@@ -1,6 +1,7 @@
 package grammar
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -1027,6 +1028,11 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			return nil, err
 		}
 
+		desc, err := b.genDescription(tab, gram)
+		if err != nil {
+			return nil, err
+		}
+
 		if config.descriptionFileName != "" {
 			f, err := os.OpenFile(config.descriptionFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
@@ -1034,7 +1040,12 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			}
 			defer f.Close()
 
-			b.writeDescription(f, tab)
+			d, err := json.Marshal(desc)
+			if err != nil {
+				return nil, err
+			}
+
+			f.Write(d)
 		}
 
 		if len(b.conflicts) > 0 {

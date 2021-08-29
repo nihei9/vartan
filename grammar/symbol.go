@@ -249,6 +249,20 @@ func (t *symbolTable) terminalTexts() ([]string, error) {
 	return t.termTexts, nil
 }
 
+func (t *symbolTable) nonTerminalSymbols() []symbol {
+	syms := make([]symbol, 0, t.nonTermNum.Int()-nonTerminalNumMin.Int())
+	for sym := range t.sym2Text {
+		if !sym.isNonTerminal() || sym.isNil() {
+			continue
+		}
+		syms = append(syms, sym)
+	}
+	sort.Slice(syms, func(i, j int) bool {
+		return syms[i] < syms[j]
+	})
+	return syms
+}
+
 func (t *symbolTable) nonTerminalTexts() ([]string, error) {
 	if t.nonTermNum == nonTerminalNumMin || t.nonTermTexts[symbolStart.num().Int()] == "" {
 		return nil, fmt.Errorf("symbol table has no terminals or no start symbol")
