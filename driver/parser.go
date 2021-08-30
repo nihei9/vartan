@@ -120,7 +120,6 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) 
 }
 
 func (p *Parser) Parse() error {
-	termCount := p.gram.ParsingTable.TerminalCount
 	p.push(p.gram.ParsingTable.InitialState)
 	tok, err := p.nextToken()
 	if err != nil {
@@ -129,23 +128,10 @@ func (p *Parser) Parse() error {
 
 ACTION_LOOP:
 	for {
-		var tsym int
-		if tok.EOF {
-			tsym = p.gram.ParsingTable.EOFSymbol
-		} else {
-			tsym = p.gram.LexicalSpecification.Maleeni.KindToTerminal[tok.KindID]
-		}
-		act := p.gram.ParsingTable.Action[p.top()*termCount+tsym]
+		act := p.lookupAction(tok)
 		switch {
 		case act < 0: // Shift
-			tokText := tok.Text()
-			tokRow := tok.Row
-			tokCol := tok.Col
-			p.shift(act * -1)
-			tok, err = p.nextToken()
-			if err != nil {
-				return err
-			}
+			nextState := act * -1
 
 			if p.onError {
 				// When the parser performs shift three times, the parser recovers from the error state.
@@ -157,44 +143,15 @@ ACTION_LOOP:
 				}
 			}
 
-			// semantic action
-			if p.needSemAct {
-				var ast *Node
-				var cst *Node
-				if p.makeAST {
-					ast = &Node{
-						KindName: p.gram.ParsingTable.Terminals[tsym],
-						Text:     tokText,
-						Row:      tokRow,
-						Col:      tokCol,
-					}
-				}
-				if p.makeCST {
-					cst = &Node{
-						KindName: p.gram.ParsingTable.Terminals[tsym],
-						Text:     tokText,
-						Row:      tokRow,
-						Col:      tokCol,
-					}
-				}
+			p.shift(nextState)
 
-				p.semStack = append(p.semStack, &semanticFrame{
-					cst: cst,
-					ast: ast,
-				})
+			p.actOnShift(tok)
+
+			tok, err = p.nextToken()
+			if err != nil {
+				return err
 			}
 		case act > 0: // Reduce
-			accepted := p.reduce(act)
-			if accepted {
-				if p.needSemAct {
-					top := p.semStack[len(p.semStack)-1]
-					p.cst = top.cst
-					p.ast = top.ast
-				}
-
-				return nil
-			}
-
 			prodNum := act
 
 			if p.onError && p.gram.ParsingTable.RecoverProductions[prodNum] != 0 {
@@ -202,83 +159,15 @@ ACTION_LOOP:
 				p.shiftCount = 0
 			}
 
-			// semantic action
-			if p.needSemAct {
-				lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
+			accepted := p.reduce(prodNum)
+			if accepted {
+				p.actOnAccepting()
 
-				// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.
-				n := p.gram.ParsingTable.AlternativeSymbolCounts[prodNum]
-				handle := p.semStack[len(p.semStack)-n:]
-
-				var ast *Node
-				var cst *Node
-				if p.makeAST {
-					act := p.gram.ASTAction.Entries[prodNum]
-					var children []*Node
-					if act != nil {
-						// Count the number of children in advance to avoid frequent growth in a slice for children.
-						{
-							l := 0
-							for _, e := range act {
-								if e > 0 {
-									l++
-								} else {
-									offset := e*-1 - 1
-									l += len(handle[offset].ast.Children)
-								}
-							}
-
-							children = make([]*Node, l)
-						}
-
-						p := 0
-						for _, e := range act {
-							if e > 0 {
-								offset := e - 1
-								children[p] = handle[offset].ast
-								p++
-							} else {
-								offset := e*-1 - 1
-								for _, c := range handle[offset].ast.Children {
-									children[p] = c
-									p++
-								}
-							}
-						}
-					} else {
-						// If an alternative has no AST action, a driver generates
-						// a node with the same structure as a CST.
-
-						children = make([]*Node, len(handle))
-						for i, f := range handle {
-							children[i] = f.ast
-						}
-					}
-
-					ast = &Node{
-						KindName: p.gram.ParsingTable.NonTerminals[lhs],
-						Children: children,
-					}
-				}
-				if p.makeCST {
-					children := make([]*Node, len(handle))
-					for i, f := range handle {
-						children[i] = f.cst
-					}
-
-					cst = &Node{
-						KindName: p.gram.ParsingTable.NonTerminals[lhs],
-						Children: children,
-					}
-				}
-
-				p.semStack = p.semStack[:len(p.semStack)-n]
-				p.semStack = append(p.semStack, &semanticFrame{
-					cst: cst,
-					ast: ast,
-				})
+				return nil
 			}
-		default:
+
+			p.actOnReduction(prodNum)
+		default: // Error
 			if p.onError {
 				tok, err = p.nextToken()
 				if err != nil {
@@ -299,49 +188,22 @@ ACTION_LOOP:
 				ExpectedTerminals: p.expectedTerms(p.top()),
 			})
 
-			for {
-				if p.gram.ParsingTable.ErrorTrapperStates[p.top()] != 0 {
-					p.onError = true
-					p.shiftCount = 0
-
-					errSym := p.gram.ParsingTable.ErrorSymbol
-					act := p.gram.ParsingTable.Action[p.top()*termCount+errSym]
-					if act >= 0 {
-						return fmt.Errorf("an entry must be a shift action by the error symbol; entry: %v, state: %v, symbol: %v", act, p.top(), p.gram.ParsingTable.Terminals[errSym])
-					}
-					p.shift(act * -1)
-
-					// semantic action
-					if p.needSemAct {
-						var ast *Node
-						var cst *Node
-						if p.makeAST {
-							ast = &Node{
-								KindName: p.gram.ParsingTable.Terminals[errSym],
-							}
-						}
-						if p.makeCST {
-							cst = &Node{
-								KindName: p.gram.ParsingTable.Terminals[errSym],
-							}
-						}
-
-						p.semStack = append(p.semStack, &semanticFrame{
-							cst: cst,
-							ast: ast,
-						})
-					}
-
-					continue ACTION_LOOP
-				}
-
-				if p.top() != p.gram.ParsingTable.InitialState {
-					p.pop(1)
-					p.semStack = p.semStack[:len(p.semStack)-1]
-				} else {
-					return nil
-				}
+			ok := p.trapError()
+			if !ok {
+				return nil
 			}
+
+			p.onError = true
+			p.shiftCount = 0
+
+			act, err := p.lookupActionOnError()
+			if err != nil {
+				return err
+			}
+
+			p.shift(act * -1)
+
+			p.actOnError()
 		}
 	}
 }
@@ -365,6 +227,31 @@ func (p *Parser) nextToken() (*mldriver.Token, error) {
 	}
 }
 
+func (p *Parser) tokenToTerminal(tok *mldriver.Token) int {
+	if tok.EOF {
+		return p.gram.ParsingTable.EOFSymbol
+	}
+
+	return p.gram.LexicalSpecification.Maleeni.KindToTerminal[tok.KindID]
+}
+
+func (p *Parser) lookupAction(tok *mldriver.Token) int {
+	termCount := p.gram.ParsingTable.TerminalCount
+	term := p.tokenToTerminal(tok)
+	return p.gram.ParsingTable.Action[p.top()*termCount+term]
+}
+
+func (p *Parser) lookupActionOnError() (int, error) {
+	termCount := p.gram.ParsingTable.TerminalCount
+	errSym := p.gram.ParsingTable.ErrorSymbol
+	act := p.gram.ParsingTable.Action[p.top()*termCount+errSym]
+	if act >= 0 {
+		return 0, fmt.Errorf("an entry must be a shift action by the error symbol; entry: %v, state: %v, symbol: %v", act, p.top(), p.gram.ParsingTable.Terminals[errSym])
+	}
+
+	return act, nil
+}
+
 func (p *Parser) shift(nextState int) {
 	p.push(nextState)
 }
@@ -380,6 +267,169 @@ func (p *Parser) reduce(prodNum int) bool {
 	nextState := tab.GoTo[p.top()*tab.NonTerminalCount+lhs]
 	p.push(nextState)
 	return false
+}
+
+func (p *Parser) trapError() bool {
+	for {
+		if p.gram.ParsingTable.ErrorTrapperStates[p.top()] != 0 {
+			return true
+		}
+
+		if p.top() != p.gram.ParsingTable.InitialState {
+			p.pop(1)
+			p.semStack = p.semStack[:len(p.semStack)-1]
+		} else {
+			return false
+		}
+	}
+}
+
+func (p *Parser) actOnShift(tok *mldriver.Token) {
+	if !p.needSemAct {
+		return
+	}
+
+	term := p.tokenToTerminal(tok)
+
+	var ast *Node
+	var cst *Node
+	if p.makeAST {
+		ast = &Node{
+			KindName: p.gram.ParsingTable.Terminals[term],
+			Text:     tok.Text(),
+			Row:      tok.Row,
+			Col:      tok.Col,
+		}
+	}
+	if p.makeCST {
+		cst = &Node{
+			KindName: p.gram.ParsingTable.Terminals[term],
+			Text:     tok.Text(),
+			Row:      tok.Row,
+			Col:      tok.Col,
+		}
+	}
+
+	p.semStack = append(p.semStack, &semanticFrame{
+		cst: cst,
+		ast: ast,
+	})
+}
+
+func (p *Parser) actOnReduction(prodNum int) {
+	if !p.needSemAct {
+		return
+	}
+
+	lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
+
+	// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.
+	n := p.gram.ParsingTable.AlternativeSymbolCounts[prodNum]
+	handle := p.semStack[len(p.semStack)-n:]
+
+	var ast *Node
+	var cst *Node
+	if p.makeAST {
+		act := p.gram.ASTAction.Entries[prodNum]
+		var children []*Node
+		if act != nil {
+			// Count the number of children in advance to avoid frequent growth in a slice for children.
+			{
+				l := 0
+				for _, e := range act {
+					if e > 0 {
+						l++
+					} else {
+						offset := e*-1 - 1
+						l += len(handle[offset].ast.Children)
+					}
+				}
+
+				children = make([]*Node, l)
+			}
+
+			p := 0
+			for _, e := range act {
+				if e > 0 {
+					offset := e - 1
+					children[p] = handle[offset].ast
+					p++
+				} else {
+					offset := e*-1 - 1
+					for _, c := range handle[offset].ast.Children {
+						children[p] = c
+						p++
+					}
+				}
+			}
+		} else {
+			// If an alternative has no AST action, a driver generates
+			// a node with the same structure as a CST.
+
+			children = make([]*Node, len(handle))
+			for i, f := range handle {
+				children[i] = f.ast
+			}
+		}
+
+		ast = &Node{
+			KindName: p.gram.ParsingTable.NonTerminals[lhs],
+			Children: children,
+		}
+	}
+	if p.makeCST {
+		children := make([]*Node, len(handle))
+		for i, f := range handle {
+			children[i] = f.cst
+		}
+
+		cst = &Node{
+			KindName: p.gram.ParsingTable.NonTerminals[lhs],
+			Children: children,
+		}
+	}
+
+	p.semStack = p.semStack[:len(p.semStack)-n]
+	p.semStack = append(p.semStack, &semanticFrame{
+		cst: cst,
+		ast: ast,
+	})
+}
+
+func (p *Parser) actOnAccepting() {
+	if !p.needSemAct {
+		return
+	}
+
+	top := p.semStack[len(p.semStack)-1]
+	p.cst = top.cst
+	p.ast = top.ast
+}
+
+func (p *Parser) actOnError() {
+	if !p.needSemAct {
+		return
+	}
+
+	errSym := p.gram.ParsingTable.ErrorSymbol
+
+	var ast *Node
+	var cst *Node
+	if p.makeAST {
+		ast = &Node{
+			KindName: p.gram.ParsingTable.Terminals[errSym],
+		}
+	}
+	if p.makeCST {
+		cst = &Node{
+			KindName: p.gram.ParsingTable.Terminals[errSym],
+		}
+	}
+
+	p.semStack = append(p.semStack, &semanticFrame{
+		cst: cst,
+		ast: ast,
+	})
 }
 
 func (p *Parser) top() int {
