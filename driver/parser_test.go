@@ -447,6 +447,98 @@ a: 'a';
 `,
 			specErr: true,
 		},
+		// The 'prec' directive can set precedence and associativity of a production.
+		{
+			specSrc: `
+%left mul div
+%left add sub
+
+expr
+    : expr add expr
+    | expr sub expr
+    | expr mul expr
+    | expr div expr
+    | sub expr #prec mul // This 'sub' means a unary minus symbol.
+    | int
+    ;
+
+ws: "[\u{0009}\u{0020}]+" #skip;
+int: "0|[1-9][0-9]*";
+add: '+';
+sub: '-';
+mul: '*';
+div: '/';
+`,
+			// This source is recognized as the following structure because the production `expr → sub expr`
+			// has the `#prec mul` directive and has the same precedence and associativity of the symbol `mul`.
+			//
+			// (((-1) * 20) / 5)
+			//
+			// If the production doesn't have the `#prec` directive, this source will be recognized as
+			// the following structure.
+			//
+			// (- ((1 * 20) / 5))
+			src: `-1*20/5`,
+			cst: nonTermNode("expr",
+				nonTermNode("expr",
+					nonTermNode("expr",
+						termNode("sub", "-"),
+						nonTermNode("expr",
+							termNode("int", "1"),
+						),
+					),
+					termNode("mul", "*"),
+					nonTermNode("expr",
+						termNode("int", "20"),
+					),
+				),
+				termNode("div", "/"),
+				nonTermNode("expr",
+					termNode("int", "5"),
+				),
+			),
+		},
+		// The 'prec' directive needs an ID parameter.
+		{
+			specSrc: `
+s
+    : a #prec
+    ;
+
+a: 'a';
+`,
+			specErr: true,
+		},
+		// The 'prec' directive cannot take an unknown symbol.
+		{
+			specSrc: `
+s
+    : a #prec foo
+    ;
+
+a: 'a';
+`,
+			specErr: true,
+		},
+		// The 'prec' directive cannot take a non-terminal symbol.
+		{
+			specSrc: `
+s
+    : foo #prec bar
+    | bar
+    ;
+foo
+    : a
+    ;
+bar
+    : b
+    ;
+
+a: 'a';
+b: 'b';
+`,
+			specErr: true,
+		},
 		// The grammar can contain the 'error' symbol.
 		{
 			specSrc: `

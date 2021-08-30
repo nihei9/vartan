@@ -117,7 +117,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
-	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs.prods)
+	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs.prods, prodsAndActs.prodPrecs)
 	if err != nil {
 		return nil, err
 	}
@@ -552,6 +552,7 @@ type productionsAndActions struct {
 	prods        *productionSet
 	augStartSym  symbol
 	astActs      map[productionID][]*astActionEntry
+	prodPrecs    map[productionID]symbol
 	recoverProds map[productionID]struct{}
 }
 
@@ -570,6 +571,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	prods := newProductionSet()
 	var augStartSym symbol
 	astActs := map[productionID][]*astActionEntry{}
+	prodPrecs := map[productionID]symbol{}
 	recoverProds := map[productionID]struct{}{}
 
 	startProd := root.Productions[0]
@@ -788,6 +790,36 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						}
 					}
 					astActs[p.id] = astAct
+				case "prec":
+					if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("'prec' directive needs an ID parameter"),
+							Row:    dir.Pos.Row,
+							Col:    dir.Pos.Col,
+						})
+						continue LOOP_RHS
+					}
+					sym, ok := symTab.toSymbol(dir.Parameters[0].ID)
+					if !ok {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("unknown terminal symbol: %v", dir.Parameters[0].ID),
+							Row:    dir.Pos.Row,
+							Col:    dir.Pos.Col,
+						})
+						continue LOOP_RHS
+					}
+					if !sym.isTerminal() {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("the symbol must be a terminal: %v", dir.Parameters[0].ID),
+							Row:    dir.Pos.Row,
+							Col:    dir.Pos.Col,
+						})
+						continue LOOP_RHS
+					}
+					prodPrecs[p.id] = sym
 				case "recover":
 					if len(dir.Parameters) > 0 {
 						b.errs = append(b.errs, &verr.SpecError{
@@ -816,11 +848,12 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 		prods:        prods,
 		augStartSym:  augStartSym,
 		astActs:      astActs,
+		prodPrecs:    prodPrecs,
 		recoverProds: recoverProds,
 	}, nil
 }
 
-func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionSet) (*precAndAssoc, error) {
+func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionSet, prodPrecs map[productionID]symbol) (*precAndAssoc, error) {
 	termPrec := map[symbolNum]int{}
 	termAssoc := map[symbolNum]assocType{}
 	{
@@ -879,23 +912,28 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 	prodPrec := map[productionNum]int{}
 	prodAssoc := map[productionNum]assocType{}
 	for _, prod := range prods.getAllProductions() {
-		mostRightTerm := symbolNil
-		for _, sym := range prod.rhs {
-			if !sym.isTerminal() {
-				continue
+		term, ok := prodPrecs[prod.id]
+		if !ok {
+			mostrightTerm := symbolNil
+			for _, sym := range prod.rhs {
+				if !sym.isTerminal() {
+					continue
+				}
+				mostrightTerm = sym
 			}
-			mostRightTerm = sym
+
+			term = mostrightTerm
 		}
-		if mostRightTerm.isNil() {
+		if term.isNil() {
 			continue
 		}
 
-		prec, ok := termPrec[mostRightTerm.num()]
+		prec, ok := termPrec[term.num()]
 		if !ok {
 			continue
 		}
 
-		assoc, ok := termAssoc[mostRightTerm.num()]
+		assoc, ok := termAssoc[term.num()]
 		if !ok {
 			continue
 		}
