@@ -185,7 +185,7 @@ ACTION_LOOP:
 				Col:               tok.Col,
 				Message:           "unexpected token",
 				Token:             tok,
-				ExpectedTerminals: p.expectedTerms(p.top()),
+				ExpectedTerminals: p.searchLookahead(p.top()),
 			})
 
 			ok := p.trapError()
@@ -456,28 +456,33 @@ func (p *Parser) SyntaxErrors() []*SyntaxError {
 	return p.synErrs
 }
 
-func (p *Parser) expectedTerms(state int) []string {
+func (p *Parser) searchLookahead(state int) []string {
 	kinds := []string{}
-	terms := p.gram.ParsingTable.ExpectedTerminals[state]
+	term2Kind := p.gram.LexicalSpecification.Maleeni.TerminalToKind
+	kindNames := p.gram.LexicalSpecification.Maleeni.Spec.KindNames
 	aliases := p.gram.LexicalSpecification.Maleeni.KindAliases
-	for _, tsym := range terms {
-		// We don't add the error symbol to the look-ahead symbols because users cannot input the error symbol
-		// intentionally.
-		if tsym == p.gram.ParsingTable.ErrorSymbol {
+	termCount := p.gram.ParsingTable.TerminalCount
+	base := p.top() * termCount
+	for term := 0; term < termCount; term++ {
+		if p.gram.ParsingTable.Action[base+term] == 0 {
 			continue
 		}
 
-		if tsym == p.gram.ParsingTable.EOFSymbol {
+		// We don't add the error symbol to the look-ahead symbols because users cannot input the error symbol
+		// intentionally.
+		if term == p.gram.ParsingTable.ErrorSymbol {
+			continue
+		}
+
+		if term == p.gram.ParsingTable.EOFSymbol {
 			kinds = append(kinds, "<eof>")
 			continue
 		}
 
-		if alias := aliases[tsym]; alias != "" {
+		if alias := aliases[term]; alias != "" {
 			kinds = append(kinds, alias)
 		} else {
-			term2Kind := p.gram.LexicalSpecification.Maleeni.TerminalToKind
-			kindNames := p.gram.LexicalSpecification.Maleeni.Spec.KindNames
-			kinds = append(kinds, kindNames[term2Kind[tsym]].String())
+			kinds = append(kinds, kindNames[term2Kind[term]].String())
 		}
 	}
 

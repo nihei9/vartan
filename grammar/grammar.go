@@ -1165,7 +1165,6 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			ErrorSymbol:             gram.errorSymbol.num().Int(),
 			ErrorTrapperStates:      tab.errorTrapperStates,
 			RecoverProductions:      recoverProds,
-			ExpectedTerminals:       tab.expectedTerminals,
 		},
 		ASTAction: &spec.ASTAction{
 			Entries: astActEnties,

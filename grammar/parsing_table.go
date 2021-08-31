@@ -97,12 +97,11 @@ var (
 )
 
 type ParsingTable struct {
-	actionTable       []actionEntry
-	goToTable         []goToEntry
-	stateCount        int
-	terminalCount     int
-	nonTerminalCount  int
-	expectedTerminals [][]int
+	actionTable      []actionEntry
+	goToTable        []goToEntry
+	stateCount       int
+	terminalCount    int
+	nonTerminalCount int
 
 	// errorTrapperStates's index means a state number, and when `errorTrapperStates[stateNum]` is `1`,
 	// the state has an item having the following form. The `α` and `β` can be empty.
@@ -158,7 +157,6 @@ func (b *lrTableBuilder) build() (*ParsingTable, error) {
 			stateCount:         len(b.automaton.states),
 			terminalCount:      b.termCount,
 			nonTerminalCount:   b.nonTermCount,
-			expectedTerminals:  make([][]int, len(b.automaton.states)),
 			errorTrapperStates: make([]int, len(b.automaton.states)),
 			InitialState:       initialState.num,
 		}
@@ -169,12 +167,9 @@ func (b *lrTableBuilder) build() (*ParsingTable, error) {
 			ptab.errorTrapperStates[state.num] = 1
 		}
 
-		eTerms := map[int]struct{}{}
-
 		for sym, kID := range state.next {
 			nextState := b.automaton.states[kID]
 			if sym.isTerminal() {
-				eTerms[sym.num().Int()] = struct{}{}
 				b.writeShiftAction(ptab, state.num, sym, nextState.num)
 			} else {
 				ptab.writeGoTo(state.num, sym, nextState.num)
@@ -211,23 +206,9 @@ func (b *lrTableBuilder) build() (*ParsingTable, error) {
 			}
 
 			for a := range reducibleItem.lookAhead.symbols {
-				eTerms[a.num().Int()] = struct{}{}
 				b.writeReduceAction(ptab, state.num, a, reducibleProd.num)
 			}
 		}
-
-		ts := make([]int, len(eTerms))
-		{
-			i := 0
-			for t := range eTerms {
-				ts[i] = t
-				i++
-			}
-			sort.Slice(ts, func(i, j int) bool {
-				return ts[i] < ts[j]
-			})
-		}
-		ptab.expectedTerminals[state.num] = ts
 	}
 
 	return ptab, nil

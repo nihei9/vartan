@@ -37,7 +37,6 @@ type ParsingTable struct {
 	ErrorSymbol             int      `json:"error_symbol"`
 	ErrorTrapperStates      []int    `json:"error_trapper_states"`
 	RecoverProductions      []int    `json:"recover_productions"`
-	ExpectedTerminals       [][]int  `json:"expected_terminals"`
 }
 
 type ASTAction struct {
