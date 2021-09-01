@@ -76,4 +76,49 @@ When `vartan parse` command successfully parses the input data, it prints a CST 
 
 ## Debug
 
-`vartan compile` command also generates a description file having `.desc` suffix along with a parsing table. This file describes each state in the parsing table in detail. If your grammar contains conflicts, see `Conflicts` section of this file.
+`vartan compile` command also generates a description file having `-description.json` suffix along with a parsing table. This file describes each state in the parsing table in detail. If your grammar contains conflicts, see `Conflicts` and `States` sections of this file. Using `vartan show` command, you can see the description file in a readable format.
+
+```sh
+$ vartan show expr-description.json
+# Class
+
+LALR(1)
+
+# Conflicts
+
+No conflict was detected.
+
+# Terminals
+
+   1  - - <eof>
+   2  - - error
+   3  - - whitespaces
+   4  - - number
+   5  - - id
+   6  - - add_op (+)
+   7  - - mul_op (*)
+
+# Productions
+
+   1  - - expr' → expr
+   2  - - expr → expr + term
+   3  - - expr → term
+   4  - - term → term * factor
+   5  - - term → factor
+   6  - - factor → number
+   7  - - factor → id
+
+# States
+
+## State 0
+
+   1 expr' → ・ expr
+
+shift     4 on number
+shift     5 on id
+goto      1 on expr
+goto      2 on term
+goto      3 on factor
+
+...
+```

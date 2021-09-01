@@ -14,21 +14,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var describeFlags = struct {
+var showFlags = struct {
 }{}
 
 func init() {
 	cmd := &cobra.Command{
-		Use:     "describe",
+		Use:     "show",
 		Short:   "Print a description file in readable format",
-		Example: `  vartan describe grammar-description.json`,
+		Example: `  vartan show grammar-description.json`,
 		Args:    cobra.ExactArgs(1),
-		RunE:    runDescribe,
+		RunE:    runShow,
 	}
 	rootCmd.AddCommand(cmd)
 }
 
-func runDescribe(cmd *cobra.Command, args []string) (retErr error) {
+func runShow(cmd *cobra.Command, args []string) (retErr error) {
 	defer func() {
 		panicked := false
 		v := recover()
