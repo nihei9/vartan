@@ -87,7 +87,11 @@ func readDescription(path string) (*spec.Description, error) {
 	return desc, nil
 }
 
-const descTemplate = `# Conflicts
+const descTemplate = `# Class
+
+{{ .Class }}
+
+# Conflicts
 
 {{ printConflictSummary . }}
 

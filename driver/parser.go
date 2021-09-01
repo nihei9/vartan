@@ -75,6 +75,14 @@ func MakeCST() ParserOption {
 	}
 }
 
+// DisableLAC disables LAC (lookahead correction). When the grammar has the LALR class, LAC is enabled by default.
+func DisableLAC() ParserOption {
+	return func(p *Parser) error {
+		p.disableLAC = true
+		return nil
+	}
+}
+
 type semanticFrame struct {
 	cst *Node
 	ast *Node
@@ -83,13 +91,14 @@ type semanticFrame struct {
 type Parser struct {
 	gram       *spec.CompiledGrammar
 	lex        *mldriver.Lexer
-	stateStack []int
+	stateStack *stateStack
 	semStack   []*semanticFrame
 	cst        *Node
 	ast        *Node
 	makeAST    bool
 	makeCST    bool
 	needSemAct bool
+	disableLAC bool
 	onError    bool
 	shiftCount int
 	synErrs    []*SyntaxError
@@ -104,7 +113,11 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) 
 	p := &Parser{
 		gram:       gram,
 		lex:        lex,
-		stateStack: []int{},
+		stateStack: &stateStack{},
+	}
+
+	if p.gram.ParsingTable.Class != "lalr" {
+		p.disableLAC = true
 	}
 
 	for _, opt := range opts {
@@ -120,7 +133,7 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) 
 }
 
 func (p *Parser) Parse() error {
-	p.push(p.gram.ParsingTable.InitialState)
+	p.stateStack.push(p.gram.ParsingTable.InitialState)
 	tok, err := p.nextToken()
 	if err != nil {
 		return err
@@ -129,6 +142,7 @@ func (p *Parser) Parse() error {
 ACTION_LOOP:
 	for {
 		act := p.lookupAction(tok)
+
 		switch {
 		case act < 0: // Shift
 			nextState := act * -1
@@ -185,7 +199,7 @@ ACTION_LOOP:
 				Col:               tok.Col,
 				Message:           "unexpected token",
 				Token:             tok,
-				ExpectedTerminals: p.searchLookahead(p.top()),
+				ExpectedTerminals: p.searchLookahead(p.stateStack.top()),
 			})
 
 			ok := p.trapError()
@@ -204,6 +218,37 @@ ACTION_LOOP:
 			p.shift(act * -1)
 
 			p.actOnError()
+		}
+	}
+}
+
+// validateLookahead validates whether `term` is a valid lookahead in the current context. When `term` is valid,
+// this method returns `true`.
+func (p *Parser) validateLookahead(term int) bool {
+	p.stateStack.enableExploratoryMode()
+	defer p.stateStack.disableExploratoryMode()
+
+	tab := p.gram.ParsingTable
+
+	for {
+		act := tab.Action[p.stateStack.topExploratorily()*tab.TerminalCount+term]
+
+		switch {
+		case act < 0: // Shift
+			return true
+		case act > 0: // Reduce
+			prodNum := act
+
+			lhs := tab.LHSSymbols[prodNum]
+			if lhs == tab.LHSSymbols[tab.StartProduction] {
+				return true
+			}
+			n := tab.AlternativeSymbolCounts[prodNum]
+			p.stateStack.popExploratorily(n)
+			state := tab.GoTo[p.stateStack.topExploratorily()*tab.NonTerminalCount+lhs]
+			p.stateStack.pushExploratorily(state)
+		default: // Error
+			return false
 		}
 	}
 }
@@ -236,24 +281,31 @@ func (p *Parser) tokenToTerminal(tok *mldriver.Token) int {
 }
 
 func (p *Parser) lookupAction(tok *mldriver.Token) int {
+	if !p.disableLAC {
+		term := p.tokenToTerminal(tok)
+		if !p.validateLookahead(term) {
+			return 0
+		}
+	}
+
 	termCount := p.gram.ParsingTable.TerminalCount
 	term := p.tokenToTerminal(tok)
-	return p.gram.ParsingTable.Action[p.top()*termCount+term]
+	return p.gram.ParsingTable.Action[p.stateStack.top()*termCount+term]
 }
 
 func (p *Parser) lookupActionOnError() (int, error) {
 	termCount := p.gram.ParsingTable.TerminalCount
 	errSym := p.gram.ParsingTable.ErrorSymbol
-	act := p.gram.ParsingTable.Action[p.top()*termCount+errSym]
+	act := p.gram.ParsingTable.Action[p.stateStack.top()*termCount+errSym]
 	if act >= 0 {
-		return 0, fmt.Errorf("an entry must be a shift action by the error symbol; entry: %v, state: %v, symbol: %v", act, p.top(), p.gram.ParsingTable.Terminals[errSym])
+		return 0, fmt.Errorf("an entry must be a shift action by the error symbol; entry: %v, state: %v, symbol: %v", act, p.stateStack.top(), p.gram.ParsingTable.Terminals[errSym])
 	}
 
 	return act, nil
 }
 
 func (p *Parser) shift(nextState int) {
-	p.push(nextState)
+	p.stateStack.push(nextState)
 }
 
 func (p *Parser) reduce(prodNum int) bool {
@@ -263,20 +315,20 @@ func (p *Parser) reduce(prodNum int) bool {
 		return true
 	}
 	n := tab.AlternativeSymbolCounts[prodNum]
-	p.pop(n)
-	nextState := tab.GoTo[p.top()*tab.NonTerminalCount+lhs]
-	p.push(nextState)
+	p.stateStack.pop(n)
+	nextState := tab.GoTo[p.stateStack.top()*tab.NonTerminalCount+lhs]
+	p.stateStack.push(nextState)
 	return false
 }
 
 func (p *Parser) trapError() bool {
 	for {
-		if p.gram.ParsingTable.ErrorTrapperStates[p.top()] != 0 {
+		if p.gram.ParsingTable.ErrorTrapperStates[p.stateStack.top()] != 0 {
 			return true
 		}
 
-		if p.top() != p.gram.ParsingTable.InitialState {
-			p.pop(1)
+		if p.stateStack.top() != p.gram.ParsingTable.InitialState {
+			p.stateStack.pop(1)
 			p.semStack = p.semStack[:len(p.semStack)-1]
 		} else {
 			return false
@@ -432,18 +484,6 @@ func (p *Parser) actOnError() {
 	})
 }
 
-func (p *Parser) top() int {
-	return p.stateStack[len(p.stateStack)-1]
-}
-
-func (p *Parser) push(state int) {
-	p.stateStack = append(p.stateStack, state)
-}
-
-func (p *Parser) pop(n int) {
-	p.stateStack = p.stateStack[:len(p.stateStack)-n]
-}
-
 func (p *Parser) CST() *Node {
 	return p.cst
 }
@@ -462,10 +502,16 @@ func (p *Parser) searchLookahead(state int) []string {
 	kindNames := p.gram.LexicalSpecification.Maleeni.Spec.KindNames
 	aliases := p.gram.LexicalSpecification.Maleeni.KindAliases
 	termCount := p.gram.ParsingTable.TerminalCount
-	base := p.top() * termCount
+	base := p.stateStack.top() * termCount
 	for term := 0; term < termCount; term++ {
-		if p.gram.ParsingTable.Action[base+term] == 0 {
-			continue
+		if p.disableLAC {
+			if p.gram.ParsingTable.Action[base+term] == 0 {
+				continue
+			}
+		} else {
+			if !p.validateLookahead(term) {
+				continue
+			}
 		}
 
 		// We don't add the error symbol to the look-ahead symbols because users cannot input the error symbol
@@ -487,4 +533,44 @@ func (p *Parser) searchLookahead(state int) []string {
 	}
 
 	return kinds
+}
+
+type stateStack struct {
+	items    []int
+	itemsExp []int
+}
+
+func (s *stateStack) enableExploratoryMode() {
+	s.itemsExp = make([]int, len(s.items))
+	for i, v := range s.items {
+		s.itemsExp[i] = v
+	}
+}
+
+func (s *stateStack) disableExploratoryMode() {
+	s.itemsExp = nil
+}
+
+func (s *stateStack) top() int {
+	return s.items[len(s.items)-1]
+}
+
+func (s *stateStack) topExploratorily() int {
+	return s.itemsExp[len(s.itemsExp)-1]
+}
+
+func (s *stateStack) push(state int) {
+	s.items = append(s.items, state)
+}
+
+func (s *stateStack) pushExploratorily(state int) {
+	s.itemsExp = append(s.itemsExp, state)
+}
+
+func (s *stateStack) pop(n int) {
+	s.items = s.items[:len(s.items)-n]
+}
+
+func (s *stateStack) popExploratorily(n int) {
+	s.itemsExp = s.itemsExp[:len(s.itemsExp)-n]
 }

@@ -13,9 +13,10 @@ import (
 )
 
 var parseFlags = struct {
-	source    *string
-	onlyParse *bool
-	cst       *bool
+	source     *string
+	onlyParse  *bool
+	cst        *bool
+	disableLAC *bool
 }{}
 
 func init() {
@@ -29,6 +30,7 @@ func init() {
 	parseFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default stdin)")
 	parseFlags.onlyParse = cmd.Flags().Bool("only-parse", false, "when this option is enabled, the parser performs only parse and doesn't semantic actions")
 	parseFlags.cst = cmd.Flags().Bool("cst", false, "when this option is enabled, the parser generates a CST")
+	parseFlags.disableLAC = cmd.Flags().Bool("disable-lac", false, "disable LAC (lookahead correction)")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -84,6 +86,9 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			opts = append(opts, driver.MakeCST())
 		case !*parseFlags.onlyParse:
 			opts = append(opts, driver.MakeAST())
+		}
+		if *parseFlags.disableLAC {
+			opts = append(opts, driver.DisableLAC())
 		}
 		p, err = driver.NewParser(cgram, src, opts...)
 		if err != nil {

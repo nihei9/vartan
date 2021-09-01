@@ -22,6 +22,7 @@ type Maleeni struct {
 }
 
 type ParsingTable struct {
+	Class                   string   `json:"class"`
 	Action                  []int    `json:"action"`
 	GoTo                    []int    `json:"goto"`
 	StateCount              int      `json:"state_count"`

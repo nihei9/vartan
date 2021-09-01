@@ -1038,9 +1038,12 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 		return nil, err
 	}
 
+	var class string
 	var automaton *lr0Automaton
 	switch config.class {
 	case ClassSLR:
+		class = "slr"
+
 		followSet, err := genFollowSet(gram.productionSet, firstSet)
 		if err != nil {
 			return nil, err
@@ -1053,6 +1056,8 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 
 		automaton = slr1.lr0Automaton
 	case ClassLALR:
+		class = "lalr"
+
 		lalr1, err := genLALR1Automaton(lr0, gram.productionSet, firstSet)
 		if err != nil {
 			return nil, err
@@ -1064,6 +1069,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 	var tab *ParsingTable
 	{
 		b := &lrTableBuilder{
+			class:        config.class,
 			automaton:    automaton,
 			prods:        gram.productionSet,
 			termCount:    len(terms),
@@ -1150,6 +1156,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			},
 		},
 		ParsingTable: &spec.ParsingTable{
+			Class:                   class,
 			Action:                  action,
 			GoTo:                    goTo,
 			StateCount:              tab.stateCount,
