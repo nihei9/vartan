@@ -977,7 +977,9 @@ func SpecifyClass(class Class) CompileOption {
 }
 
 func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error) {
-	config := &compileConfig{}
+	config := &compileConfig{
+		class: ClassLALR,
+	}
 	for _, opt := range opts {
 		opt(config)
 	}
