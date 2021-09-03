@@ -8,49 +8,6 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
-type Node struct {
-	KindName string
-	Text     string
-	Row      int
-	Col      int
-	Children []*Node
-}
-
-func PrintTree(w io.Writer, node *Node) {
-	printTree(w, node, "", "")
-}
-
-func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix string) {
-	if node == nil {
-		return
-	}
-
-	if node.Text != "" {
-		fmt.Fprintf(w, "%v%v %#v\n", ruledLine, node.KindName, node.Text)
-	} else {
-		fmt.Fprintf(w, "%v%v\n", ruledLine, node.KindName)
-	}
-
-	num := len(node.Children)
-	for i, child := range node.Children {
-		var line string
-		if num > 1 && i < num-1 {
-			line = "├─ "
-		} else {
-			line = "└─ "
-		}
-
-		var prefix string
-		if i >= num-1 {
-			prefix = "   "
-		} else {
-			prefix = "│  "
-		}
-
-		printTree(w, child, childRuledLinePrefix+line, childRuledLinePrefix+prefix)
-	}
-}
-
 type SyntaxError struct {
 	Row               int
 	Col               int
@@ -61,20 +18,6 @@ type SyntaxError struct {
 
 type ParserOption func(p *Parser) error
 
-func MakeAST() ParserOption {
-	return func(p *Parser) error {
-		p.makeAST = true
-		return nil
-	}
-}
-
-func MakeCST() ParserOption {
-	return func(p *Parser) error {
-		p.makeCST = true
-		return nil
-	}
-}
-
 // DisableLAC disables LAC (lookahead correction). When the grammar has the LALR class, LAC is enabled by default.
 func DisableLAC() ParserOption {
 	return func(p *Parser) error {
@@ -83,21 +26,18 @@ func DisableLAC() ParserOption {
 	}
 }
 
-type semanticFrame struct {
-	cst *Node
-	ast *Node
+func SemanticAction(semAct SemanticActionSet) ParserOption {
+	return func(p *Parser) error {
+		p.semAct = semAct
+		return nil
+	}
 }
 
 type Parser struct {
 	gram       *spec.CompiledGrammar
 	lex        *mldriver.Lexer
 	stateStack *stateStack
-	semStack   []*semanticFrame
-	cst        *Node
-	ast        *Node
-	makeAST    bool
-	makeCST    bool
-	needSemAct bool
+	semAct     SemanticActionSet
 	disableLAC bool
 	onError    bool
 	shiftCount int
@@ -126,8 +66,6 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) 
 			return nil, err
 		}
 	}
-
-	p.needSemAct = p.makeAST || p.makeCST
 
 	return p, nil
 }
@@ -159,7 +97,9 @@ ACTION_LOOP:
 
 			p.shift(nextState)
 
-			p.actOnShift(tok)
+			if p.semAct != nil {
+				p.semAct.Shift(tok)
+			}
 
 			tok, err = p.nextToken()
 			if err != nil {
@@ -175,12 +115,16 @@ ACTION_LOOP:
 
 			accepted := p.reduce(prodNum)
 			if accepted {
-				p.actOnAccepting()
+				if p.semAct != nil {
+					p.semAct.Accept()
+				}
 
 				return nil
 			}
 
-			p.actOnReduction(prodNum)
+			if p.semAct != nil {
+				p.semAct.Reduce(prodNum)
+			}
 		default: // Error
 			if p.onError {
 				tok, err = p.nextToken()
@@ -202,9 +146,16 @@ ACTION_LOOP:
 				ExpectedTerminals: p.searchLookahead(p.stateStack.top()),
 			})
 
-			ok := p.trapError()
+			count, ok := p.trapError()
 			if !ok {
+				if p.semAct != nil {
+					p.semAct.MissError()
+				}
+
 				return nil
+			}
+			if p.semAct != nil {
+				p.semAct.TrapError(count)
 			}
 
 			p.onError = true
@@ -217,7 +168,9 @@ ACTION_LOOP:
 
 			p.shift(act * -1)
 
-			p.actOnError()
+			if p.semAct != nil {
+				p.semAct.ShiftError()
+			}
 		}
 	}
 }
@@ -321,175 +274,20 @@ func (p *Parser) reduce(prodNum int) bool {
 	return false
 }
 
-func (p *Parser) trapError() bool {
+func (p *Parser) trapError() (int, bool) {
+	count := 0
 	for {
 		if p.gram.ParsingTable.ErrorTrapperStates[p.stateStack.top()] != 0 {
-			return true
+			return count, true
 		}
 
 		if p.stateStack.top() != p.gram.ParsingTable.InitialState {
 			p.stateStack.pop(1)
-			p.semStack = p.semStack[:len(p.semStack)-1]
+			count++
 		} else {
-			return false
+			return 0, false
 		}
 	}
-}
-
-func (p *Parser) actOnShift(tok *mldriver.Token) {
-	if !p.needSemAct {
-		return
-	}
-
-	term := p.tokenToTerminal(tok)
-
-	var ast *Node
-	var cst *Node
-	if p.makeAST {
-		ast = &Node{
-			KindName: p.gram.ParsingTable.Terminals[term],
-			Text:     tok.Text(),
-			Row:      tok.Row,
-			Col:      tok.Col,
-		}
-	}
-	if p.makeCST {
-		cst = &Node{
-			KindName: p.gram.ParsingTable.Terminals[term],
-			Text:     tok.Text(),
-			Row:      tok.Row,
-			Col:      tok.Col,
-		}
-	}
-
-	p.semStack = append(p.semStack, &semanticFrame{
-		cst: cst,
-		ast: ast,
-	})
-}
-
-func (p *Parser) actOnReduction(prodNum int) {
-	if !p.needSemAct {
-		return
-	}
-
-	lhs := p.gram.ParsingTable.LHSSymbols[prodNum]
-
-	// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.
-	n := p.gram.ParsingTable.AlternativeSymbolCounts[prodNum]
-	handle := p.semStack[len(p.semStack)-n:]
-
-	var ast *Node
-	var cst *Node
-	if p.makeAST {
-		act := p.gram.ASTAction.Entries[prodNum]
-		var children []*Node
-		if act != nil {
-			// Count the number of children in advance to avoid frequent growth in a slice for children.
-			{
-				l := 0
-				for _, e := range act {
-					if e > 0 {
-						l++
-					} else {
-						offset := e*-1 - 1
-						l += len(handle[offset].ast.Children)
-					}
-				}
-
-				children = make([]*Node, l)
-			}
-
-			p := 0
-			for _, e := range act {
-				if e > 0 {
-					offset := e - 1
-					children[p] = handle[offset].ast
-					p++
-				} else {
-					offset := e*-1 - 1
-					for _, c := range handle[offset].ast.Children {
-						children[p] = c
-						p++
-					}
-				}
-			}
-		} else {
-			// If an alternative has no AST action, a driver generates
-			// a node with the same structure as a CST.
-
-			children = make([]*Node, len(handle))
-			for i, f := range handle {
-				children[i] = f.ast
-			}
-		}
-
-		ast = &Node{
-			KindName: p.gram.ParsingTable.NonTerminals[lhs],
-			Children: children,
-		}
-	}
-	if p.makeCST {
-		children := make([]*Node, len(handle))
-		for i, f := range handle {
-			children[i] = f.cst
-		}
-
-		cst = &Node{
-			KindName: p.gram.ParsingTable.NonTerminals[lhs],
-			Children: children,
-		}
-	}
-
-	p.semStack = p.semStack[:len(p.semStack)-n]
-	p.semStack = append(p.semStack, &semanticFrame{
-		cst: cst,
-		ast: ast,
-	})
-}
-
-func (p *Parser) actOnAccepting() {
-	if !p.needSemAct {
-		return
-	}
-
-	top := p.semStack[len(p.semStack)-1]
-	p.cst = top.cst
-	p.ast = top.ast
-}
-
-func (p *Parser) actOnError() {
-	if !p.needSemAct {
-		return
-	}
-
-	errSym := p.gram.ParsingTable.ErrorSymbol
-
-	var ast *Node
-	var cst *Node
-	if p.makeAST {
-		ast = &Node{
-			KindName: p.gram.ParsingTable.Terminals[errSym],
-		}
-	}
-	if p.makeCST {
-		cst = &Node{
-			KindName: p.gram.ParsingTable.Terminals[errSym],
-		}
-	}
-
-	p.semStack = append(p.semStack, &semanticFrame{
-		cst: cst,
-		ast: ast,
-	})
-}
-
-func (p *Parser) CST() *Node {
-	return p.cst
-}
-
-func (p *Parser) AST() *Node {
-	return p.ast
 }
 
 func (p *Parser) SyntaxErrors() []*SyntaxError {

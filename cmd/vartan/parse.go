@@ -69,6 +69,7 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 	}
 
 	var p *driver.Parser
+	var treeAct *driver.SyntaxTreeActionSet
 	{
 		src := os.Stdin
 		if *parseFlags.source != "" {
@@ -81,15 +82,22 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		}
 
 		var opts []driver.ParserOption
-		switch {
-		case *parseFlags.cst:
-			opts = append(opts, driver.MakeCST())
-		case !*parseFlags.onlyParse:
-			opts = append(opts, driver.MakeAST())
+		{
+			switch {
+			case *parseFlags.cst:
+				treeAct = driver.NewSyntaxTreeActionSet(cgram, false, true)
+			case !*parseFlags.onlyParse:
+				treeAct = driver.NewSyntaxTreeActionSet(cgram, true, false)
+			}
+			if treeAct != nil {
+				opts = append(opts, driver.SemanticAction(treeAct))
+			}
+
+			if *parseFlags.disableLAC {
+				opts = append(opts, driver.DisableLAC())
+			}
 		}
-		if *parseFlags.disableLAC {
-			opts = append(opts, driver.DisableLAC())
-		}
+
 		p, err = driver.NewParser(cgram, src, opts...)
 		if err != nil {
 			return err
@@ -128,9 +136,9 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 	if len(synErrs) == 0 && !*parseFlags.onlyParse {
 		var tree *driver.Node
 		if *parseFlags.cst {
-			tree = p.CST()
+			tree = treeAct.CST()
 		} else {
-			tree = p.AST()
+			tree = treeAct.AST()
 		}
 		driver.PrintTree(os.Stdout, tree)
 	}

@@ -662,7 +662,8 @@ error: 'error' #skip;
 					t.Fatal(err)
 				}
 
-				p, err := NewParser(gram, strings.NewReader(tt.src), MakeAST(), MakeCST())
+				treeAct := NewSyntaxTreeActionSet(gram, true, true)
+				p, err := NewParser(gram, strings.NewReader(tt.src), SemanticAction(treeAct))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -677,17 +678,17 @@ error: 'error' #skip;
 				}
 
 				if tt.cst != nil {
-					testTree(t, p.CST(), tt.cst)
+					testTree(t, treeAct.CST(), tt.cst)
 				}
 
 				if tt.ast != nil {
-					testTree(t, p.AST(), tt.ast)
+					testTree(t, treeAct.AST(), tt.ast)
 				}
 
 				fmt.Println("CST:")
-				PrintTree(os.Stdout, p.CST())
+				PrintTree(os.Stdout, treeAct.CST())
 				fmt.Println("AST:")
-				PrintTree(os.Stdout, p.AST())
+				PrintTree(os.Stdout, treeAct.AST())
 			})
 		}
 	}

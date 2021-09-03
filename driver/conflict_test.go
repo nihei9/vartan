@@ -335,7 +335,8 @@ assign: '=';
 				t.Fatal(err)
 			}
 
-			p, err := NewParser(gram, strings.NewReader(tt.src), MakeCST())
+			treeAct := NewSyntaxTreeActionSet(gram, false, true)
+			p, err := NewParser(gram, strings.NewReader(tt.src), SemanticAction(treeAct))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -346,9 +347,9 @@ assign: '=';
 			}
 
 			fmt.Printf("CST:\n")
-			PrintTree(os.Stdout, p.CST())
+			PrintTree(os.Stdout, treeAct.CST())
 
-			testTree(t, p.CST(), tt.cst)
+			testTree(t, treeAct.CST(), tt.cst)
 		})
 	}
 }
