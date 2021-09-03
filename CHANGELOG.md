@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.3.0
+
+* [7271e46b](https://github.com/nihei9/vartan/commit/7271e46bbcb11acf860c91eddfe12dd7eed5ccad) - Add `error` symbol and `#recover` directive to recover from an error state.
+* [a769f496](https://github.com/nihei9/vartan/commit/a769f496ecba60a73d74c445f5894ce52be800ee) - Add an `#alias` directive to define a user-friendly name of a terminal.
+* [4fda9eb3](https://github.com/nihei9/vartan/commit/4fda9eb3584cfcfd1e35267526442c022693f7ed) - Support the escape sequecens `\'` and `\\` in a string literal.
+* [936b600c](https://github.com/nihei9/vartan/commit/936b600ce23cce4350a730817a067a8926384baf) - Use a pattern string defined by a string literal as its alias.
+* [b70f4184](https://github.com/nihei9/vartan/commit/b70f41840819a59f82a37c0da7eddae40fc52aa0), [d904e822](https://github.com/nihei9/vartan/commit/d904e8224505fbbc7ae6f4a412a14096dcb2fde8) - Add show command to print a description file.
+* [bb85dcc5](https://github.com/nihei9/vartan/commit/bb85dcc57cc3c0fff6cc9dc09540d58fef400d6f) - Add precedences and associativities to the description file.
+* [3584af7b](https://github.com/nihei9/vartan/commit/3584af7bc0bdf7388bc43aaa60d432b98afb752d) - Add `#prec` directive to set precedence and associativity of productions.
+* [ccf0123d](https://github.com/nihei9/vartan/commit/ccf0123d7f1b88ee7cdd4e2ea15ab9e94457538a) - Remove the expected terminals field from the parsing table. The driver searches the expected terminals corresponding to each state if necessary.
+* [8832b64b](https://github.com/nihei9/vartan/commit/8832b64b4227245e45f9a24d543c1b80168c489d), [0bcf9458](https://github.com/nihei9/vartan/commit/0bcf94582b4c33de212b948cf512267f9af8eb74) - Support LAC (lookahead correction).
+* [f4e3fef0](https://github.com/nihei9/vartan/commit/f4e3fef07e8e38e37e63989254718e6c4cb543a9) - Make semantic actions user-configurable.
+* [ad35bf24](https://github.com/nihei9/vartan/commit/ad35bf24d80c36b3847538cf846d35de7751f7f2) - Use the LALR by default when using _grammar.Compile_ instead of the CLI.
+
+[Changes](https://github.com/nihei9/vartan/compare/v0.2.0...v0.3.0)
+
 ## v0.2.0
 
 * [00f8b09](https://github.com/nihei9/vartan/commit/00f8b091a9f1eb3ed0348900784be07c326c0dc1) - Support LALR(1) class.
