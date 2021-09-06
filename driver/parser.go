@@ -136,6 +136,10 @@ ACTION_LOOP:
 					return err
 				}
 				if tok.EOF {
+					if p.semAct != nil {
+						p.semAct.MissError()
+					}
+
 					return nil
 				}
 

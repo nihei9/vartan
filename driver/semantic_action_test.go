@@ -147,12 +147,14 @@ char: "[a-z]";
 			},
 		},
 		{
-			caption: "the driver doesn't call `Accept` when a syntax error is trapped, but the input doesn't meet the error production",
+			caption: "when the input doesn't meet the error production, the driver calls `MissError`.",
 			specSrc: specSrcWithErrorProd,
 			src:     `a !`,
 			actLog: []string{
 				"shift/char",
 				"trap/1/shift/error",
+
+				"miss",
 			},
 		},
 		{
