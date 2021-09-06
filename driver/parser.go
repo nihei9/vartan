@@ -137,7 +137,7 @@ ACTION_LOOP:
 				}
 				if tok.EOF {
 					if p.semAct != nil {
-						p.semAct.MissError()
+						p.semAct.MissError(tok)
 					}
 
 					return nil
@@ -157,7 +157,7 @@ ACTION_LOOP:
 			count, ok := p.trapError()
 			if !ok {
 				if p.semAct != nil {
-					p.semAct.MissError()
+					p.semAct.MissError(tok)
 				}
 
 				return nil
@@ -174,7 +174,7 @@ ACTION_LOOP:
 			p.shift(act * -1)
 
 			if p.semAct != nil {
-				p.semAct.TrapAndShiftError(count)
+				p.semAct.TrapAndShiftError(tok, count)
 			}
 		}
 	}

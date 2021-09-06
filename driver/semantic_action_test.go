@@ -37,11 +37,11 @@ func (a *testSemAct) Accept() {
 	a.actLog = append(a.actLog, "accept")
 }
 
-func (a *testSemAct) TrapAndShiftError(n int) {
-	a.actLog = append(a.actLog, fmt.Sprintf("trap/%v/shift/error", n))
+func (a *testSemAct) TrapAndShiftError(cause *mldriver.Token, popped int) {
+	a.actLog = append(a.actLog, fmt.Sprintf("trap/%v/shift/error", popped))
 }
 
-func (a *testSemAct) MissError() {
+func (a *testSemAct) MissError(cause *mldriver.Token) {
 	a.actLog = append(a.actLog, "miss")
 }
 

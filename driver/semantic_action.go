@@ -22,13 +22,14 @@ type SemanticActionSet interface {
 	Accept()
 
 	// TrapAndShiftError runs when the driver traps a syntax error and shifts a error symbol onto the state stack.
-	// `n` is the number of frames that the driver discards from the state stack.
-	// Unlike `Shift` function, this function doesn't take a token as an argument because a token corresponding to
-	// the error symbol doesn't exist.
-	TrapAndShiftError(n int)
+	// `cause` is a token that caused a syntax error. `popped` is the number of frames that the driver discards
+	// from the state stack.
+	// Unlike `Shift` function, this function doesn't take a token to be shifted as an argument because a token
+	// corresponding to the error symbol doesn't exist.
+	TrapAndShiftError(cause *mldriver.Token, popped int)
 
-	// MissError runs when the driver fails to trap a syntax error.
-	MissError()
+	// MissError runs when the driver fails to trap a syntax error. `cause` is a token that caused a syntax error.
+	MissError(cause *mldriver.Token)
 }
 
 var _ SemanticActionSet = &SyntaxTreeActionSet{}
@@ -204,8 +205,8 @@ func (a *SyntaxTreeActionSet) Accept() {
 	a.ast = top[0].ast
 }
 
-func (a *SyntaxTreeActionSet) TrapAndShiftError(n int) {
-	a.semStack.pop(n)
+func (a *SyntaxTreeActionSet) TrapAndShiftError(cause *mldriver.Token, popped int) {
+	a.semStack.pop(popped)
 
 	errSym := a.gram.ParsingTable.ErrorSymbol
 
@@ -228,7 +229,7 @@ func (a *SyntaxTreeActionSet) TrapAndShiftError(n int) {
 	})
 }
 
-func (a *SyntaxTreeActionSet) MissError() {
+func (a *SyntaxTreeActionSet) MissError(cause *mldriver.Token) {
 }
 
 func (a *SyntaxTreeActionSet) CST() *Node {
