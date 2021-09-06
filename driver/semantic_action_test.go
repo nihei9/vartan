@@ -23,10 +23,6 @@ func (a *testSemAct) Shift(tok *mldriver.Token, recovered bool) {
 	}
 }
 
-func (a *testSemAct) ShiftError() {
-	a.actLog = append(a.actLog, "shift/error")
-}
-
 func (a *testSemAct) Reduce(prodNum int, recovered bool) {
 	lhsSym := a.gram.ParsingTable.LHSSymbols[prodNum]
 	lhsText := a.gram.ParsingTable.NonTerminals[lhsSym]
@@ -41,8 +37,8 @@ func (a *testSemAct) Accept() {
 	a.actLog = append(a.actLog, "accept")
 }
 
-func (a *testSemAct) TrapError(n int) {
-	a.actLog = append(a.actLog, fmt.Sprintf("trap/%v", n))
+func (a *testSemAct) TrapAndShiftError(n int) {
+	a.actLog = append(a.actLog, fmt.Sprintf("trap/%v/shift/error", n))
 }
 
 func (a *testSemAct) MissError() {
@@ -110,32 +106,28 @@ char: "[a-z]";
 			},
 		},
 		{
-			caption: "when a grammar has `error` symbol, the driver calls `TrapError` and `ShiftError`.",
+			caption: "when a grammar has `error` symbol, the driver calls `TrapAndShiftError`.",
 			specSrc: specSrcWithErrorProd,
 			src:     `a; b !; c d !; e ! * *; h i j;`,
 			actLog: []string{
 				"shift/char",
-				"trap/1",
-				"shift/error",
+				"trap/1/shift/error",
 				"shift/semicolon",
 				"reduce/seq/recovered",
 
 				"shift/char",
-				"trap/2",
-				"shift/error",
+				"trap/2/shift/error",
 				"shift/semicolon",
 				"reduce/seq/recovered",
 
 				"shift/char",
 				"shift/char",
-				"trap/3",
-				"shift/error",
+				"trap/3/shift/error",
 				"shift/semicolon",
 				"reduce/seq/recovered",
 
 				"shift/char",
-				"trap/2",
-				"shift/error",
+				"trap/2/shift/error",
 				"shift/star",
 				"shift/star",
 				// When the driver shifts three times, it recovers from an error.
@@ -160,8 +152,7 @@ char: "[a-z]";
 			src:     `a !`,
 			actLog: []string{
 				"shift/char",
-				"trap/1",
-				"shift/error",
+				"trap/1/shift/error",
 			},
 		},
 		{

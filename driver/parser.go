@@ -158,9 +158,6 @@ ACTION_LOOP:
 
 				return nil
 			}
-			if p.semAct != nil {
-				p.semAct.TrapError(count)
-			}
 
 			p.onError = true
 			p.shiftCount = 0
@@ -173,7 +170,7 @@ ACTION_LOOP:
 			p.shift(act * -1)
 
 			if p.semAct != nil {
-				p.semAct.ShiftError()
+				p.semAct.TrapAndShiftError(count)
 			}
 		}
 	}

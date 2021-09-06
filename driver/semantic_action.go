@@ -13,11 +13,6 @@ type SemanticActionSet interface {
 	// the symbol. When the driver recovered from an error state by shifting the token, `recovered` is true.
 	Shift(tok *mldriver.Token, recovered bool)
 
-	// Shift runs when the driver shifts a symbol onto the state stack. `tok` is a token corresponding to
-	// the symbol. This function doesn't take a token as an argument because a token corresponding to
-	// the error symbol doesn't exist.
-	ShiftError()
-
 	// Reduce runs when the driver reduces an RHS of a production to its LHS. `prodNum` is a number of
 	// the production. When the driver recovered from an error state by reducing the production,
 	// `recovered` is true.
@@ -26,9 +21,11 @@ type SemanticActionSet interface {
 	// Accept runs when the driver accepts an input.
 	Accept()
 
-	// TrapError runs when the driver traps a syntax error. `n` is the number of frames that the driver discards
-	// from the state stack.
-	TrapError(n int)
+	// TrapAndShiftError runs when the driver traps a syntax error and shifts a error symbol onto the state stack.
+	// `n` is the number of frames that the driver discards from the state stack.
+	// Unlike `Shift` function, this function doesn't take a token as an argument because a token corresponding to
+	// the error symbol doesn't exist.
+	TrapAndShiftError(n int)
 
 	// MissError runs when the driver fails to trap a syntax error.
 	MissError()
@@ -125,28 +122,6 @@ func (a *SyntaxTreeActionSet) Shift(tok *mldriver.Token, recovered bool) {
 	})
 }
 
-func (a *SyntaxTreeActionSet) ShiftError() {
-	errSym := a.gram.ParsingTable.ErrorSymbol
-
-	var ast *Node
-	var cst *Node
-	if a.makeAST {
-		ast = &Node{
-			KindName: a.gram.ParsingTable.Terminals[errSym],
-		}
-	}
-	if a.makeCST {
-		cst = &Node{
-			KindName: a.gram.ParsingTable.Terminals[errSym],
-		}
-	}
-
-	a.semStack.push(&semanticFrame{
-		cst: cst,
-		ast: ast,
-	})
-}
-
 func (a *SyntaxTreeActionSet) Reduce(prodNum int, recovered bool) {
 	lhs := a.gram.ParsingTable.LHSSymbols[prodNum]
 
@@ -229,8 +204,28 @@ func (a *SyntaxTreeActionSet) Accept() {
 	a.ast = top[0].ast
 }
 
-func (a *SyntaxTreeActionSet) TrapError(n int) {
+func (a *SyntaxTreeActionSet) TrapAndShiftError(n int) {
 	a.semStack.pop(n)
+
+	errSym := a.gram.ParsingTable.ErrorSymbol
+
+	var ast *Node
+	var cst *Node
+	if a.makeAST {
+		ast = &Node{
+			KindName: a.gram.ParsingTable.Terminals[errSym],
+		}
+	}
+	if a.makeCST {
+		cst = &Node{
+			KindName: a.gram.ParsingTable.Terminals[errSym],
+		}
+	}
+
+	a.semStack.push(&semanticFrame{
+		cst: cst,
+		ast: ast,
+	})
 }
 
 func (a *SyntaxTreeActionSet) MissError() {
