@@ -85,20 +85,22 @@ ACTION_LOOP:
 		case act < 0: // Shift
 			nextState := act * -1
 
+			recovered := false
 			if p.onError {
+				p.shiftCount++
+
 				// When the parser performs shift three times, the parser recovers from the error state.
-				if p.shiftCount < 3 {
-					p.shiftCount++
-				} else {
+				if p.shiftCount >= 3 {
 					p.onError = false
 					p.shiftCount = 0
+					recovered = true
 				}
 			}
 
 			p.shift(nextState)
 
 			if p.semAct != nil {
-				p.semAct.Shift(tok)
+				p.semAct.Shift(tok, recovered)
 			}
 
 			tok, err = p.nextToken()
@@ -108,9 +110,11 @@ ACTION_LOOP:
 		case act > 0: // Reduce
 			prodNum := act
 
+			recovered := false
 			if p.onError && p.gram.ParsingTable.RecoverProductions[prodNum] != 0 {
 				p.onError = false
 				p.shiftCount = 0
+				recovered = true
 			}
 
 			accepted := p.reduce(prodNum)
@@ -123,7 +127,7 @@ ACTION_LOOP:
 			}
 
 			if p.semAct != nil {
-				p.semAct.Reduce(prodNum)
+				p.semAct.Reduce(prodNum, recovered)
 			}
 		default: // Error
 			if p.onError {

@@ -10,8 +10,8 @@ import (
 
 type SemanticActionSet interface {
 	// Shift runs when the driver shifts a symbol onto the state stack. `tok` is a token corresponding to
-	// the symbol.
-	Shift(tok *mldriver.Token)
+	// the symbol. When the driver recovered from an error state by shifting the token, `recovered` is true.
+	Shift(tok *mldriver.Token, recovered bool)
 
 	// Shift runs when the driver shifts a symbol onto the state stack. `tok` is a token corresponding to
 	// the symbol. This function doesn't take a token as an argument because a token corresponding to
@@ -19,8 +19,9 @@ type SemanticActionSet interface {
 	ShiftError()
 
 	// Reduce runs when the driver reduces an RHS of a production to its LHS. `prodNum` is a number of
-	// the production.
-	Reduce(prodNum int)
+	// the production. When the driver recovered from an error state by reducing the production,
+	// `recovered` is true.
+	Reduce(prodNum int, recovered bool)
 
 	// Accept runs when the driver accepts an input.
 	Accept()
@@ -96,7 +97,7 @@ func NewSyntaxTreeActionSet(gram *spec.CompiledGrammar, makeAST bool, makeCST bo
 	}
 }
 
-func (a *SyntaxTreeActionSet) Shift(tok *mldriver.Token) {
+func (a *SyntaxTreeActionSet) Shift(tok *mldriver.Token, recovered bool) {
 	term := a.tokenToTerminal(tok)
 
 	var ast *Node
@@ -146,7 +147,7 @@ func (a *SyntaxTreeActionSet) ShiftError() {
 	})
 }
 
-func (a *SyntaxTreeActionSet) Reduce(prodNum int) {
+func (a *SyntaxTreeActionSet) Reduce(prodNum int, recovered bool) {
 	lhs := a.gram.ParsingTable.LHSSymbols[prodNum]
 
 	// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.

@@ -15,18 +15,26 @@ type testSemAct struct {
 	actLog []string
 }
 
-func (a *testSemAct) Shift(tok *mldriver.Token) {
-	a.actLog = append(a.actLog, fmt.Sprintf("shift/%v", tok.KindName))
+func (a *testSemAct) Shift(tok *mldriver.Token, recovered bool) {
+	if recovered {
+		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v/recovered", tok.KindName))
+	} else {
+		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v", tok.KindName))
+	}
 }
 
 func (a *testSemAct) ShiftError() {
 	a.actLog = append(a.actLog, "shift/error")
 }
 
-func (a *testSemAct) Reduce(prodNum int) {
+func (a *testSemAct) Reduce(prodNum int, recovered bool) {
 	lhsSym := a.gram.ParsingTable.LHSSymbols[prodNum]
 	lhsText := a.gram.ParsingTable.NonTerminals[lhsSym]
-	a.actLog = append(a.actLog, fmt.Sprintf("reduce/%v", lhsText))
+	if recovered {
+		a.actLog = append(a.actLog, fmt.Sprintf("reduce/%v/recovered", lhsText))
+	} else {
+		a.actLog = append(a.actLog, fmt.Sprintf("reduce/%v", lhsText))
+	}
 }
 
 func (a *testSemAct) Accept() {
@@ -46,6 +54,7 @@ func TestParserWithSemanticAction(t *testing.T) {
 seq
     : seq elem semicolon
 	| elem semicolon
+    | error star star semicolon
 	| error semicolon #recover
 	;
 elem
@@ -54,6 +63,7 @@ elem
 
 ws: "[\u{0009}\u{0020}]+" #skip;
 semicolon: ';';
+star: '*';
 char: "[a-z]";
 `
 
@@ -102,25 +112,34 @@ char: "[a-z]";
 		{
 			caption: "when a grammar has `error` symbol, the driver calls `TrapError` and `ShiftError`.",
 			specSrc: specSrcWithErrorProd,
-			src:     `a; b !; c d !; e f g;`,
+			src:     `a; b !; c d !; e ! * *; h i j;`,
 			actLog: []string{
 				"shift/char",
 				"trap/1",
 				"shift/error",
 				"shift/semicolon",
-				"reduce/seq",
+				"reduce/seq/recovered",
 
 				"shift/char",
 				"trap/2",
 				"shift/error",
 				"shift/semicolon",
-				"reduce/seq",
+				"reduce/seq/recovered",
 
 				"shift/char",
 				"shift/char",
 				"trap/3",
 				"shift/error",
 				"shift/semicolon",
+				"reduce/seq/recovered",
+
+				"shift/char",
+				"trap/2",
+				"shift/error",
+				"shift/star",
+				"shift/star",
+				// When the driver shifts three times, it recovers from an error.
+				"shift/semicolon/recovered",
 				"reduce/seq",
 
 				"shift/char",
