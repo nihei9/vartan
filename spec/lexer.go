@@ -1,17 +1,15 @@
 //go:generate maleeni compile -l lexspec.json -o clexspec.json
+//go:generate maleeni-go clexspec.json --package spec
 
 package spec
 
 import (
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 
-	mldriver "github.com/nihei9/maleeni/driver"
-	mlspec "github.com/nihei9/maleeni/spec"
 	verr "github.com/nihei9/vartan/error"
 )
 
@@ -109,26 +107,16 @@ func newInvalidToken(text string, pos Position) *token {
 }
 
 type lexer struct {
-	s   *mlspec.CompiledLexSpec
-	d   *mldriver.Lexer
+	d   *Lexer
 	buf *token
 }
 
-//go:embed clexspec.json
-var lexspec []byte
-
 func newLexer(src io.Reader) (*lexer, error) {
-	s := &mlspec.CompiledLexSpec{}
-	err := json.Unmarshal(lexspec, s)
-	if err != nil {
-		return nil, err
-	}
-	d, err := mldriver.NewLexer(s, src)
+	d, err := NewLexer(NewLexSpec(), src)
 	if err != nil {
 		return nil, err
 	}
 	return &lexer{
-		s: s,
 		d: d,
 	}, nil
 }
@@ -160,7 +148,7 @@ func (l *lexer) next() (*token, error) {
 }
 
 func (l *lexer) lexAndSkipWSs() (*token, error) {
-	var tok *mldriver.Token
+	var tok *Token
 	for {
 		var err error
 		tok, err = l.d.Next()
@@ -168,37 +156,37 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			return nil, err
 		}
 		if tok.Invalid {
-			return newInvalidToken(tok.Text(), newPosition(tok.Row+1, tok.Col+1)), nil
+			return newInvalidToken(string(tok.Lexeme), newPosition(tok.Row+1, tok.Col+1)), nil
 		}
 		if tok.EOF {
 			return newEOFToken(), nil
 		}
-		switch tok.KindName {
-		case "white_space":
+		switch tok.KindID {
+		case KindIDWhiteSpace:
 			continue
-		case "line_comment":
+		case KindIDLineComment:
 			continue
 		}
 
 		break
 	}
 
-	switch tok.KindName {
-	case "newline":
+	switch tok.KindID {
+	case KindIDNewline:
 		return newSymbolToken(tokenKindNewline, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "kw_fragment":
+	case KindIDKwFragment:
 		return newSymbolToken(tokenKindKWFragment, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "identifier":
-		if strings.HasPrefix(tok.Text(), "_") {
+	case KindIDIdentifier:
+		if strings.HasPrefix(string(tok.Lexeme), "_") {
 			return nil, &verr.SpecError{
 				Cause:  synErrAutoGenID,
-				Detail: tok.Text(),
+				Detail: string(tok.Lexeme),
 				Row:    tok.Row + 1,
 				Col:    tok.Col + 1,
 			}
 		}
-		return newIDToken(tok.Text(), newPosition(tok.Row+1, tok.Col+1)), nil
-	case "terminal_open":
+		return newIDToken(string(tok.Lexeme), newPosition(tok.Row+1, tok.Col+1)), nil
+	case KindIDTerminalOpen:
 		var b strings.Builder
 		for {
 			tok, err := l.d.Next()
@@ -212,19 +200,19 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 					Col:   tok.Col + 1,
 				}
 			}
-			switch tok.KindName {
-			case "pattern":
+			switch tok.KindID {
+			case KindIDPattern:
 				// The escape sequences in a pattern string are interpreted by the lexer, except for the \".
 				// We must interpret the \" before passing them to the lexer because they are delimiters for
 				// the pattern strings.
-				fmt.Fprintf(&b, strings.ReplaceAll(tok.Text(), `\"`, `"`))
-			case "escape_symbol":
+				fmt.Fprintf(&b, strings.ReplaceAll(string(tok.Lexeme), `\"`, `"`))
+			case KindIDEscapeSymbol:
 				return nil, &verr.SpecError{
 					Cause: synErrIncompletedEscSeq,
 					Row:   tok.Row + 1,
 					Col:   tok.Col + 1,
 				}
-			case "terminal_close":
+			case KindIDTerminalClose:
 				pat := b.String()
 				if pat == "" {
 					return nil, &verr.SpecError{
@@ -236,7 +224,7 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 				return newTerminalPatternToken(pat, newPosition(tok.Row+1, tok.Col+1)), nil
 			}
 		}
-	case "string_literal_open":
+	case KindIDStringLiteralOpen:
 		var b strings.Builder
 		for {
 			tok, err := l.d.Next()
@@ -250,22 +238,22 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 					Col:   tok.Col + 1,
 				}
 			}
-			switch tok.KindName {
-			case "char_seq":
-				fmt.Fprintf(&b, tok.Text())
-			case "escaped_quot":
+			switch tok.KindID {
+			case KindIDCharSeq:
+				fmt.Fprintf(&b, string(tok.Lexeme))
+			case KindIDEscapedQuot:
 				// Remove '\' character.
 				fmt.Fprintf(&b, `'`)
-			case "escaped_back_slash":
+			case KindIDEscapedBackSlash:
 				// Remove '\' character.
 				fmt.Fprintf(&b, `\`)
-			case "escape_symbol":
+			case KindIDEscapeSymbol:
 				return nil, &verr.SpecError{
 					Cause: synErrIncompletedEscSeq,
 					Row:   tok.Row + 1,
 					Col:   tok.Col + 1,
 				}
-			case "string_literal_close":
+			case KindIDStringLiteralClose:
 				str := b.String()
 				if str == "" {
 					return nil, &verr.SpecError{
@@ -277,21 +265,21 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 				return newStringLiteralToken(str, newPosition(tok.Row+1, tok.Col+1)), nil
 			}
 		}
-	case "colon":
+	case KindIDColon:
 		return newSymbolToken(tokenKindColon, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "or":
+	case KindIDOr:
 		return newSymbolToken(tokenKindOr, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "semicolon":
+	case KindIDSemicolon:
 		return newSymbolToken(tokenKindSemicolon, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "directive_marker":
+	case KindIDDirectiveMarker:
 		return newSymbolToken(tokenKindDirectiveMarker, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "tree_node_open":
+	case KindIDTreeNodeOpen:
 		return newSymbolToken(tokenKindTreeNodeOpen, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "tree_node_close":
+	case KindIDTreeNodeClose:
 		return newSymbolToken(tokenKindTreeNodeClose, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "position":
+	case KindIDPosition:
 		// Remove '$' character and convert to an integer.
-		num, err := strconv.Atoi(tok.Text()[1:])
+		num, err := strconv.Atoi(string(tok.Lexeme)[1:])
 		if err != nil {
 			return nil, err
 		}
@@ -303,11 +291,11 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			}
 		}
 		return newPositionToken(num, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "expansion":
+	case KindIDExpansion:
 		return newSymbolToken(tokenKindExpantion, newPosition(tok.Row+1, tok.Col+1)), nil
-	case "metadata_marker":
+	case KindIDMetadataMarker:
 		return newSymbolToken(tokenKindMetaDataMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	default:
-		return newInvalidToken(tok.Text(), newPosition(tok.Row+1, tok.Col+1)), nil
+		return newInvalidToken(string(tok.Lexeme), newPosition(tok.Row+1, tok.Col+1)), nil
 	}
 }
