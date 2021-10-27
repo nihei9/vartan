@@ -10,6 +10,8 @@ import (
 func TestGenLALR1Automaton(t *testing.T) {
 	// This grammar belongs to LALR(1) class, not SLR(1).
 	src := `
+%name test
+
 S: L eq R | R;
 L: ref R | id;
 R: L;

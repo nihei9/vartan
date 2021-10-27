@@ -20,6 +20,8 @@ func TestParserWithConflicts(t *testing.T) {
 		{
 			caption: "when a shift/reduce conflict occurred, we prioritize the shift action",
 			specSrc: `
+%name test
+
 expr
     : expr assign expr
 	| id
@@ -48,6 +50,8 @@ assign: '=';
 		{
 			caption: "when a reduce/reduce conflict occurred, we prioritize the production defined earlier in the grammar",
 			specSrc: `
+%name test
+
 s
     : a
 	| b
@@ -71,6 +75,8 @@ id: "[A-Za-z0-9_]+";
 		{
 			caption: "left associativities defined earlier in the grammar have higher precedence",
 			specSrc: `
+%name test
+
 %left mul
 %left add
 
@@ -116,6 +122,8 @@ mul: '*';
 		{
 			caption: "left associativities defined in the same line have the same precedence",
 			specSrc: `
+%name test
+
 %left add sub
 
 expr
@@ -160,6 +168,8 @@ sub: '-';
 		{
 			caption: "right associativities defined earlier in the grammar have higher precedence",
 			specSrc: `
+%name test
+
 %right r1
 %right r2
 
@@ -206,6 +216,8 @@ id: "[A-Za-z0-9_]+";
 		{
 			caption: "right associativities defined in the same line have the same precedence",
 			specSrc: `
+%name test
+
 %right r1 r2
 
 expr
@@ -251,6 +263,8 @@ id: "[A-Za-z0-9_]+";
 		{
 			caption: "left and right associativities can be mixed",
 			specSrc: `
+%name test
+
 %left mul div
 %left add sub
 %right assign

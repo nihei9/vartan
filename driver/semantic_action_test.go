@@ -48,6 +48,8 @@ func (a *testSemAct) MissError(cause *mldriver.Token) {
 
 func TestParserWithSemanticAction(t *testing.T) {
 	specSrcWithErrorProd := `
+%name test
+
 seq
     : seq elem semicolon
 	| elem semicolon
@@ -65,6 +67,8 @@ char: "[a-z]";
 `
 
 	specSrcWithoutErrorProd := `
+%name test
+
 seq
     : seq elem semicolon
 	| elem semicolon

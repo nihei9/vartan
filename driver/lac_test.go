@@ -10,6 +10,8 @@ import (
 
 func TestParserWithLAC(t *testing.T) {
 	specSrc := `
+%name test
+
 S
     : C C
 	;

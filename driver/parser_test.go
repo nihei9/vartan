@@ -35,6 +35,8 @@ func TestParser_Parse(t *testing.T) {
 	}{
 		{
 			specSrc: `
+%name test
+
 expr
     : expr "\+" term
     | term
@@ -107,6 +109,8 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		// The driver can reduce productions that have the empty alternative and can generate a CST (and AST) node.
 		{
 			specSrc: `
+%name test
+
 s
     : foo bar
     ;
@@ -128,6 +132,8 @@ bar_text: "bar";
 		// The driver can reduce productions that have the empty alternative and can generate a CST (and AST) node.
 		{
 			specSrc: `
+%name test
+
 s
     : foo bar
     ;
@@ -148,9 +154,48 @@ bar_text: "bar";
 				),
 			),
 		},
+		// `name` is missing.
+		{
+			specSrc: `
+a
+    : foo
+    ;
+foo: "foo";
+`,
+			src:     `foo`,
+			specErr: true,
+		},
+		// `name` needs a parameter.
+		{
+			specSrc: `
+%name
+
+a
+    : foo
+    ;
+foo: "foo";
+`,
+			src:     `foo`,
+			specErr: true,
+		},
+		// `name` takes just one parameter.
+		{
+			specSrc: `
+%name test foo
+
+a
+    : foo
+    ;
+foo: "foo";
+`,
+			src:     `foo`,
+			specErr: true,
+		},
 		// Production `b` is unused.
 		{
 			specSrc: `
+%name test
+
 a
     : foo
     ;
@@ -164,6 +209,8 @@ foo: "foo";
 		// Terminal `bar` is unused.
 		{
 			specSrc: `
+%name test
+
 s
     : foo
     ;
@@ -176,6 +223,8 @@ bar: "bar";
 		// Production `b` and terminal `bar` is unused.
 		{
 			specSrc: `
+%name test
+
 a
     : foo
     ;
@@ -191,6 +240,8 @@ bar: "bar";
 		// A terminal used in productions cannot have the skip directive.
 		{
 			specSrc: `
+%name test
+
 a
     : foo
     ;
@@ -201,6 +252,8 @@ foo: "foo" #skip;
 		},
 		{
 			specSrc: `
+%name test
+
 mode_tran_seq
     : mode_tran_seq mode_tran
     | mode_tran
@@ -225,6 +278,8 @@ whitespace: "\u{0020}+" #skip;
 		},
 		{
 			specSrc: `
+%name test
+
 s
     : foo bar
     ;
@@ -237,6 +292,8 @@ bar: "bar";
 		// The parser can skips specified tokens.
 		{
 			specSrc: `
+%name test
+
 s
     : foo bar
     ;
@@ -249,6 +306,8 @@ white_space: "[\u{0009}\u{0020}]+" #skip;
 		// A grammar can contain fragments.
 		{
 			specSrc: `
+%name test
+
 s
     : tagline
     ;
@@ -260,6 +319,8 @@ fragment words: "[A-Za-z\u{0020}]+";
 		// A grammar can contain ast actions.
 		{
 			specSrc: `
+%name test
+
 list
     : "\[" elems "]" #ast #(list $2...)
     ;
@@ -295,6 +356,8 @@ id: "[A-Za-z]+";
 		// The first element of a tree structure must be the same ID as an LHS of a production.
 		{
 			specSrc: `
+%name test
+
 s
     : foo #ast #(start $1)
     ;
@@ -308,6 +371,8 @@ bar: "bar";
 		// An ast action cannot be applied to a terminal symbol.
 		{
 			specSrc: `
+%name test
+
 s
     : foo
     ;
@@ -320,6 +385,8 @@ foo
 		// The expansion cannot be applied to a terminal symbol.
 		{
 			specSrc: `
+%name test
+
 s
     : foo #ast #(s $1...)
     ;
@@ -330,6 +397,8 @@ foo: "foo";
 		// A production must not have a duplicate alternative.
 		{
 			specSrc: `
+%name test
+
 s
     : foo
     | foo
@@ -341,6 +410,8 @@ foo: "foo";
 		// A production must not have a duplicate alternative.
 		{
 			specSrc: `
+%name test
+
 a
     : foo
     ;
@@ -355,6 +426,8 @@ foo: "foo";
 		// A production must not have a duplicate alternative.
 		{
 			specSrc: `
+%name test
+
 a
     : foo
     ;
@@ -372,6 +445,8 @@ bar: "bar";
 		// A terminal and a non-terminal (start symbol) are duplicates.
 		{
 			specSrc: `
+%name test
+
 a
     : foo
     ;
@@ -383,6 +458,8 @@ a: "a";
 		// A terminal and a non-terminal (not start symbol) are duplicates.
 		{
 			specSrc: `
+%name test
+
 a
     : foo
     ;
@@ -398,6 +475,8 @@ b: "a";
 		// Invalid associativity type
 		{
 			specSrc: `
+%name test
+
 %foo
 
 s
@@ -411,6 +490,8 @@ a: 'a';
 		// Associativity needs at least one symbol.
 		{
 			specSrc: `
+%name test
+
 %left
 
 s
@@ -424,6 +505,8 @@ a: 'a';
 		// Associativity cannot take an undefined symbol.
 		{
 			specSrc: `
+%name test
+
 %left b
 
 s
@@ -437,6 +520,8 @@ a: 'a';
 		// Associativity cannot take a non-terminal symbol.
 		{
 			specSrc: `
+%name test
+
 %left s
 
 s
@@ -450,6 +535,8 @@ a: 'a';
 		// The 'prec' directive can set precedence and associativity of a production.
 		{
 			specSrc: `
+%name test
+
 %left mul div
 %left add sub
 
@@ -501,6 +588,8 @@ div: '/';
 		// The 'prec' directive needs an ID parameter.
 		{
 			specSrc: `
+%name test
+
 s
     : a #prec
     ;
@@ -512,6 +601,8 @@ a: 'a';
 		// The 'prec' directive cannot take an unknown symbol.
 		{
 			specSrc: `
+%name test
+
 s
     : a #prec foo
     ;
@@ -523,6 +614,8 @@ a: 'a';
 		// The 'prec' directive cannot take a non-terminal symbol.
 		{
 			specSrc: `
+%name test
+
 s
     : foo #prec bar
     | bar
@@ -542,6 +635,8 @@ b: 'b';
 		// The grammar can contain the 'error' symbol.
 		{
 			specSrc: `
+%name test
+
 s
     : id id id ';'
     | error ';'
@@ -555,6 +650,8 @@ id: "[A-Za-z_]+";
 		// The grammar can contain the 'recover' directive.
 		{
 			specSrc: `
+%name test
+
 seq
     : seq elem
     | elem
@@ -572,6 +669,8 @@ id: "[A-Za-z_]+";
 		// The 'recover' directive cannot take a parameter.
 		{
 			specSrc: `
+%name test
+
 seq
     : seq elem
     | elem
@@ -590,6 +689,8 @@ id: "[A-Za-z_]+";
 		// You cannot use the error symbol as a non-terminal symbol.
 		{
 			specSrc: `
+%name test
+
 s
     : foo
     ;
@@ -605,6 +706,8 @@ bar: 'bar';
 		// You cannot use the error symbol as a terminal symbol.
 		{
 			specSrc: `
+%name test
+
 s
     : foo
     | error
@@ -618,6 +721,8 @@ error: 'error';
 		// You cannot use the error symbol as a terminal symbol, even if given the skip directive.
 		{
 			specSrc: `
+%name test
+
 s
     : foo
     ;

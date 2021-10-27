@@ -82,6 +82,7 @@ func (pa *precAndAssoc) productionAssociativity(prod productionNum) assocType {
 const reservedSymbolNameError = "error"
 
 type Grammar struct {
+	name                 string
 	lexSpec              *mlspec.LexSpec
 	skipLexKinds         []mlspec.LexKindName
 	kindAliases          map[symbol]string
@@ -104,6 +105,37 @@ type GrammarBuilder struct {
 }
 
 func (b *GrammarBuilder) Build() (*Grammar, error) {
+	var specName string
+	{
+		errOccurred := false
+		for _, md := range b.AST.MetaData {
+			if md.Name != "name" {
+				continue
+			}
+
+			if len(md.Parameters) != 1 || md.Parameters[0].ID == "" {
+				b.errs = append(b.errs, &verr.SpecError{
+					Cause:  semErrMDInvalidParam,
+					Detail: fmt.Sprintf("'name' takes just one ID parameter"),
+					Row:    md.Pos.Row,
+					Col:    md.Pos.Col,
+				})
+
+				errOccurred = true
+				break
+			}
+
+			specName = md.Parameters[0].ID
+			break
+		}
+
+		if specName == "" && !errOccurred {
+			b.errs = append(b.errs, &verr.SpecError{
+				Cause: semErrMDMissingName,
+			})
+		}
+	}
+
 	symTabAndLexSpec, err := b.genSymbolTableAndLexSpec(b.AST)
 	if err != nil {
 		return nil, err
@@ -167,10 +199,10 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
-	// FIXME
-	symTabAndLexSpec.lexSpec.Name = "lex"
+	symTabAndLexSpec.lexSpec.Name = specName
 
 	return &Grammar{
+		name:                 specName,
 		lexSpec:              symTabAndLexSpec.lexSpec,
 		skipLexKinds:         symTabAndLexSpec.skip,
 		kindAliases:          symTabAndLexSpec.aliases,
@@ -868,6 +900,9 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 				assocTy = assocTypeLeft
 			case "right":
 				assocTy = assocTypeRight
+			case "name":
+				// Since `name` is used for a purpose other than priority, we will ignore it here.
+				continue
 			default:
 				return nil, &verr.SpecError{
 					Cause: semErrMDInvalidName,
@@ -1150,6 +1185,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 	}
 
 	return &spec.CompiledGrammar{
+		Name: gram.name,
 		LexicalSpecification: &spec.LexicalSpecification{
 			Lexer: "maleeni",
 			Maleeni: &spec.Maleeni{

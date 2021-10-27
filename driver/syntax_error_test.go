@@ -19,6 +19,8 @@ func TestParserWithSyntaxErrors(t *testing.T) {
 		{
 			caption: "the parser can report a syntax error",
 			specSrc: `
+%name test
+
 s
     : foo
     ;
@@ -31,6 +33,8 @@ foo: 'foo';
 		{
 			caption: "when the parser reduced a production having the reduce directive, the parser will recover from an error state",
 			specSrc: `
+%name test
+
 seq
     : seq elem ';'
 	| elem ';'
@@ -51,6 +55,8 @@ c: 'c';
 		{
 			caption: "After the parser shifts the error symbol, symbols are ignored until a symbol the parser can perform shift appears",
 			specSrc: `
+%name test
+
 seq
     : seq elem ';'
 	| elem ';'
@@ -73,6 +79,8 @@ c: 'c';
 		{
 			caption: "when the parser performs shift three times, the parser recovers from the error state",
 			specSrc: `
+%name test
+
 seq
     : seq elem ';'
 	| elem ';'

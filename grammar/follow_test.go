@@ -22,6 +22,8 @@ func TestFollowSet(t *testing.T) {
 		{
 			caption: "productions contain only non-empty productions",
 			src: `
+%name test
+
 expr
     : expr add term
     | term
@@ -50,6 +52,8 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		{
 			caption: "productions contain an empty start production",
 			src: `
+%name test
+
 s
     :
     ;
@@ -62,6 +66,8 @@ s
 		{
 			caption: "productions contain an empty production",
 			src: `
+%name test
+
 s
     : foo
     ;
@@ -78,6 +84,8 @@ foo
 		{
 			caption: "a start production contains a non-empty alternative and empty alternative",
 			src: `
+%name test
+
 s
     : foo
     |
@@ -92,6 +100,8 @@ foo: "foo";
 		{
 			caption: "a production contains non-empty alternative and empty alternative",
 			src: `
+%name test
+
 s
     : foo
     ;

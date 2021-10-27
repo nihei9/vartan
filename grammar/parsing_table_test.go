@@ -16,6 +16,8 @@ type expectedState struct {
 
 func TestGenLALRParsingTable(t *testing.T) {
 	src := `
+%name test
+
 S: L eq R | R;
 L: ref R | id;
 R: L;
@@ -286,6 +288,8 @@ id: "[A-Za-z0-9_]+";
 
 func TestGenSLRParsingTable(t *testing.T) {
 	src := `
+%name test
+
 expr
     : expr add term
     | term

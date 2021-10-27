@@ -3,6 +3,7 @@ package spec
 import mlspec "github.com/nihei9/maleeni/spec"
 
 type CompiledGrammar struct {
+	Name                 string                `json:"name"`
 	LexicalSpecification *LexicalSpecification `json:"lexical_specification"`
 	ParsingTable         *ParsingTable         `json:"parsing_table"`
 	ASTAction            *ASTAction            `json:"ast_action"`

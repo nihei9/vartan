@@ -17,6 +17,8 @@ type expectedLRState struct {
 
 func TestGenLR0Automaton(t *testing.T) {
 	src := `
+%name test
+
 expr
     : expr add term
     | term
@@ -225,6 +227,8 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 
 func TestLR0AutomatonContainingEmptyProduction(t *testing.T) {
 	src := `
+%name test
+
 s
     : foo bar
     ;
