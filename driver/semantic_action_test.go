@@ -16,10 +16,11 @@ type testSemAct struct {
 }
 
 func (a *testSemAct) Shift(tok *mldriver.Token, recovered bool) {
+	k := a.gram.LexicalSpecification.Maleeni.Spec.KindNames[tok.KindID]
 	if recovered {
-		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v/recovered", tok.KindName))
+		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v/recovered", k))
 	} else {
-		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v", tok.KindName))
+		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v", k))
 	}
 }
 

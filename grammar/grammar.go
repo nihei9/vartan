@@ -167,6 +167,9 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
+	// FIXME
+	symTabAndLexSpec.lexSpec.Name = "lex"
+
 	return &Grammar{
 		lexSpec:              symTabAndLexSpec.lexSpec,
 		skipLexKinds:         symTabAndLexSpec.skip,
@@ -336,7 +339,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		}
 
 		for i, p := range anonPats {
-			kind := fmt.Sprintf("__%v__", i+1)
+			kind := fmt.Sprintf("x_%v", i+1)
 
 			sym, err := symTab.registerTerminalSymbol(kind)
 			if err != nil {

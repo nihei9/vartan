@@ -118,9 +118,10 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		case tok.EOF:
 			msg = "<eof>"
 		case tok.Invalid:
-			msg = fmt.Sprintf("'%v' (<invalid>)", tok.Text())
+			msg = fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme))
 		default:
-			msg = fmt.Sprintf("'%v' (%v)", tok.Text(), tok.KindName)
+			k := cgram.LexicalSpecification.Maleeni.Spec.KindNames[tok.KindID]
+			msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme), k)
 		}
 
 		fmt.Fprintf(os.Stderr, "%v:%v: %v: %v", synErr.Row+1, synErr.Col+1, synErr.Message, msg)

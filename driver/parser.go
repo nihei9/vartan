@@ -45,7 +45,7 @@ type Parser struct {
 }
 
 func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) (*Parser, error) {
-	lex, err := mldriver.NewLexer(gram.LexicalSpecification.Maleeni.Spec, src)
+	lex, err := mldriver.NewLexer(mldriver.NewLexSpec(gram.LexicalSpecification.Maleeni.Spec), src)
 	if err != nil {
 		return nil, err
 	}

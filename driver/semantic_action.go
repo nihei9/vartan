@@ -103,7 +103,7 @@ func (a *SyntaxTreeActionSet) Shift(tok *mldriver.Token, recovered bool) {
 	if a.makeAST {
 		ast = &Node{
 			KindName: a.gram.ParsingTable.Terminals[term],
-			Text:     tok.Text(),
+			Text:     string(tok.Lexeme),
 			Row:      tok.Row,
 			Col:      tok.Col,
 		}
@@ -111,7 +111,7 @@ func (a *SyntaxTreeActionSet) Shift(tok *mldriver.Token, recovered bool) {
 	if a.makeCST {
 		cst = &Node{
 			KindName: a.gram.ParsingTable.Terminals[term],
-			Text:     tok.Text(),
+			Text:     string(tok.Lexeme),
 			Row:      tok.Row,
 			Col:      tok.Col,
 		}
