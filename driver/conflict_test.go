@@ -350,7 +350,7 @@ assign: '=';
 			}
 
 			treeAct := NewSyntaxTreeActionSet(gram, false, true)
-			p, err := NewParser(gram, strings.NewReader(tt.src), SemanticAction(treeAct))
+			p, err := NewParser(NewGrammar(gram), strings.NewReader(tt.src), SemanticAction(treeAct))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -5,8 +5,60 @@ import (
 	"io"
 
 	mldriver "github.com/nihei9/maleeni/driver"
-	"github.com/nihei9/vartan/spec"
 )
+
+type Grammar interface {
+	// Class returns a class of grammar.
+	Class() string
+
+	// InitialState returns the initial state of a parser.
+	InitialState() int
+
+	// StartProduction returns the start production of grammar.
+	StartProduction() int
+
+	// Action returns an ACTION entry corresponding to a (state, terminal symbol) pair.
+	Action(state int, terminal int) int
+
+	// GoTo returns a GOTO entry corresponding to a (state, non-terminal symbol) pair.
+	GoTo(state int, lhs int) int
+
+	// ErrorTrapperState returns true when a state can shift the error symbol.
+	ErrorTrapperState(state int) bool
+
+	// LHS returns a LHS symbol of a production.
+	LHS(prod int) int
+
+	// AlternativeSymbolCount returns a symbol count of p production.
+	AlternativeSymbolCount(prod int) int
+
+	// RecoverProduction returns true when a production has the recover directive.
+	RecoverProduction(prod int) bool
+
+	// LexicalSpecification returns a lexical specification.
+	LexicalSpecification() mldriver.LexSpec
+
+	// TerminalCount returns a terminal symbol count of grammar.
+	TerminalCount() int
+
+	// EOF returns the EOF symbol.
+	EOF() int
+
+	// Error returns the error symbol.
+	Error() int
+
+	// Terminal retuns a string representaion of a terminal symbol.
+	Terminal(terminal int) string
+
+	// TerminalAlias returns an alias for a terminal.
+	TerminalAlias(terminal int) string
+
+	// Skip returns true when a terminal symbol must be skipped.
+	Skip(kind mldriver.KindID) bool
+
+	// LexicalKindToTerminal maps a lexical kind to a terminal symbol.
+	LexicalKindToTerminal(kind mldriver.KindID) int
+}
 
 type SyntaxError struct {
 	Row               int
@@ -34,7 +86,7 @@ func SemanticAction(semAct SemanticActionSet) ParserOption {
 }
 
 type Parser struct {
-	gram       *spec.CompiledGrammar
+	gram       Grammar
 	lex        *mldriver.Lexer
 	stateStack *stateStack
 	semAct     SemanticActionSet
@@ -44,8 +96,8 @@ type Parser struct {
 	synErrs    []*SyntaxError
 }
 
-func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) (*Parser, error) {
-	lex, err := mldriver.NewLexer(mldriver.NewLexSpec(gram.LexicalSpecification.Maleeni.Spec), src)
+func NewParser(gram Grammar, src io.Reader, opts ...ParserOption) (*Parser, error) {
+	lex, err := mldriver.NewLexer(gram.LexicalSpecification(), src)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +108,7 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) 
 		stateStack: &stateStack{},
 	}
 
-	if p.gram.ParsingTable.Class != "lalr" {
+	if p.gram.Class() != "lalr" {
 		p.disableLAC = true
 	}
 
@@ -71,7 +123,7 @@ func NewParser(gram *spec.CompiledGrammar, src io.Reader, opts ...ParserOption) 
 }
 
 func (p *Parser) Parse() error {
-	p.stateStack.push(p.gram.ParsingTable.InitialState)
+	p.stateStack.push(p.gram.InitialState())
 	tok, err := p.nextToken()
 	if err != nil {
 		return err
@@ -111,7 +163,7 @@ ACTION_LOOP:
 			prodNum := act
 
 			recovered := false
-			if p.onError && p.gram.ParsingTable.RecoverProductions[prodNum] != 0 {
+			if p.onError && p.gram.RecoverProduction(prodNum) {
 				p.onError = false
 				p.shiftCount = 0
 				recovered = true
@@ -186,10 +238,8 @@ func (p *Parser) validateLookahead(term int) bool {
 	p.stateStack.enableExploratoryMode()
 	defer p.stateStack.disableExploratoryMode()
 
-	tab := p.gram.ParsingTable
-
 	for {
-		act := tab.Action[p.stateStack.topExploratorily()*tab.TerminalCount+term]
+		act := p.gram.Action(p.stateStack.topExploratorily(), term)
 
 		switch {
 		case act < 0: // Shift
@@ -197,13 +247,13 @@ func (p *Parser) validateLookahead(term int) bool {
 		case act > 0: // Reduce
 			prodNum := act
 
-			lhs := tab.LHSSymbols[prodNum]
-			if lhs == tab.LHSSymbols[tab.StartProduction] {
+			lhs := p.gram.LHS(prodNum)
+			if lhs == p.gram.LHS(p.gram.StartProduction()) {
 				return true
 			}
-			n := tab.AlternativeSymbolCounts[prodNum]
+			n := p.gram.AlternativeSymbolCount(prodNum)
 			p.stateStack.popExploratorily(n)
-			state := tab.GoTo[p.stateStack.topExploratorily()*tab.NonTerminalCount+lhs]
+			state := p.gram.GoTo(p.stateStack.topExploratorily(), lhs)
 			p.stateStack.pushExploratorily(state)
 		default: // Error
 			return false
@@ -212,7 +262,6 @@ func (p *Parser) validateLookahead(term int) bool {
 }
 
 func (p *Parser) nextToken() (*mldriver.Token, error) {
-	skip := p.gram.LexicalSpecification.Maleeni.Skip
 	for {
 		// We don't have to check whether the token is invalid because the kind ID of the invalid token is 0,
 		// and the parsing table doesn't have an entry corresponding to the kind ID 0. Thus we can detect
@@ -222,7 +271,7 @@ func (p *Parser) nextToken() (*mldriver.Token, error) {
 			return nil, err
 		}
 
-		if skip[tok.KindID] > 0 {
+		if p.gram.Skip(tok.KindID) {
 			continue
 		}
 
@@ -232,10 +281,10 @@ func (p *Parser) nextToken() (*mldriver.Token, error) {
 
 func (p *Parser) tokenToTerminal(tok *mldriver.Token) int {
 	if tok.EOF {
-		return p.gram.ParsingTable.EOFSymbol
+		return p.gram.EOF()
 	}
 
-	return p.gram.LexicalSpecification.Maleeni.KindToTerminal[tok.KindID]
+	return p.gram.LexicalKindToTerminal(tok.KindID)
 }
 
 func (p *Parser) lookupAction(tok *mldriver.Token) int {
@@ -246,17 +295,13 @@ func (p *Parser) lookupAction(tok *mldriver.Token) int {
 		}
 	}
 
-	termCount := p.gram.ParsingTable.TerminalCount
-	term := p.tokenToTerminal(tok)
-	return p.gram.ParsingTable.Action[p.stateStack.top()*termCount+term]
+	return p.gram.Action(p.stateStack.top(), p.tokenToTerminal(tok))
 }
 
 func (p *Parser) lookupActionOnError() (int, error) {
-	termCount := p.gram.ParsingTable.TerminalCount
-	errSym := p.gram.ParsingTable.ErrorSymbol
-	act := p.gram.ParsingTable.Action[p.stateStack.top()*termCount+errSym]
+	act := p.gram.Action(p.stateStack.top(), p.gram.Error())
 	if act >= 0 {
-		return 0, fmt.Errorf("an entry must be a shift action by the error symbol; entry: %v, state: %v, symbol: %v", act, p.stateStack.top(), p.gram.ParsingTable.Terminals[errSym])
+		return 0, fmt.Errorf("an entry must be a shift action by the error symbol; entry: %v, state: %v, symbol: %v", act, p.stateStack.top(), p.gram.Terminal(p.gram.Error()))
 	}
 
 	return act, nil
@@ -267,14 +312,13 @@ func (p *Parser) shift(nextState int) {
 }
 
 func (p *Parser) reduce(prodNum int) bool {
-	tab := p.gram.ParsingTable
-	lhs := tab.LHSSymbols[prodNum]
-	if lhs == tab.LHSSymbols[tab.StartProduction] {
+	lhs := p.gram.LHS(prodNum)
+	if lhs == p.gram.LHS(p.gram.StartProduction()) {
 		return true
 	}
-	n := tab.AlternativeSymbolCounts[prodNum]
+	n := p.gram.AlternativeSymbolCount(prodNum)
 	p.stateStack.pop(n)
-	nextState := tab.GoTo[p.stateStack.top()*tab.NonTerminalCount+lhs]
+	nextState := p.gram.GoTo(p.stateStack.top(), lhs)
 	p.stateStack.push(nextState)
 	return false
 }
@@ -282,11 +326,11 @@ func (p *Parser) reduce(prodNum int) bool {
 func (p *Parser) trapError() (int, bool) {
 	count := 0
 	for {
-		if p.gram.ParsingTable.ErrorTrapperStates[p.stateStack.top()] != 0 {
+		if p.gram.ErrorTrapperState(p.stateStack.top()) {
 			return count, true
 		}
 
-		if p.stateStack.top() != p.gram.ParsingTable.InitialState {
+		if p.stateStack.top() != p.gram.InitialState() {
 			p.stateStack.pop(1)
 			count++
 		} else {
@@ -301,14 +345,10 @@ func (p *Parser) SyntaxErrors() []*SyntaxError {
 
 func (p *Parser) searchLookahead(state int) []string {
 	kinds := []string{}
-	term2Kind := p.gram.LexicalSpecification.Maleeni.TerminalToKind
-	kindNames := p.gram.LexicalSpecification.Maleeni.Spec.KindNames
-	aliases := p.gram.LexicalSpecification.Maleeni.KindAliases
-	termCount := p.gram.ParsingTable.TerminalCount
-	base := p.stateStack.top() * termCount
+	termCount := p.gram.TerminalCount()
 	for term := 0; term < termCount; term++ {
 		if p.disableLAC {
-			if p.gram.ParsingTable.Action[base+term] == 0 {
+			if p.gram.Action(p.stateStack.top(), term) == 0 {
 				continue
 			}
 		} else {
@@ -319,19 +359,19 @@ func (p *Parser) searchLookahead(state int) []string {
 
 		// We don't add the error symbol to the look-ahead symbols because users cannot input the error symbol
 		// intentionally.
-		if term == p.gram.ParsingTable.ErrorSymbol {
+		if term == p.gram.Error() {
 			continue
 		}
 
-		if term == p.gram.ParsingTable.EOFSymbol {
+		if term == p.gram.EOF() {
 			kinds = append(kinds, "<eof>")
 			continue
 		}
 
-		if alias := aliases[term]; alias != "" {
+		if alias := p.gram.TerminalAlias(term); alias != "" {
 			kinds = append(kinds, alias)
 		} else {
-			kinds = append(kinds, kindNames[term2Kind[term]].String())
+			kinds = append(kinds, p.gram.Terminal(term))
 		}
 	}
 

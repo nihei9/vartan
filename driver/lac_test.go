@@ -66,7 +66,7 @@ d: 'd';
 			gram: gram,
 		}
 
-		p, err := NewParser(gram, strings.NewReader(src), SemanticAction(semAct))
+		p, err := NewParser(NewGrammar(gram), strings.NewReader(src), SemanticAction(semAct))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -92,7 +92,7 @@ d: 'd';
 			gram: gram,
 		}
 
-		p, err := NewParser(gram, strings.NewReader(src), SemanticAction(semAct), DisableLAC())
+		p, err := NewParser(NewGrammar(gram), strings.NewReader(src), SemanticAction(semAct), DisableLAC())
 		if err != nil {
 			t.Fatal(err)
 		}

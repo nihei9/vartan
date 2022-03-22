@@ -196,7 +196,7 @@ char: "[a-z]";
 			semAct := &testSemAct{
 				gram: gram,
 			}
-			p, err := NewParser(gram, strings.NewReader(tt.src), SemanticAction(semAct))
+			p, err := NewParser(NewGrammar(gram), strings.NewReader(tt.src), SemanticAction(semAct))
 			if err != nil {
 				t.Fatal(err)
 			}

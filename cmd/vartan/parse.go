@@ -98,7 +98,7 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			}
 		}
 
-		p, err = driver.NewParser(cgram, src, opts...)
+		p, err = driver.NewParser(driver.NewGrammar(cgram), src, opts...)
 		if err != nil {
 			return err
 		}
