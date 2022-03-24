@@ -98,7 +98,12 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			}
 		}
 
-		p, err = driver.NewParser(driver.NewGrammar(cgram), src, opts...)
+		toks, err := driver.NewTokenStream(cgram, src)
+		if err != nil {
+			return err
+		}
+
+		p, err = driver.NewParser(toks, driver.NewGrammar(cgram), opts...)
 		if err != nil {
 			return err
 		}
@@ -115,13 +120,13 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 
 		var msg string
 		switch {
-		case tok.EOF:
+		case tok.EOF():
 			msg = "<eof>"
-		case tok.Invalid:
-			msg = fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme))
+		case tok.Invalid():
+			msg = fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme()))
 		default:
-			k := cgram.LexicalSpecification.Maleeni.Spec.KindNames[tok.KindID]
-			msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme), k)
+			t := cgram.ParsingTable.Terminals[tok.TerminalID()]
+			msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), t)
 		}
 
 		fmt.Fprintf(os.Stderr, "%v:%v: %v: %v", synErr.Row+1, synErr.Col+1, synErr.Message, msg)

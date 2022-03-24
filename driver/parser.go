@@ -2,9 +2,6 @@ package driver
 
 import (
 	"fmt"
-	"io"
-
-	mldriver "github.com/nihei9/maleeni/driver"
 )
 
 type Grammar interface {
@@ -35,9 +32,6 @@ type Grammar interface {
 	// RecoverProduction returns true when a production has the recover directive.
 	RecoverProduction(prod int) bool
 
-	// LexicalSpecification returns a lexical specification.
-	LexicalSpecification() mldriver.LexSpec
-
 	// TerminalCount returns a terminal symbol count of grammar.
 	TerminalCount() int
 
@@ -52,19 +46,37 @@ type Grammar interface {
 
 	// TerminalAlias returns an alias for a terminal.
 	TerminalAlias(terminal int) string
+}
 
-	// Skip returns true when a terminal symbol must be skipped.
-	Skip(kind mldriver.KindID) bool
+type Token interface {
+	// TerminalID returns a terminal ID.
+	TerminalID() int
 
-	// LexicalKindToTerminal maps a lexical kind to a terminal symbol.
-	LexicalKindToTerminal(kind mldriver.KindID) int
+	// Lexeme returns a lexeme.
+	Lexeme() []byte
+
+	// EOF returns true when a token represents EOF.
+	EOF() bool
+
+	// Invalid returns true when a token is invalid.
+	Invalid() bool
+
+	// Position returns (row, column) pair.
+	Position() (int, int)
+
+	// Skip returns true when a token must be skipped on syntax analysis.
+	Skip() bool
+}
+
+type TokenStream interface {
+	Next() (Token, error)
 }
 
 type SyntaxError struct {
 	Row               int
 	Col               int
 	Message           string
-	Token             *mldriver.Token
+	Token             Token
 	ExpectedTerminals []string
 }
 
@@ -86,8 +98,8 @@ func SemanticAction(semAct SemanticActionSet) ParserOption {
 }
 
 type Parser struct {
+	toks       TokenStream
 	gram       Grammar
-	lex        *mldriver.Lexer
 	stateStack *stateStack
 	semAct     SemanticActionSet
 	disableLAC bool
@@ -96,15 +108,10 @@ type Parser struct {
 	synErrs    []*SyntaxError
 }
 
-func NewParser(gram Grammar, src io.Reader, opts ...ParserOption) (*Parser, error) {
-	lex, err := mldriver.NewLexer(gram.LexicalSpecification(), src)
-	if err != nil {
-		return nil, err
-	}
-
+func NewParser(toks TokenStream, gram Grammar, opts ...ParserOption) (*Parser, error) {
 	p := &Parser{
+		toks:       toks,
 		gram:       gram,
-		lex:        lex,
 		stateStack: &stateStack{},
 	}
 
@@ -187,7 +194,7 @@ ACTION_LOOP:
 				if err != nil {
 					return err
 				}
-				if tok.EOF {
+				if tok.EOF() {
 					if p.semAct != nil {
 						p.semAct.MissError(tok)
 					}
@@ -198,9 +205,10 @@ ACTION_LOOP:
 				continue ACTION_LOOP
 			}
 
+			row, col := tok.Position()
 			p.synErrs = append(p.synErrs, &SyntaxError{
-				Row:               tok.Row,
-				Col:               tok.Col,
+				Row:               row,
+				Col:               col,
 				Message:           "unexpected token",
 				Token:             tok,
 				ExpectedTerminals: p.searchLookahead(p.stateStack.top()),
@@ -261,17 +269,17 @@ func (p *Parser) validateLookahead(term int) bool {
 	}
 }
 
-func (p *Parser) nextToken() (*mldriver.Token, error) {
+func (p *Parser) nextToken() (Token, error) {
 	for {
 		// We don't have to check whether the token is invalid because the kind ID of the invalid token is 0,
 		// and the parsing table doesn't have an entry corresponding to the kind ID 0. Thus we can detect
 		// a syntax error because the parser cannot find an entry corresponding to the invalid token.
-		tok, err := p.lex.Next()
+		tok, err := p.toks.Next()
 		if err != nil {
 			return nil, err
 		}
 
-		if p.gram.Skip(tok.KindID) {
+		if tok.Skip() {
 			continue
 		}
 
@@ -279,15 +287,15 @@ func (p *Parser) nextToken() (*mldriver.Token, error) {
 	}
 }
 
-func (p *Parser) tokenToTerminal(tok *mldriver.Token) int {
-	if tok.EOF {
+func (p *Parser) tokenToTerminal(tok Token) int {
+	if tok.EOF() {
 		return p.gram.EOF()
 	}
 
-	return p.gram.LexicalKindToTerminal(tok.KindID)
+	return tok.TerminalID()
 }
 
-func (p *Parser) lookupAction(tok *mldriver.Token) int {
+func (p *Parser) lookupAction(tok Token) int {
 	if !p.disableLAC {
 		term := p.tokenToTerminal(tok)
 		if !p.validateLookahead(term) {

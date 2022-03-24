@@ -66,7 +66,12 @@ d: 'd';
 			gram: gram,
 		}
 
-		p, err := NewParser(NewGrammar(gram), strings.NewReader(src), SemanticAction(semAct))
+		toks, err := NewTokenStream(gram, strings.NewReader(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		p, err := NewParser(toks, NewGrammar(gram), SemanticAction(semAct))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -92,7 +97,12 @@ d: 'd';
 			gram: gram,
 		}
 
-		p, err := NewParser(NewGrammar(gram), strings.NewReader(src), SemanticAction(semAct), DisableLAC())
+		toks, err := NewTokenStream(gram, strings.NewReader(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		p, err := NewParser(toks, NewGrammar(gram), SemanticAction(semAct), DisableLAC())
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	mldriver "github.com/nihei9/maleeni/driver"
 	"github.com/nihei9/vartan/grammar"
 	"github.com/nihei9/vartan/spec"
 )
@@ -15,12 +14,12 @@ type testSemAct struct {
 	actLog []string
 }
 
-func (a *testSemAct) Shift(tok *mldriver.Token, recovered bool) {
-	k := a.gram.LexicalSpecification.Maleeni.Spec.KindNames[tok.KindID]
+func (a *testSemAct) Shift(tok Token, recovered bool) {
+	t := a.gram.ParsingTable.Terminals[tok.TerminalID()]
 	if recovered {
-		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v/recovered", k))
+		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v/recovered", t))
 	} else {
-		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v", k))
+		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v", t))
 	}
 }
 
@@ -38,11 +37,11 @@ func (a *testSemAct) Accept() {
 	a.actLog = append(a.actLog, "accept")
 }
 
-func (a *testSemAct) TrapAndShiftError(cause *mldriver.Token, popped int) {
+func (a *testSemAct) TrapAndShiftError(cause Token, popped int) {
 	a.actLog = append(a.actLog, fmt.Sprintf("trap/%v/shift/error", popped))
 }
 
-func (a *testSemAct) MissError(cause *mldriver.Token) {
+func (a *testSemAct) MissError(cause Token) {
 	a.actLog = append(a.actLog, "miss")
 }
 
@@ -193,10 +192,15 @@ char: "[a-z]";
 				t.Fatal(err)
 			}
 
+			toks, err := NewTokenStream(gram, strings.NewReader(tt.src))
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			semAct := &testSemAct{
 				gram: gram,
 			}
-			p, err := NewParser(NewGrammar(gram), strings.NewReader(tt.src), SemanticAction(semAct))
+			p, err := NewParser(toks, NewGrammar(gram), SemanticAction(semAct))
 			if err != nil {
 				t.Fatal(err)
 			}

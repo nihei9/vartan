@@ -119,7 +119,12 @@ c: 'c';
 				t.Fatal(err)
 			}
 
-			p, err := NewParser(NewGrammar(gram), strings.NewReader(tt.src))
+			toks, err := NewTokenStream(gram, strings.NewReader(tt.src))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			p, err := NewParser(toks, NewGrammar(gram))
 			if err != nil {
 				t.Fatal(err)
 			}

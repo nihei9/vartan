@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"io"
 
-	mldriver "github.com/nihei9/maleeni/driver"
 	"github.com/nihei9/vartan/spec"
 )
 
 type SemanticActionSet interface {
 	// Shift runs when the driver shifts a symbol onto the state stack. `tok` is a token corresponding to
 	// the symbol. When the driver recovered from an error state by shifting the token, `recovered` is true.
-	Shift(tok *mldriver.Token, recovered bool)
+	Shift(tok Token, recovered bool)
 
 	// Reduce runs when the driver reduces an RHS of a production to its LHS. `prodNum` is a number of
 	// the production. When the driver recovered from an error state by reducing the production,
@@ -26,10 +25,10 @@ type SemanticActionSet interface {
 	// from the state stack.
 	// Unlike `Shift` function, this function doesn't take a token to be shifted as an argument because a token
 	// corresponding to the error symbol doesn't exist.
-	TrapAndShiftError(cause *mldriver.Token, popped int)
+	TrapAndShiftError(cause Token, popped int)
 
 	// MissError runs when the driver fails to trap a syntax error. `cause` is a token that caused a syntax error.
-	MissError(cause *mldriver.Token)
+	MissError(cause Token)
 }
 
 var _ SemanticActionSet = &SyntaxTreeActionSet{}
@@ -95,25 +94,27 @@ func NewSyntaxTreeActionSet(gram *spec.CompiledGrammar, makeAST bool, makeCST bo
 	}
 }
 
-func (a *SyntaxTreeActionSet) Shift(tok *mldriver.Token, recovered bool) {
+func (a *SyntaxTreeActionSet) Shift(tok Token, recovered bool) {
 	term := a.tokenToTerminal(tok)
 
 	var ast *Node
 	var cst *Node
 	if a.makeAST {
+		row, col := tok.Position()
 		ast = &Node{
 			KindName: a.gram.ParsingTable.Terminals[term],
-			Text:     string(tok.Lexeme),
-			Row:      tok.Row,
-			Col:      tok.Col,
+			Text:     string(tok.Lexeme()),
+			Row:      row,
+			Col:      col,
 		}
 	}
 	if a.makeCST {
+		row, col := tok.Position()
 		cst = &Node{
 			KindName: a.gram.ParsingTable.Terminals[term],
-			Text:     string(tok.Lexeme),
-			Row:      tok.Row,
-			Col:      tok.Col,
+			Text:     string(tok.Lexeme()),
+			Row:      row,
+			Col:      col,
 		}
 	}
 
@@ -205,7 +206,7 @@ func (a *SyntaxTreeActionSet) Accept() {
 	a.ast = top[0].ast
 }
 
-func (a *SyntaxTreeActionSet) TrapAndShiftError(cause *mldriver.Token, popped int) {
+func (a *SyntaxTreeActionSet) TrapAndShiftError(cause Token, popped int) {
 	a.semStack.pop(popped)
 
 	errSym := a.gram.ParsingTable.ErrorSymbol
@@ -229,7 +230,7 @@ func (a *SyntaxTreeActionSet) TrapAndShiftError(cause *mldriver.Token, popped in
 	})
 }
 
-func (a *SyntaxTreeActionSet) MissError(cause *mldriver.Token) {
+func (a *SyntaxTreeActionSet) MissError(cause Token) {
 }
 
 func (a *SyntaxTreeActionSet) CST() *Node {
@@ -240,12 +241,12 @@ func (a *SyntaxTreeActionSet) AST() *Node {
 	return a.ast
 }
 
-func (a *SyntaxTreeActionSet) tokenToTerminal(tok *mldriver.Token) int {
-	if tok.EOF {
+func (a *SyntaxTreeActionSet) tokenToTerminal(tok Token) int {
+	if tok.EOF() {
 		return a.gram.ParsingTable.EOFSymbol
 	}
 
-	return a.gram.LexicalSpecification.Maleeni.KindToTerminal[tok.KindID]
+	return tok.TerminalID()
 }
 
 type semanticFrame struct {

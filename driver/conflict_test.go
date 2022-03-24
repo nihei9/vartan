@@ -349,8 +349,13 @@ assign: '=';
 				t.Fatal(err)
 			}
 
+			toks, err := NewTokenStream(gram, strings.NewReader(tt.src))
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			treeAct := NewSyntaxTreeActionSet(gram, false, true)
-			p, err := NewParser(NewGrammar(gram), strings.NewReader(tt.src), SemanticAction(treeAct))
+			p, err := NewParser(toks, NewGrammar(gram), SemanticAction(treeAct))
 			if err != nil {
 				t.Fatal(err)
 			}
