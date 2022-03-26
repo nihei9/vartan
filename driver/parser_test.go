@@ -762,18 +762,19 @@ error: 'error' #skip;
 					}
 				}
 
-				gram, err := grammar.Compile(g, grammar.SpecifyClass(class))
+				cg, err := grammar.Compile(g, grammar.SpecifyClass(class))
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				toks, err := NewTokenStream(gram, strings.NewReader(tt.src))
+				toks, err := NewTokenStream(cg, strings.NewReader(tt.src))
 				if err != nil {
 					t.Fatal(err)
 				}
 
+				gram := NewGrammar(cg)
 				treeAct := NewSyntaxTreeActionSet(gram, true, true)
-				p, err := NewParser(toks, NewGrammar(gram), SemanticAction(treeAct))
+				p, err := NewParser(toks, gram, SemanticAction(treeAct))
 				if err != nil {
 					t.Fatal(err)
 				}

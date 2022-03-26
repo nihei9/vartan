@@ -32,6 +32,9 @@ type Grammar interface {
 	// RecoverProduction returns true when a production has the recover directive.
 	RecoverProduction(prod int) bool
 
+	// NonTerminal retuns a string representaion of a non-terminal symbol.
+	NonTerminal(nonTerminal int) string
+
 	// TerminalCount returns a terminal symbol count of grammar.
 	TerminalCount() int
 
@@ -46,9 +49,12 @@ type Grammar interface {
 
 	// TerminalAlias returns an alias for a terminal.
 	TerminalAlias(terminal int) string
+
+	// ASTAction returns an AST action entries.
+	ASTAction(prod int) []int
 }
 
-type Token interface {
+type VToken interface {
 	// TerminalID returns a terminal ID.
 	TerminalID() int
 
@@ -69,14 +75,14 @@ type Token interface {
 }
 
 type TokenStream interface {
-	Next() (Token, error)
+	Next() (VToken, error)
 }
 
 type SyntaxError struct {
 	Row               int
 	Col               int
 	Message           string
-	Token             Token
+	Token             VToken
 	ExpectedTerminals []string
 }
 
@@ -269,7 +275,7 @@ func (p *Parser) validateLookahead(term int) bool {
 	}
 }
 
-func (p *Parser) nextToken() (Token, error) {
+func (p *Parser) nextToken() (VToken, error) {
 	for {
 		// We don't have to check whether the token is invalid because the kind ID of the invalid token is 0,
 		// and the parsing table doesn't have an entry corresponding to the kind ID 0. Thus we can detect
@@ -287,7 +293,7 @@ func (p *Parser) nextToken() (Token, error) {
 	}
 }
 
-func (p *Parser) tokenToTerminal(tok Token) int {
+func (p *Parser) tokenToTerminal(tok VToken) int {
 	if tok.EOF() {
 		return p.gram.EOF()
 	}
@@ -295,7 +301,7 @@ func (p *Parser) tokenToTerminal(tok Token) int {
 	return tok.TerminalID()
 }
 
-func (p *Parser) lookupAction(tok Token) int {
+func (p *Parser) lookupAction(tok VToken) int {
 	if !p.disableLAC {
 		term := p.tokenToTerminal(tok)
 		if !p.validateLookahead(term) {

@@ -14,7 +14,7 @@ type testSemAct struct {
 	actLog []string
 }
 
-func (a *testSemAct) Shift(tok Token, recovered bool) {
+func (a *testSemAct) Shift(tok VToken, recovered bool) {
 	t := a.gram.ParsingTable.Terminals[tok.TerminalID()]
 	if recovered {
 		a.actLog = append(a.actLog, fmt.Sprintf("shift/%v/recovered", t))
@@ -37,11 +37,11 @@ func (a *testSemAct) Accept() {
 	a.actLog = append(a.actLog, "accept")
 }
 
-func (a *testSemAct) TrapAndShiftError(cause Token, popped int) {
+func (a *testSemAct) TrapAndShiftError(cause VToken, popped int) {
 	a.actLog = append(a.actLog, fmt.Sprintf("trap/%v/shift/error", popped))
 }
 
-func (a *testSemAct) MissError(cause Token) {
+func (a *testSemAct) MissError(cause VToken) {
 	a.actLog = append(a.actLog, "miss")
 }
 

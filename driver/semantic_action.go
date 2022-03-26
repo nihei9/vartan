@@ -3,14 +3,12 @@ package driver
 import (
 	"fmt"
 	"io"
-
-	"github.com/nihei9/vartan/spec"
 )
 
 type SemanticActionSet interface {
 	// Shift runs when the driver shifts a symbol onto the state stack. `tok` is a token corresponding to
 	// the symbol. When the driver recovered from an error state by shifting the token, `recovered` is true.
-	Shift(tok Token, recovered bool)
+	Shift(tok VToken, recovered bool)
 
 	// Reduce runs when the driver reduces an RHS of a production to its LHS. `prodNum` is a number of
 	// the production. When the driver recovered from an error state by reducing the production,
@@ -25,10 +23,10 @@ type SemanticActionSet interface {
 	// from the state stack.
 	// Unlike `Shift` function, this function doesn't take a token to be shifted as an argument because a token
 	// corresponding to the error symbol doesn't exist.
-	TrapAndShiftError(cause Token, popped int)
+	TrapAndShiftError(cause VToken, popped int)
 
 	// MissError runs when the driver fails to trap a syntax error. `cause` is a token that caused a syntax error.
-	MissError(cause Token)
+	MissError(cause VToken)
 }
 
 var _ SemanticActionSet = &SyntaxTreeActionSet{}
@@ -77,7 +75,7 @@ func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix s
 }
 
 type SyntaxTreeActionSet struct {
-	gram     *spec.CompiledGrammar
+	gram     Grammar
 	makeAST  bool
 	makeCST  bool
 	ast      *Node
@@ -85,7 +83,7 @@ type SyntaxTreeActionSet struct {
 	semStack *semanticStack
 }
 
-func NewSyntaxTreeActionSet(gram *spec.CompiledGrammar, makeAST bool, makeCST bool) *SyntaxTreeActionSet {
+func NewSyntaxTreeActionSet(gram Grammar, makeAST bool, makeCST bool) *SyntaxTreeActionSet {
 	return &SyntaxTreeActionSet{
 		gram:     gram,
 		makeAST:  makeAST,
@@ -94,7 +92,7 @@ func NewSyntaxTreeActionSet(gram *spec.CompiledGrammar, makeAST bool, makeCST bo
 	}
 }
 
-func (a *SyntaxTreeActionSet) Shift(tok Token, recovered bool) {
+func (a *SyntaxTreeActionSet) Shift(tok VToken, recovered bool) {
 	term := a.tokenToTerminal(tok)
 
 	var ast *Node
@@ -102,7 +100,7 @@ func (a *SyntaxTreeActionSet) Shift(tok Token, recovered bool) {
 	if a.makeAST {
 		row, col := tok.Position()
 		ast = &Node{
-			KindName: a.gram.ParsingTable.Terminals[term],
+			KindName: a.gram.Terminal(term),
 			Text:     string(tok.Lexeme()),
 			Row:      row,
 			Col:      col,
@@ -111,7 +109,7 @@ func (a *SyntaxTreeActionSet) Shift(tok Token, recovered bool) {
 	if a.makeCST {
 		row, col := tok.Position()
 		cst = &Node{
-			KindName: a.gram.ParsingTable.Terminals[term],
+			KindName: a.gram.Terminal(term),
 			Text:     string(tok.Lexeme()),
 			Row:      row,
 			Col:      col,
@@ -125,16 +123,16 @@ func (a *SyntaxTreeActionSet) Shift(tok Token, recovered bool) {
 }
 
 func (a *SyntaxTreeActionSet) Reduce(prodNum int, recovered bool) {
-	lhs := a.gram.ParsingTable.LHSSymbols[prodNum]
+	lhs := a.gram.LHS(prodNum)
 
 	// When an alternative is empty, `n` will be 0, and `handle` will be empty slice.
-	n := a.gram.ParsingTable.AlternativeSymbolCounts[prodNum]
+	n := a.gram.AlternativeSymbolCount(prodNum)
 	handle := a.semStack.pop(n)
 
 	var ast *Node
 	var cst *Node
 	if a.makeAST {
-		act := a.gram.ASTAction.Entries[prodNum]
+		act := a.gram.ASTAction(prodNum)
 		var children []*Node
 		if act != nil {
 			// Count the number of children in advance to avoid frequent growth in a slice for children.
@@ -177,7 +175,7 @@ func (a *SyntaxTreeActionSet) Reduce(prodNum int, recovered bool) {
 		}
 
 		ast = &Node{
-			KindName: a.gram.ParsingTable.NonTerminals[lhs],
+			KindName: a.gram.NonTerminal(lhs),
 			Children: children,
 		}
 	}
@@ -188,7 +186,7 @@ func (a *SyntaxTreeActionSet) Reduce(prodNum int, recovered bool) {
 		}
 
 		cst = &Node{
-			KindName: a.gram.ParsingTable.NonTerminals[lhs],
+			KindName: a.gram.NonTerminal(lhs),
 			Children: children,
 		}
 	}
@@ -206,21 +204,19 @@ func (a *SyntaxTreeActionSet) Accept() {
 	a.ast = top[0].ast
 }
 
-func (a *SyntaxTreeActionSet) TrapAndShiftError(cause Token, popped int) {
+func (a *SyntaxTreeActionSet) TrapAndShiftError(cause VToken, popped int) {
 	a.semStack.pop(popped)
-
-	errSym := a.gram.ParsingTable.ErrorSymbol
 
 	var ast *Node
 	var cst *Node
 	if a.makeAST {
 		ast = &Node{
-			KindName: a.gram.ParsingTable.Terminals[errSym],
+			KindName: a.gram.Terminal(a.gram.Error()),
 		}
 	}
 	if a.makeCST {
 		cst = &Node{
-			KindName: a.gram.ParsingTable.Terminals[errSym],
+			KindName: a.gram.Terminal(a.gram.Error()),
 		}
 	}
 
@@ -230,7 +226,7 @@ func (a *SyntaxTreeActionSet) TrapAndShiftError(cause Token, popped int) {
 	})
 }
 
-func (a *SyntaxTreeActionSet) MissError(cause Token) {
+func (a *SyntaxTreeActionSet) MissError(cause VToken) {
 }
 
 func (a *SyntaxTreeActionSet) CST() *Node {
@@ -241,9 +237,9 @@ func (a *SyntaxTreeActionSet) AST() *Node {
 	return a.ast
 }
 
-func (a *SyntaxTreeActionSet) tokenToTerminal(tok Token) int {
+func (a *SyntaxTreeActionSet) tokenToTerminal(tok VToken) int {
 	if tok.EOF() {
-		return a.gram.ParsingTable.EOFSymbol
+		return a.gram.EOF()
 	}
 
 	return tok.TerminalID()

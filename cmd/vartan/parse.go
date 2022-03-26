@@ -63,7 +63,7 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		return fmt.Errorf("You cannot enable --only-parse and --cst at the same time")
 	}
 
-	cgram, err := readCompiledGrammar(args[0])
+	cg, err := readCompiledGrammar(args[0])
 	if err != nil {
 		return fmt.Errorf("Cannot read a compiled grammar: %w", err)
 	}
@@ -81,13 +81,15 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			src = f
 		}
 
+		gram := driver.NewGrammar(cg)
+
 		var opts []driver.ParserOption
 		{
 			switch {
 			case *parseFlags.cst:
-				treeAct = driver.NewSyntaxTreeActionSet(cgram, false, true)
+				treeAct = driver.NewSyntaxTreeActionSet(gram, false, true)
 			case !*parseFlags.onlyParse:
-				treeAct = driver.NewSyntaxTreeActionSet(cgram, true, false)
+				treeAct = driver.NewSyntaxTreeActionSet(gram, true, false)
 			}
 			if treeAct != nil {
 				opts = append(opts, driver.SemanticAction(treeAct))
@@ -98,12 +100,12 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			}
 		}
 
-		toks, err := driver.NewTokenStream(cgram, src)
+		toks, err := driver.NewTokenStream(cg, src)
 		if err != nil {
 			return err
 		}
 
-		p, err = driver.NewParser(toks, driver.NewGrammar(cgram), opts...)
+		p, err = driver.NewParser(toks, gram, opts...)
 		if err != nil {
 			return err
 		}
@@ -125,7 +127,7 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		case tok.Invalid():
 			msg = fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme()))
 		default:
-			t := cgram.ParsingTable.Terminals[tok.TerminalID()]
+			t := cg.ParsingTable.Terminals[tok.TerminalID()]
 			msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), t)
 		}
 
@@ -161,10 +163,10 @@ func readCompiledGrammar(path string) (*spec.CompiledGrammar, error) {
 	if err != nil {
 		return nil, err
 	}
-	cgram := &spec.CompiledGrammar{}
-	err = json.Unmarshal(data, cgram)
+	cg := &spec.CompiledGrammar{}
+	err = json.Unmarshal(data, cg)
 	if err != nil {
 		return nil, err
 	}
-	return cgram, nil
+	return cg, nil
 }

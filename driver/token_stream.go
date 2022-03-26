@@ -7,33 +7,33 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
-type token struct {
+type vToken struct {
 	terminalID int
 	skip       bool
 	tok        *mldriver.Token
 }
 
-func (t *token) TerminalID() int {
+func (t *vToken) TerminalID() int {
 	return t.terminalID
 }
 
-func (t *token) Lexeme() []byte {
+func (t *vToken) Lexeme() []byte {
 	return t.tok.Lexeme
 }
 
-func (t *token) EOF() bool {
+func (t *vToken) EOF() bool {
 	return t.tok.EOF
 }
 
-func (t *token) Invalid() bool {
+func (t *vToken) Invalid() bool {
 	return t.tok.Invalid
 }
 
-func (t *token) Skip() bool {
+func (t *vToken) Skip() bool {
 	return t.skip
 }
 
-func (t *token) Position() (int, int) {
+func (t *vToken) Position() (int, int) {
 	return t.tok.Row, t.tok.Col
 }
 
@@ -56,12 +56,12 @@ func NewTokenStream(g *spec.CompiledGrammar, src io.Reader) (TokenStream, error)
 	}, nil
 }
 
-func (l *tokenStream) Next() (Token, error) {
+func (l *tokenStream) Next() (VToken, error) {
 	tok, err := l.lex.Next()
 	if err != nil {
 		return nil, err
 	}
-	return &token{
+	return &vToken{
 		terminalID: l.kindToTerminal[tok.KindID],
 		skip:       l.skip[tok.KindID] > 0,
 		tok:        tok,

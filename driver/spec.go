@@ -48,6 +48,10 @@ func (g *grammarImpl) ErrorTrapperState(state int) bool {
 	return g.g.ParsingTable.ErrorTrapperStates[state] != 0
 }
 
+func (g *grammarImpl) NonTerminal(nonTerminal int) string {
+	return g.g.ParsingTable.NonTerminals[nonTerminal]
+}
+
 func (g *grammarImpl) LHS(prod int) int {
 	return g.g.ParsingTable.LHSSymbols[prod]
 }
@@ -66,4 +70,8 @@ func (g *grammarImpl) Terminal(terminal int) string {
 
 func (g *grammarImpl) TerminalAlias(terminal int) string {
 	return g.g.LexicalSpecification.Maleeni.KindAliases[terminal]
+}
+
+func (g *grammarImpl) ASTAction(prod int) []int {
+	return g.g.ASTAction.Entries[prod]
 }
