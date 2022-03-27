@@ -322,10 +322,10 @@ fragment words: "[A-Za-z\u{0020}]+";
 %name test
 
 list
-    : "\[" elems "]" #ast #(list $2...)
+    : "\[" elems "]" #ast $2...
     ;
 elems
-    : elems "," id #ast #(elems $1... $3)
+    : elems "," id #ast $1... $3
     | id
     ;
 whitespace: "\u{0020}+" #skip;
@@ -353,21 +353,6 @@ id: "[A-Za-z]+";
 				termNode("id", "Langly"),
 			),
 		},
-		// The first element of a tree structure must be the same ID as an LHS of a production.
-		{
-			specSrc: `
-%name test
-
-s
-    : foo #ast #(start $1)
-    ;
-foo
-    : bar
-    ;
-bar: "bar";
-`,
-			specErr: true,
-		},
 		// An ast action cannot be applied to a terminal symbol.
 		{
 			specSrc: `
@@ -377,7 +362,7 @@ s
     : foo
     ;
 foo
-    : "foo" #ast #(s $1...)
+    : "foo" #ast $1...
     ;
 `,
 			specErr: true,
@@ -388,7 +373,7 @@ foo
 %name test
 
 s
-    : foo #ast #(s $1...)
+    : foo #ast $1...
     ;
 foo: "foo";
 `,

@@ -38,14 +38,14 @@ expr
 	| func_call
 	| integer
 	| id
-	| '(' expr ')' #ast #(expr $2)
+	| '(' expr ')' #ast $2
 	;
 func_call
-	: id '(' args ')' #ast #(func_call $1 $3)
-	| id '(' ')'      #ast #(func_call $1)
+	: id '(' args ')' #ast $1 $3
+	| id '(' ')'      #ast $1
 	;
 args
-	: args ',' expr #ast #(args $1... $3)
+	: args ',' expr #ast $1... $3
 	| expr
 	;
 

@@ -62,30 +62,24 @@ func TestParse(t *testing.T) {
 			ID: id,
 		}
 	}
-	treeParam := func(name string, children ...*TreeChildNode) *ParameterNode {
+	symPosParam := func(symPos *SymbolPositionNode) *ParameterNode {
 		return &ParameterNode{
-			Tree: &TreeStructNode{
-				Name:     name,
-				Children: children,
-			},
+			SymbolPosition: symPos,
 		}
+	}
+	symPos := func(symPos int, exp bool) *SymbolPositionNode {
+		return &SymbolPositionNode{
+			Position:  symPos,
+			Expansion: exp,
+		}
+	}
+	withSymPosPos := func(symPos *SymbolPositionNode, pos Position) *SymbolPositionNode {
+		symPos.Pos = pos
+		return symPos
 	}
 	withParamPos := func(param *ParameterNode, pos Position) *ParameterNode {
 		param.Pos = pos
 		return param
-	}
-	pos := func(pos int) *TreeChildNode {
-		return &TreeChildNode{
-			Position: pos,
-		}
-	}
-	exp := func(c *TreeChildNode) *TreeChildNode {
-		c.Expansion = true
-		return c
-	}
-	withTreeChildPos := func(child *TreeChildNode, pos Position) *TreeChildNode {
-		child.Pos = pos
-		return child
 	}
 	id := func(id string) *ElementNode {
 		return &ElementNode{
@@ -389,11 +383,11 @@ s: foo; foo: "foo";
 			caption: "a grammar can contain 'ast' directives",
 			src: `
 s
-    : foo bar_list #ast #(s $1 $2)
+    : foo bar_list #ast $1 $2
     ;
 bar_list
-    : bar_list bar #ast #(bar_list $1... $2)
-    | bar          #ast #(bar_list $1)
+    : bar_list bar #ast $1... $2
+    | bar          #ast $1
     ;
 foo: "foo";
 bar: "bar";
@@ -403,17 +397,17 @@ bar: "bar";
 					prod("s",
 						withAltDir(
 							alt(id("foo"), id("bar_list")),
-							dir("ast", treeParam("s", pos(1), pos(2))),
+							dir("ast", symPosParam(symPos(1, false)), symPosParam(symPos(2, false))),
 						),
 					),
 					prod("bar_list",
 						withAltDir(
 							alt(id("bar_list"), id("bar")),
-							dir("ast", treeParam("bar_list", exp(pos(1)), pos(2))),
+							dir("ast", symPosParam(symPos(1, true)), symPosParam(symPos(2, false))),
 						),
 						withAltDir(
 							alt(id("bar")),
-							dir("ast", treeParam("bar_list", pos(1))),
+							dir("ast", symPosParam(symPos(1, false))),
 						),
 					),
 				},
@@ -428,31 +422,11 @@ bar: "bar";
 			},
 		},
 		{
-			caption: "the first element of a tree structure must be an ID",
-			src: `
-s
-    : foo #ast #($1)
-    ;
-foo: "foo";
-`,
-			synErr: synErrTreeInvalidFirstElem,
-		},
-		{
-			caption: "a tree structure must be closed by ')'",
-			src: `
-s
-    : foo #ast #(s $1
-    ;
-foo: "foo";
-`,
-			synErr: synErrTreeUnclosed,
-		},
-		{
 			caption: "an AST has node positions",
 			src: `
 #mode default
 exp
-    : exp "\+" id #ast #(exp $1 $2)
+    : exp "\+" id #ast $1 $2
     | id
     ;
 whitespace: "\u{0020}+" #skip;
@@ -476,9 +450,15 @@ fragment number: "[0-9]";
 										withDirPos(
 											dir("ast",
 												withParamPos(
-													treeParam("exp",
-														withTreeChildPos(pos(1), newPos(4)),
-														withTreeChildPos(pos(2), newPos(4))),
+													symPosParam(
+														withSymPosPos(symPos(1, false), newPos(4)),
+													),
+													newPos(4),
+												),
+												withParamPos(
+													symPosParam(
+														withSymPosPos(symPos(2, false), newPos(4)),
+													),
 													newPos(4),
 												),
 											),
@@ -774,27 +754,21 @@ func testParameter(t *testing.T, param, expected *ParameterNode, checkPosition b
 	if param.ID != expected.ID {
 		t.Fatalf("unexpected ID parameter; want: %v, got: %v", expected.ID, param.ID)
 	}
-	if expected.Tree == nil && param.Tree != nil {
-		t.Fatalf("unexpected tree parameter; want: nil, got: %+v", param.Tree)
+	if param.String != expected.String {
+		t.Fatalf("unexpected string parameter; want: %v, got: %v", expected.ID, param.ID)
 	}
-	if expected.Tree != nil {
-		if param.Tree == nil {
-			t.Fatalf("unexpected tree parameter; want: %+v, got: nil", expected.Tree)
+	if expected.SymbolPosition == nil && param.SymbolPosition != nil {
+		t.Fatalf("unexpected symbol position parameter; want: nil, got: %+v", param.SymbolPosition)
+	}
+	if expected.SymbolPosition != nil {
+		if param.SymbolPosition == nil {
+			t.Fatalf("unexpected symbol position parameter; want: %+v, got: nil", expected.SymbolPosition)
 		}
-		if param.Tree.Name != expected.Tree.Name {
-			t.Fatalf("unexpected node name; want: %v, got: %v", expected.Tree.Name, param.Tree.Name)
+		if param.SymbolPosition.Position != expected.SymbolPosition.Position {
+			t.Fatalf("unexpected symbol position; want: %v, got: %v", expected.SymbolPosition.Position, param.SymbolPosition.Position)
 		}
-		if len(param.Tree.Children) != len(expected.Tree.Children) {
-			t.Fatalf("unexpected children; want: %v, got: %v", expected.Tree.Children, param.Tree.Children)
-		}
-		for i, c := range param.Tree.Children {
-			e := expected.Tree.Children[i]
-			if c.Position != e.Position || c.Expansion != e.Expansion {
-				t.Fatalf("unexpected child; want: %+v, got: %+v", e, c)
-			}
-			if checkPosition {
-				testPosition(t, c.Pos, e.Pos)
-			}
+		if checkPosition {
+			testPosition(t, param.Pos, expected.Pos)
 		}
 	}
 	if checkPosition {

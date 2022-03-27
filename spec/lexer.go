@@ -24,8 +24,6 @@ const (
 	tokenKindOr              = tokenKind("|")
 	tokenKindSemicolon       = tokenKind(";")
 	tokenKindDirectiveMarker = tokenKind("#")
-	tokenKindTreeNodeOpen    = tokenKind("#(")
-	tokenKindTreeNodeClose   = tokenKind(")")
 	tokenKindPosition        = tokenKind("$")
 	tokenKindExpantion       = tokenKind("...")
 	tokenKindMetaDataMarker  = tokenKind("%")
@@ -273,10 +271,6 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		return newSymbolToken(tokenKindSemicolon, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDDirectiveMarker:
 		return newSymbolToken(tokenKindDirectiveMarker, newPosition(tok.Row+1, tok.Col+1)), nil
-	case KindIDTreeNodeOpen:
-		return newSymbolToken(tokenKindTreeNodeOpen, newPosition(tok.Row+1, tok.Col+1)), nil
-	case KindIDTreeNodeClose:
-		return newSymbolToken(tokenKindTreeNodeClose, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDPosition:
 		// Remove '$' character and convert to an integer.
 		num, err := strconv.Atoi(string(tok.Lexeme)[1:])

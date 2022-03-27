@@ -759,69 +759,68 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 				dir := alt.Directive
 				switch dir.Name {
 				case "ast":
-					if len(dir.Parameters) != 1 || dir.Parameters[0].Tree == nil {
+					if len(dir.Parameters) == 0 {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
-							Detail: "'ast' directive needs a tree parameter",
+							Detail: "'ast' directive needs at least one symbol position parameter",
 							Row:    dir.Pos.Row,
 							Col:    dir.Pos.Col,
 						})
 						continue LOOP_RHS
 					}
-					param := dir.Parameters[0]
-					lhsText, ok := symTab.toText(p.lhs)
-					if !ok || param.Tree.Name != lhsText {
-						b.errs = append(b.errs, &verr.SpecError{
-							Cause:  semErrDirInvalidParam,
-							Detail: fmt.Sprintf("a name of a tree structure must be the same ID as an LHS of a production; LHS: %v", lhsText),
-							Row:    param.Pos.Row,
-							Col:    param.Pos.Col,
-						})
-						continue LOOP_RHS
-					}
-					astAct := make([]*astActionEntry, len(param.Tree.Children))
-					for i, c := range param.Tree.Children {
-						if c.Position > len(alt.Elements) {
+					astAct := make([]*astActionEntry, len(dir.Parameters))
+					for i, param := range dir.Parameters {
+						if param.SymbolPosition == nil {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDirInvalidParam,
-								Detail: fmt.Sprintf("a position must be less than or equal to the length of an alternativ (%v)", len(alt.Elements)),
-								Row:    c.Pos.Row,
-								Col:    c.Pos.Col,
+								Detail: "'ast' directive can take only symbol position parameters",
+								Row:    dir.Pos.Row,
+								Col:    dir.Pos.Col,
+							})
+							continue LOOP_RHS
+						}
+						symPos := param.SymbolPosition
+						if symPos.Position > len(alt.Elements) {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDirInvalidParam,
+								Detail: fmt.Sprintf("a symbol position must be less than or equal to the length of an alternativ (%v)", len(alt.Elements)),
+								Row:    symPos.Pos.Row,
+								Col:    symPos.Pos.Col,
 							})
 							continue LOOP_RHS
 						}
 
-						if c.Expansion {
-							offset := c.Position - 1
+						if symPos.Expansion {
+							offset := symPos.Position - 1
 							elem := alt.Elements[offset]
 							if elem.Pattern != "" {
 								b.errs = append(b.errs, &verr.SpecError{
 									Cause:  semErrDirInvalidParam,
-									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a pattern ($%v: %v)", c.Position, elem.Pattern),
-									Row:    c.Pos.Row,
-									Col:    c.Pos.Col,
+									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a pattern ($%v: %v)", symPos.Position, elem.Pattern),
+									Row:    symPos.Pos.Row,
+									Col:    symPos.Pos.Col,
 								})
 								continue LOOP_RHS
 							}
 							elemSym, ok := symTab.toSymbol(elem.ID)
 							if !ok {
 								// If the symbol was not found, it's a bug.
-								return nil, fmt.Errorf("a symbol corresponding to a position ($%v: %v) was not found", c.Position, elem.ID)
+								return nil, fmt.Errorf("a symbol corresponding to a position ($%v: %v) was not found", symPos.Position, elem.ID)
 							}
 							if elemSym.isTerminal() {
 								b.errs = append(b.errs, &verr.SpecError{
 									Cause:  semErrDirInvalidParam,
-									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a terminal symbol ($%v: %v)", c.Position, elem.ID),
-									Row:    c.Pos.Row,
-									Col:    c.Pos.Col,
+									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a terminal symbol ($%v: %v)", symPos.Position, elem.ID),
+									Row:    symPos.Pos.Row,
+									Col:    symPos.Pos.Col,
 								})
 								continue LOOP_RHS
 							}
 						}
 
 						astAct[i] = &astActionEntry{
-							position:  c.Position,
-							expansion: c.Expansion,
+							position:  symPos.Position,
+							expansion: symPos.Expansion,
 						}
 					}
 					astActs[p.id] = astAct

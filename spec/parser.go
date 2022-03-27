@@ -49,19 +49,13 @@ type DirectiveNode struct {
 }
 
 type ParameterNode struct {
-	ID     string
-	String string
-	Tree   *TreeStructNode
-	Pos    Position
+	ID             string
+	String         string
+	SymbolPosition *SymbolPositionNode
+	Pos            Position
 }
 
-type TreeStructNode struct {
-	Name     string
-	Children []*TreeChildNode
-	Pos      Position
-}
-
-type TreeChildNode struct {
+type SymbolPositionNode struct {
 	Position  int
 	Expansion bool
 	Pos       Position
@@ -449,41 +443,17 @@ func (p *parser) parseParameter() *ParameterNode {
 			String: p.lastTok.text,
 			Pos:    p.lastTok.pos,
 		}
-	case p.consume(tokenKindTreeNodeOpen):
-		if !p.consume(tokenKindID) {
-			raiseSyntaxError(p.pos.Row, synErrTreeInvalidFirstElem)
+	case p.consume(tokenKindPosition):
+		symPos := &SymbolPositionNode{
+			Position: p.lastTok.num,
+			Pos:      p.lastTok.pos,
 		}
-		name := p.lastTok.text
-		namePos := p.lastTok.pos
-
-		var children []*TreeChildNode
-		for {
-			if !p.consume(tokenKindPosition) {
-				break
-			}
-
-			child := &TreeChildNode{
-				Position: p.lastTok.num,
-				Pos:      p.lastTok.pos,
-			}
-			if p.consume(tokenKindExpantion) {
-				child.Expansion = true
-			}
-
-			children = append(children, child)
+		if p.consume(tokenKindExpantion) {
+			symPos.Expansion = true
 		}
-
-		if !p.consume(tokenKindTreeNodeClose) {
-			raiseSyntaxError(p.pos.Row, synErrTreeUnclosed)
-		}
-
 		return &ParameterNode{
-			Tree: &TreeStructNode{
-				Name:     name,
-				Children: children,
-				Pos:      namePos,
-			},
-			Pos: namePos,
+			SymbolPosition: symPos,
+			Pos:            symPos.Pos,
 		}
 	}
 
