@@ -14,9 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var showFlags = struct {
-}{}
-
 func init() {
 	cmd := &cobra.Command{
 		Use:     "show",
@@ -150,7 +147,7 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 			}
 
 			if count == 1 {
-				return fmt.Sprintf("1 conflict was detected.")
+				return "1 conflict was detected."
 			} else if count > 1 {
 				return fmt.Sprintf("%v conflicts were detected.", count)
 			}

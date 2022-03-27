@@ -4,15 +4,15 @@ import "testing"
 
 func TestSymbol(t *testing.T) {
 	tab := newSymbolTable()
-	tab.registerStartSymbol("expr'")
-	tab.registerNonTerminalSymbol("expr")
-	tab.registerNonTerminalSymbol("term")
-	tab.registerNonTerminalSymbol("factor")
-	tab.registerTerminalSymbol("id")
-	tab.registerTerminalSymbol("add")
-	tab.registerTerminalSymbol("mul")
-	tab.registerTerminalSymbol("l_paren")
-	tab.registerTerminalSymbol("r_paren")
+	_, _ = tab.registerStartSymbol("expr'")
+	_, _ = tab.registerNonTerminalSymbol("expr")
+	_, _ = tab.registerNonTerminalSymbol("term")
+	_, _ = tab.registerNonTerminalSymbol("factor")
+	_, _ = tab.registerTerminalSymbol("id")
+	_, _ = tab.registerTerminalSymbol("add")
+	_, _ = tab.registerTerminalSymbol("mul")
+	_, _ = tab.registerTerminalSymbol("l_paren")
+	_, _ = tab.registerTerminalSymbol("r_paren")
 
 	nonTermTexts := []string{
 		"", // Nil

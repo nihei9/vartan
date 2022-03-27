@@ -56,10 +56,6 @@ func newGoToEntry(state stateNum) goToEntry {
 	return goToEntry(state)
 }
 
-func (e goToEntry) isEmpty() bool {
-	return e == goToEntryEmpty
-}
-
 func (e goToEntry) describe() (GoToType, stateNum) {
 	if e == goToEntryEmpty {
 		return GoToTypeError, stateNumInitial

@@ -122,10 +122,7 @@ func (s symbol) isNonTerminal() bool {
 		return false
 	}
 	kind, _, _, _ := s.describe()
-	if kind == symbolKindNonTerminal {
-		return true
-	}
-	return false
+	return kind == symbolKindNonTerminal
 }
 
 func (s symbol) isTerminal() bool {

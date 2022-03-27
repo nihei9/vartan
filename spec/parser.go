@@ -193,8 +193,6 @@ func (p *parser) parseMetaData() *DirectiveNode {
 
 		p.errs = append(p.errs, specErr)
 		p.skipOverTo(tokenKindNewline)
-
-		return
 	}()
 
 	p.consume(tokenKindNewline)
@@ -241,8 +239,6 @@ func (p *parser) parseFragment() *FragmentNode {
 
 		p.errs = append(p.errs, specErr)
 		p.skipOverTo(tokenKindSemicolon)
-
-		return
 	}()
 
 	p.consume(tokenKindNewline)
@@ -308,8 +304,6 @@ func (p *parser) parseProduction() *ProductionNode {
 
 		p.errs = append(p.errs, specErr)
 		p.skipOverTo(tokenKindSemicolon)
-
-		return
 	}()
 
 	p.consume(tokenKindNewline)

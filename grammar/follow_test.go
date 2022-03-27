@@ -158,6 +158,9 @@ func genActualFollow(t *testing.T, src string) (*followSet, *Grammar) {
 		t.Fatal(err)
 	}
 	flw, err := genFollowSet(gram.productionSet, fst)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if flw == nil {
 		t.Fatal("genFollow returned nil without any error")
 	}

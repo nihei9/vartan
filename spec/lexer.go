@@ -205,7 +205,7 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 				// The escape sequences in a pattern string are interpreted by the lexer, except for the \".
 				// We must interpret the \" before passing them to the lexer because they are delimiters for
 				// the pattern strings.
-				fmt.Fprintf(&b, strings.ReplaceAll(string(tok.Lexeme), `\"`, `"`))
+				fmt.Fprint(&b, strings.ReplaceAll(string(tok.Lexeme), `\"`, `"`))
 			case KindIDEscapeSymbol:
 				return nil, &verr.SpecError{
 					Cause: synErrIncompletedEscSeq,
@@ -240,13 +240,13 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			}
 			switch tok.KindID {
 			case KindIDCharSeq:
-				fmt.Fprintf(&b, string(tok.Lexeme))
+				fmt.Fprint(&b, string(tok.Lexeme))
 			case KindIDEscapedQuot:
 				// Remove '\' character.
-				fmt.Fprintf(&b, `'`)
+				fmt.Fprint(&b, `'`)
 			case KindIDEscapedBackSlash:
 				// Remove '\' character.
-				fmt.Fprintf(&b, `\`)
+				fmt.Fprint(&b, `\`)
 			case KindIDEscapeSymbol:
 				return nil, &verr.SpecError{
 					Cause: synErrIncompletedEscSeq,

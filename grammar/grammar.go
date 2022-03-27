@@ -116,7 +116,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 			if len(md.Parameters) != 1 || md.Parameters[0].ID == "" {
 				b.errs = append(b.errs, &verr.SpecError{
 					Cause:  semErrMDInvalidParam,
-					Detail: fmt.Sprintf("'name' takes just one ID parameter"),
+					Detail: "'name' takes just one ID parameter",
 					Row:    md.Pos.Row,
 					Col:    md.Pos.Col,
 				})
@@ -480,7 +480,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			if len(dir.Parameters) == 0 {
 				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
-					Detail: fmt.Sprintf("'mode' directive needs an ID parameter"),
+					Detail: "'mode' directive needs an ID parameter",
 					Row:    dir.Pos.Row,
 					Col:    dir.Pos.Col,
 				}, nil
@@ -489,7 +489,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 				if param.ID == "" {
 					return nil, false, "", &verr.SpecError{
 						Cause:  semErrDirInvalidParam,
-						Detail: fmt.Sprintf("'mode' directive needs an ID parameter"),
+						Detail: "'mode' directive needs an ID parameter",
 						Row:    param.Pos.Row,
 						Col:    param.Pos.Col,
 					}, nil
@@ -528,7 +528,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			if len(dir.Parameters) > 0 {
 				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
-					Detail: fmt.Sprintf("'skip' directive needs no parameter"),
+					Detail: "'skip' directive needs no parameter",
 					Row:    dir.Pos.Row,
 					Col:    dir.Pos.Col,
 				}, nil
@@ -538,7 +538,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
 				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
-					Detail: fmt.Sprintf("'push' directive needs an ID parameter"),
+					Detail: "'push' directive needs an ID parameter",
 					Row:    dir.Pos.Row,
 					Col:    dir.Pos.Col,
 				}, nil
@@ -548,7 +548,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			if len(dir.Parameters) > 0 {
 				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
-					Detail: fmt.Sprintf("'pop' directive needs no parameter"),
+					Detail: "'pop' directive needs no parameter",
 					Row:    dir.Pos.Row,
 					Col:    dir.Pos.Col,
 				}, nil
@@ -558,7 +558,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			if len(dir.Parameters) != 1 || dir.Parameters[0].String == "" {
 				return nil, false, "", &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
-					Detail: fmt.Sprintf("'alias' directive needs a string parameter"),
+					Detail: "'alias' directive needs a string parameter",
 					Row:    dir.Pos.Row,
 					Col:    dir.Pos.Col,
 				}, nil
@@ -762,7 +762,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 					if len(dir.Parameters) != 1 || dir.Parameters[0].Tree == nil {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
-							Detail: fmt.Sprintf("'ast' directive needs a tree parameter"),
+							Detail: "'ast' directive needs a tree parameter",
 							Row:    dir.Pos.Row,
 							Col:    dir.Pos.Col,
 						})
@@ -829,7 +829,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 					if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
-							Detail: fmt.Sprintf("'prec' directive needs an ID parameter"),
+							Detail: "'prec' directive needs an ID parameter",
 							Row:    dir.Pos.Row,
 							Col:    dir.Pos.Col,
 						})
@@ -859,7 +859,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 					if len(dir.Parameters) > 0 {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
-							Detail: fmt.Sprintf("'recover' directive needs no parameter"),
+							Detail: "'recover' directive needs no parameter",
 							Row:    dir.Pos.Row,
 							Col:    dir.Pos.Col,
 						})
@@ -1140,7 +1140,10 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 				return nil, err
 			}
 
-			f.Write(d)
+			_, err = f.Write(d)
+			if err != nil {
+				return nil, fmt.Errorf("failed to write a description file: %w", err)
+			}
 		}
 
 		if len(b.conflicts) > 0 {

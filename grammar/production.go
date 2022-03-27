@@ -58,10 +58,6 @@ func newProduction(lhs symbol, rhs []symbol) (*production, error) {
 	}, nil
 }
 
-func (p *production) equals(q *production) bool {
-	return q.id == p.id
-}
-
 func (p *production) isEmpty() bool {
 	return p.rhsLen == 0
 }

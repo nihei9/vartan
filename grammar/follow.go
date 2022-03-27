@@ -87,20 +87,6 @@ func (flw *followSet) find(sym symbol) (*followEntry, error) {
 	return e, nil
 }
 
-type followComContext struct {
-	prods  *productionSet
-	first  *firstSet
-	follow *followSet
-}
-
-func newFollowComContext(prods *productionSet, first *firstSet) *followComContext {
-	return &followComContext{
-		prods:  prods,
-		first:  first,
-		follow: newFollow(prods),
-	}
-}
-
 func genFollowSet(prods *productionSet, first *firstSet) (*followSet, error) {
 	ntsyms := map[symbol]struct{}{}
 	for _, prod := range prods.getAllProductions() {
@@ -110,11 +96,11 @@ func genFollowSet(prods *productionSet, first *firstSet) (*followSet, error) {
 		ntsyms[prod.lhs] = struct{}{}
 	}
 
-	cc := newFollowComContext(prods, first)
+	follow := newFollow(prods)
 	for {
 		more := false
 		for ntsym := range ntsyms {
-			e, err := cc.follow.find(ntsym)
+			e, err := follow.find(ntsym)
 			if err != nil {
 				return nil, err
 			}
@@ -138,7 +124,7 @@ func genFollowSet(prods *productionSet, first *firstSet) (*followSet, error) {
 						more = true
 					}
 					if fst.empty {
-						flw, err := cc.follow.find(prod.lhs)
+						flw, err := follow.find(prod.lhs)
 						if err != nil {
 							return nil, err
 						}
@@ -155,43 +141,5 @@ func genFollowSet(prods *productionSet, first *firstSet) (*followSet, error) {
 		}
 	}
 
-	return cc.follow, nil
-}
-
-func genFollowEntry(cc *followComContext, acc *followEntry, ntsym symbol) (bool, error) {
-	changed := false
-
-	if ntsym.isStart() {
-		added := acc.addEOF()
-		if added {
-			changed = true
-		}
-	}
-	for _, prod := range cc.prods.getAllProductions() {
-		for i, sym := range prod.rhs {
-			if sym != ntsym {
-				continue
-			}
-			fst, err := cc.first.find(prod, i+1)
-			if err != nil {
-				return false, err
-			}
-			added := acc.merge(fst, nil)
-			if added {
-				changed = true
-			}
-			if fst.empty {
-				flw, err := cc.follow.find(prod.lhs)
-				if err != nil {
-					return false, err
-				}
-				added := acc.merge(nil, flw)
-				if added {
-					changed = true
-				}
-			}
-		}
-	}
-
-	return changed, nil
+	return follow, nil
 }
