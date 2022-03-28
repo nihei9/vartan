@@ -40,7 +40,7 @@ func TestLexer_Run(t *testing.T) {
 	}{
 		{
 			caption: "the lexer can recognize all kinds of tokens",
-			src:     `id"terminal"'string':|;$1...#%`,
+			src:     `id"terminal"'string':|;@$1...#%`,
 			tokens: []*token{
 				idTok("id"),
 				termPatTok("terminal"),
@@ -48,6 +48,7 @@ func TestLexer_Run(t *testing.T) {
 				symTok(tokenKindColon),
 				symTok(tokenKindOr),
 				symTok(tokenKindSemicolon),
+				symTok(tokenKindLabelMarker),
 				posTok(1),
 				symTok(tokenKindExpantion),
 				symTok(tokenKindDirectiveMarker),

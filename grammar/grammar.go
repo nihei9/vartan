@@ -677,6 +677,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	LOOP_RHS:
 		for _, alt := range prod.RHS {
 			altSyms := make([]symbol, len(alt.Elements))
+			labels := map[string]int{}
 			for i, elem := range alt.Elements {
 				var sym symbol
 				if elem.Pattern != "" {
@@ -707,6 +708,28 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 					}
 				}
 				altSyms[i] = sym
+
+				if elem.Label != nil {
+					if _, added := labels[elem.Label.Name]; added {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDuplicateLabel,
+							Detail: elem.Label.Name,
+							Row:    elem.Label.Pos.Row,
+							Col:    elem.Label.Pos.Col,
+						})
+						continue LOOP_RHS
+					}
+					if _, found := symTab.toSymbol(elem.Label.Name); found {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrInvalidLabel,
+							Detail: elem.Label.Name,
+							Row:    elem.Label.Pos.Row,
+							Col:    elem.Label.Pos.Col,
+						})
+						continue LOOP_RHS
+					}
+					labels[elem.Label.Name] = i
+				}
 			}
 
 			p, err := newProduction(lhsSym, altSyms)

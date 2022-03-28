@@ -29,6 +29,8 @@ var (
 	synErrNoProductionName   = newSyntaxError("a production name is missing")
 	synErrNoColon            = newSyntaxError("the colon must precede alternatives")
 	synErrNoSemicolon        = newSyntaxError("the semicolon is missing at the last of an alternative")
+	synErrLabelWithNoSymbol  = newSyntaxError("a label must follow a symbol")
+	synErrNoLabel            = newSyntaxError("an identifier that represents a label is missing after the label marker @")
 	synErrNoDirectiveName    = newSyntaxError("a directive needs a name")
 	synErrProdDirNoNewline   = newSyntaxError("a production directive must be followed by a newline")
 	synErrSemicolonNoNewline = newSyntaxError("a semicolon must be followed by a newline")

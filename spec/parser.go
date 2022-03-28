@@ -38,8 +38,14 @@ type AlternativeNode struct {
 type ElementNode struct {
 	ID        string
 	Pattern   string
+	Label     *LabelNode
 	Literally bool
 	Pos       Position
+}
+
+type LabelNode struct {
+	Name string
+	Pos  Position
 }
 
 type DirectiveNode struct {
@@ -383,25 +389,40 @@ func (p *parser) parseAlternative() *AlternativeNode {
 }
 
 func (p *parser) parseElement() *ElementNode {
+	var elem *ElementNode
 	switch {
 	case p.consume(tokenKindID):
-		return &ElementNode{
+		elem = &ElementNode{
 			ID:  p.lastTok.text,
 			Pos: p.lastTok.pos,
 		}
 	case p.consume(tokenKindTerminalPattern):
-		return &ElementNode{
+		elem = &ElementNode{
 			Pattern: p.lastTok.text,
 			Pos:     p.lastTok.pos,
 		}
 	case p.consume(tokenKindStringLiteral):
-		return &ElementNode{
+		elem = &ElementNode{
 			Pattern:   p.lastTok.text,
 			Literally: true,
 			Pos:       p.lastTok.pos,
 		}
+	default:
+		if p.consume(tokenKindLabelMarker) {
+			raiseSyntaxError(p.pos.Row, synErrLabelWithNoSymbol)
+		}
+		return nil
 	}
-	return nil
+	if p.consume(tokenKindLabelMarker) {
+		if !p.consume(tokenKindID) {
+			raiseSyntaxError(p.pos.Row, synErrNoLabel)
+		}
+		elem.Label = &LabelNode{
+			Name: p.lastTok.text,
+			Pos:  p.lastTok.pos,
+		}
+	}
+	return elem
 }
 
 func (p *parser) parseDirective() *DirectiveNode {

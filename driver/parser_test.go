@@ -717,6 +717,66 @@ error: 'error' #skip;
 `,
 			specErr: true,
 		},
+		// A label must be unique in an alternative.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo@x bar@x
+    ;
+
+foo: 'foo';
+bar: 'bar';
+`,
+			specErr: true,
+		},
+		// The same label can be used between different alternatives.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo@x bar
+    | foo@x
+    ;
+
+foo: 'foo';
+bar: 'bar';
+`,
+			src: `foo`,
+		},
+		// A label cannot be the same name as terminal symbols.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo bar@foo
+    ;
+
+foo: 'foo';
+bar: 'bar';
+`,
+			specErr: true,
+		},
+		// A label cannot be the same name as non-terminal symbols.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo@a
+    ;
+a
+    : bar
+    ;
+
+foo: 'foo';
+bar: 'bar';
+`,
+			specErr: true,
+		},
 	}
 
 	classes := []grammar.Class{

@@ -106,6 +106,10 @@
 			"pattern": ";"
 		},
 		{
+			"kind": "label_marker",
+			"pattern": "@"
+		},
+		{
 			"kind": "position",
 			"pattern": "$(0|[1-9][0-9]*)"
 		},

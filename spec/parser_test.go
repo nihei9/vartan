@@ -91,6 +91,19 @@ func TestParse(t *testing.T) {
 			Pattern: p,
 		}
 	}
+	label := func(name string) *LabelNode {
+		return &LabelNode{
+			Name: name,
+		}
+	}
+	withLabelPos := func(label *LabelNode, pos Position) *LabelNode {
+		label.Pos = pos
+		return label
+	}
+	withLabel := func(elem *ElementNode, label *LabelNode) *ElementNode {
+		elem.Label = label
+		return elem
+	}
 	withElemPos := func(elem *ElementNode, pos Position) *ElementNode {
 		elem.Pos = pos
 		return elem
@@ -534,6 +547,97 @@ fragment number: "[0-9]";
 					),
 				},
 			},
+		},
+		{
+			caption: "a symbol can have a label",
+			src: `
+expr
+    : term@lhs add term@rhs
+    ;
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					withProdPos(
+						prod("expr",
+							withAltPos(
+								alt(
+									withElemPos(
+										withLabel(
+											id("term"),
+											withLabelPos(
+												label("lhs"),
+												newPos(3),
+											),
+										),
+										newPos(3),
+									),
+									withElemPos(
+										id("add"),
+										newPos(3),
+									),
+									withElemPos(
+										withLabel(
+											id("term"),
+											withLabelPos(
+												label("rhs"),
+												newPos(3),
+											),
+										),
+										newPos(3),
+									),
+								),
+								newPos(3),
+							),
+						),
+						newPos(2),
+					),
+				},
+			},
+		},
+		{
+			caption: "a label must be an identifier, not a string",
+			src: `
+foo
+    : bar@'baz'
+    ;
+`,
+			synErr: synErrNoLabel,
+		},
+		{
+			caption: "a label must be an identifier, not a pattern",
+			src: `
+foo
+    : bar@"baz"
+    ;
+`,
+			synErr: synErrNoLabel,
+		},
+		{
+			caption: "the symbol marker @ must be followed by an identifier",
+			src: `
+foo
+    : bar@
+    ;
+`,
+			synErr: synErrNoLabel,
+		},
+		{
+			caption: "a symbol cannot have more than or equal to two labels",
+			src: `
+foo
+    : bar@baz@bra
+    ;
+`,
+			synErr: synErrLabelWithNoSymbol,
+		},
+		{
+			caption: "a label must follow a symbol",
+			src: `
+foo
+    : @baz
+    ;
+`,
+			synErr: synErrLabelWithNoSymbol,
 		},
 		{
 			caption: "a grammar can contain left and right associativities",

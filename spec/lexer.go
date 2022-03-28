@@ -23,6 +23,7 @@ const (
 	tokenKindColon           = tokenKind(":")
 	tokenKindOr              = tokenKind("|")
 	tokenKindSemicolon       = tokenKind(";")
+	tokenKindLabelMarker     = tokenKind("@")
 	tokenKindDirectiveMarker = tokenKind("#")
 	tokenKindPosition        = tokenKind("$")
 	tokenKindExpantion       = tokenKind("...")
@@ -269,6 +270,8 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		return newSymbolToken(tokenKindOr, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDSemicolon:
 		return newSymbolToken(tokenKindSemicolon, newPosition(tok.Row+1, tok.Col+1)), nil
+	case KindIDLabelMarker:
+		return newSymbolToken(tokenKindLabelMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDDirectiveMarker:
 		return newSymbolToken(tokenKindDirectiveMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDPosition:
