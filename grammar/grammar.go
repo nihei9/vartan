@@ -677,7 +677,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	LOOP_RHS:
 		for _, alt := range prod.RHS {
 			altSyms := make([]symbol, len(alt.Elements))
-			labels := map[string]int{}
+			offsets := map[string]int{}
 			for i, elem := range alt.Elements {
 				var sym symbol
 				if elem.Pattern != "" {
@@ -710,7 +710,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 				altSyms[i] = sym
 
 				if elem.Label != nil {
-					if _, added := labels[elem.Label.Name]; added {
+					if _, added := offsets[elem.Label.Name]; added {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDuplicateLabel,
 							Detail: elem.Label.Name,
@@ -728,7 +728,11 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						})
 						continue LOOP_RHS
 					}
-					labels[elem.Label.Name] = i
+					offsets[elem.Label.Name] = i
+				} else {
+					if elem.ID != "" {
+						offsets[elem.ID] = i
+					}
 				}
 			}
 
@@ -793,57 +797,57 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 					}
 					astAct := make([]*astActionEntry, len(dir.Parameters))
 					for i, param := range dir.Parameters {
-						if param.SymbolPosition == nil {
+						if param.ID == "" {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDirInvalidParam,
-								Detail: "'ast' directive can take only symbol position parameters",
+								Detail: "'ast' directive can take only ID parameters",
 								Row:    dir.Pos.Row,
 								Col:    dir.Pos.Col,
 							})
 							continue LOOP_RHS
 						}
-						symPos := param.SymbolPosition
-						if symPos.Position > len(alt.Elements) {
+
+						offset, ok := offsets[param.ID]
+						if !ok {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDirInvalidParam,
-								Detail: fmt.Sprintf("a symbol position must be less than or equal to the length of an alternativ (%v)", len(alt.Elements)),
-								Row:    symPos.Pos.Row,
-								Col:    symPos.Pos.Col,
+								Detail: fmt.Sprintf("a symbol was not found in an alternative: %v", param.ID),
+								Row:    param.Pos.Row,
+								Col:    param.Pos.Col,
 							})
 							continue LOOP_RHS
 						}
 
-						if symPos.Expansion {
-							offset := symPos.Position - 1
+						if param.Expansion {
 							elem := alt.Elements[offset]
 							if elem.Pattern != "" {
 								b.errs = append(b.errs, &verr.SpecError{
 									Cause:  semErrDirInvalidParam,
-									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a pattern ($%v: %v)", symPos.Position, elem.Pattern),
-									Row:    symPos.Pos.Row,
-									Col:    symPos.Pos.Col,
+									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a pattern (%v: \"%v\")", param.ID, elem.Pattern),
+									Row:    param.Pos.Row,
+									Col:    param.Pos.Col,
 								})
 								continue LOOP_RHS
 							}
 							elemSym, ok := symTab.toSymbol(elem.ID)
 							if !ok {
 								// If the symbol was not found, it's a bug.
-								return nil, fmt.Errorf("a symbol corresponding to a position ($%v: %v) was not found", symPos.Position, elem.ID)
+								return nil, fmt.Errorf("a symbol corresponding to an ID (%v) was not found", elem.ID)
 							}
 							if elemSym.isTerminal() {
 								b.errs = append(b.errs, &verr.SpecError{
 									Cause:  semErrDirInvalidParam,
-									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a terminal symbol ($%v: %v)", symPos.Position, elem.ID),
-									Row:    symPos.Pos.Row,
-									Col:    symPos.Pos.Col,
+									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a terminal symbol (%v: %v)", param.ID, elem.ID),
+									Row:    param.Pos.Row,
+									Col:    param.Pos.Col,
 								})
 								continue LOOP_RHS
 							}
 						}
 
 						astAct[i] = &astActionEntry{
-							position:  symPos.Position,
-							expansion: symPos.Expansion,
+							position:  offset + 1,
+							expansion: param.Expansion,
 						}
 					}
 					astActs[p.id] = astAct

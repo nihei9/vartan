@@ -322,10 +322,10 @@ fragment words: "[A-Za-z\u{0020}]+";
 %name test
 
 list
-    : "\[" elems "]" #ast $2...
+    : "\[" elems "]" #ast elems...
     ;
 elems
-    : elems "," id #ast $1... $3
+    : elems "," id #ast elems... id
     | id
     ;
 whitespace: "\u{0020}+" #skip;
@@ -353,6 +353,39 @@ id: "[A-Za-z]+";
 				termNode("id", "Langly"),
 			),
 		},
+		// A label can be a parameter of #ast directive.
+		{
+			specSrc: `
+%name test
+
+%left add sub
+
+expr
+    : expr@lhs add expr@rhs #ast add lhs rhs
+    | expr@lhs sub expr@rhs #ast sub lhs rhs
+    | num
+    ;
+add: '+';
+sub: '-';
+num: "0|[1-9][0-9]*";
+`,
+			src: `1+2-3`,
+			ast: nonTermNode("expr",
+				termNode("sub", "-"),
+				nonTermNode("expr",
+					termNode("add", "+"),
+					nonTermNode("expr",
+						termNode("num", "1"),
+					),
+					nonTermNode("expr",
+						termNode("num", "2"),
+					),
+				),
+				nonTermNode("expr",
+					termNode("num", "3"),
+				),
+			),
+		},
 		// An ast action cannot be applied to a terminal symbol.
 		{
 			specSrc: `
@@ -362,7 +395,7 @@ s
     : foo
     ;
 foo
-    : "foo" #ast $1...
+    : "foo"@f #ast f...
     ;
 `,
 			specErr: true,
@@ -373,9 +406,74 @@ foo
 %name test
 
 s
-    : foo #ast $1...
+    : foo #ast foo...
     ;
 foo: "foo";
+`,
+			specErr: true,
+		},
+		// The expansion cannot be applied to a pattern.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo "bar"@b #ast foo b...
+    ;
+foo: "foo";
+`,
+			specErr: true,
+		},
+		// The expansion cannot be applied to a string.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo 'bar'@b #ast foo b...
+    ;
+foo: "foo";
+`,
+			specErr: true,
+		},
+		// A parameter of #ast directive must be either a symbol or a label in an alternative.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo bar #ast foo x
+    ;
+foo: "foo";
+bar: "bar";
+`,
+			specErr: true,
+		},
+		// A symbol in a different alternative cannot be a parameter of #ast directive.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo #ast bar
+    | bar
+    ;
+foo: "foo";
+bar: "bar";
+`,
+			specErr: true,
+		},
+		// A label in a different alternative cannot be a parameter of #ast directive.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo #ast b
+    | bar@b
+    ;
+foo: "foo";
+bar: "bar";
 `,
 			specErr: true,
 		},

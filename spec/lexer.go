@@ -7,7 +7,6 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	verr "github.com/nihei9/vartan/error"
@@ -25,7 +24,6 @@ const (
 	tokenKindSemicolon       = tokenKind(";")
 	tokenKindLabelMarker     = tokenKind("@")
 	tokenKindDirectiveMarker = tokenKind("#")
-	tokenKindPosition        = tokenKind("$")
 	tokenKindExpantion       = tokenKind("...")
 	tokenKindMetaDataMarker  = tokenKind("%")
 	tokenKindNewline         = tokenKind("newline")
@@ -48,7 +46,6 @@ func newPosition(row, col int) Position {
 type token struct {
 	kind tokenKind
 	text string
-	num  int
 	pos  Position
 }
 
@@ -79,14 +76,6 @@ func newStringLiteralToken(text string, pos Position) *token {
 	return &token{
 		kind: tokenKindStringLiteral,
 		text: text,
-		pos:  pos,
-	}
-}
-
-func newPositionToken(num int, pos Position) *token {
-	return &token{
-		kind: tokenKindPosition,
-		num:  num,
 		pos:  pos,
 	}
 }
@@ -274,20 +263,6 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		return newSymbolToken(tokenKindLabelMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDDirectiveMarker:
 		return newSymbolToken(tokenKindDirectiveMarker, newPosition(tok.Row+1, tok.Col+1)), nil
-	case KindIDPosition:
-		// Remove '$' character and convert to an integer.
-		num, err := strconv.Atoi(string(tok.Lexeme)[1:])
-		if err != nil {
-			return nil, err
-		}
-		if num == 0 {
-			return nil, &verr.SpecError{
-				Cause: synErrZeroPos,
-				Row:   tok.Row + 1,
-				Col:   tok.Col + 1,
-			}
-		}
-		return newPositionToken(num, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDExpansion:
 		return newSymbolToken(tokenKindExpantion, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDMetadataMarker:

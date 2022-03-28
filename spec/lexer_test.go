@@ -24,10 +24,6 @@ func TestLexer_Run(t *testing.T) {
 		return newSymbolToken(kind, newPosition(1, 0))
 	}
 
-	posTok := func(num int) *token {
-		return newPositionToken(num, newPosition(1, 0))
-	}
-
 	invalidTok := func(text string) *token {
 		return newInvalidToken(text, newPosition(1, 0))
 	}
@@ -40,7 +36,7 @@ func TestLexer_Run(t *testing.T) {
 	}{
 		{
 			caption: "the lexer can recognize all kinds of tokens",
-			src:     `id"terminal"'string':|;@$1...#%`,
+			src:     `id"terminal"'string':|;@...#%`,
 			tokens: []*token{
 				idTok("id"),
 				termPatTok("terminal"),
@@ -49,7 +45,6 @@ func TestLexer_Run(t *testing.T) {
 				symTok(tokenKindOr),
 				symTok(tokenKindSemicolon),
 				symTok(tokenKindLabelMarker),
-				posTok(1),
 				symTok(tokenKindExpantion),
 				symTok(tokenKindDirectiveMarker),
 				symTok(tokenKindMetaDataMarker),
@@ -148,11 +143,6 @@ bar // This is the fourth comment.
 			err:     synErrIncompletedEscSeq,
 		},
 		{
-			caption: "a position must be greater than or equal to 1",
-			src:     `$0`,
-			err:     synErrZeroPos,
-		},
-		{
 			caption: "the lexer can recognize valid tokens following an invalid token",
 			src:     `abc!!!def`,
 			tokens: []*token{
@@ -213,7 +203,7 @@ bar // This is the fourth comment.
 
 func testToken(t *testing.T, tok, expected *token) {
 	t.Helper()
-	if tok.kind != expected.kind || tok.text != expected.text || tok.num != expected.num {
+	if tok.kind != expected.kind || tok.text != expected.text {
 		t.Fatalf("unexpected token; want: %+v, got: %+v", expected, tok)
 	}
 }

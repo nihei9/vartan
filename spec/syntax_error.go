@@ -22,7 +22,6 @@ var (
 	synErrIncompletedEscSeq = newSyntaxError("incompleted escape sequence; unexpected EOF following a backslash")
 	synErrEmptyPattern      = newSyntaxError("a pattern must include at least one character")
 	synErrEmptyString       = newSyntaxError("a string must include at least one character")
-	synErrZeroPos           = newSyntaxError("a position must be greater than or equal to 1")
 
 	// syntax errors
 	synErrInvalidToken       = newSyntaxError("invalid token")

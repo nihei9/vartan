@@ -55,14 +55,8 @@ type DirectiveNode struct {
 }
 
 type ParameterNode struct {
-	ID             string
-	String         string
-	SymbolPosition *SymbolPositionNode
-	Pos            Position
-}
-
-type SymbolPositionNode struct {
-	Position  int
+	ID        string
+	String    string
 	Expansion bool
 	Pos       Position
 }
@@ -453,32 +447,25 @@ func (p *parser) parseDirective() *DirectiveNode {
 }
 
 func (p *parser) parseParameter() *ParameterNode {
+	var param *ParameterNode
 	switch {
 	case p.consume(tokenKindID):
-		return &ParameterNode{
+		param = &ParameterNode{
 			ID:  p.lastTok.text,
 			Pos: p.lastTok.pos,
 		}
 	case p.consume(tokenKindStringLiteral):
-		return &ParameterNode{
+		param = &ParameterNode{
 			String: p.lastTok.text,
 			Pos:    p.lastTok.pos,
 		}
-	case p.consume(tokenKindPosition):
-		symPos := &SymbolPositionNode{
-			Position: p.lastTok.num,
-			Pos:      p.lastTok.pos,
-		}
-		if p.consume(tokenKindExpantion) {
-			symPos.Expansion = true
-		}
-		return &ParameterNode{
-			SymbolPosition: symPos,
-			Pos:            symPos.Pos,
-		}
+	default:
+		return nil
 	}
-
-	return nil
+	if p.consume(tokenKindExpantion) {
+		param.Expansion = true
+	}
+	return param
 }
 
 func (p *parser) consume(expected tokenKind) bool {

@@ -62,20 +62,9 @@ func TestParse(t *testing.T) {
 			ID: id,
 		}
 	}
-	symPosParam := func(symPos *SymbolPositionNode) *ParameterNode {
-		return &ParameterNode{
-			SymbolPosition: symPos,
-		}
-	}
-	symPos := func(symPos int, exp bool) *SymbolPositionNode {
-		return &SymbolPositionNode{
-			Position:  symPos,
-			Expansion: exp,
-		}
-	}
-	withSymPosPos := func(symPos *SymbolPositionNode, pos Position) *SymbolPositionNode {
-		symPos.Pos = pos
-		return symPos
+	exp := func(param *ParameterNode) *ParameterNode {
+		param.Expansion = true
+		return param
 	}
 	withParamPos := func(param *ParameterNode, pos Position) *ParameterNode {
 		param.Pos = pos
@@ -393,14 +382,14 @@ s: foo; foo: "foo";
 			synErr: synErrSemicolonNoNewline,
 		},
 		{
-			caption: "a grammar can contain 'ast' directives",
+			caption: "a grammar can contain 'ast' directives and expansion operator",
 			src: `
 s
-    : foo bar_list #ast $1 $2
+    : foo bar_list #ast foo bar_list
     ;
 bar_list
-    : bar_list bar #ast $1... $2
-    | bar          #ast $1
+    : bar_list bar #ast bar_list... bar
+    | bar          #ast bar
     ;
 foo: "foo";
 bar: "bar";
@@ -410,17 +399,17 @@ bar: "bar";
 					prod("s",
 						withAltDir(
 							alt(id("foo"), id("bar_list")),
-							dir("ast", symPosParam(symPos(1, false)), symPosParam(symPos(2, false))),
+							dir("ast", idParam("foo"), idParam("bar_list")),
 						),
 					),
 					prod("bar_list",
 						withAltDir(
 							alt(id("bar_list"), id("bar")),
-							dir("ast", symPosParam(symPos(1, true)), symPosParam(symPos(2, false))),
+							dir("ast", exp(idParam("bar_list")), idParam("bar")),
 						),
 						withAltDir(
 							alt(id("bar")),
-							dir("ast", symPosParam(symPos(1, false))),
+							dir("ast", idParam("bar")),
 						),
 					),
 				},
@@ -439,7 +428,7 @@ bar: "bar";
 			src: `
 #mode default
 exp
-    : exp "\+" id #ast $1 $2
+    : exp "\+" id #ast exp id
     | id
     ;
 whitespace: "\u{0020}+" #skip;
@@ -462,18 +451,8 @@ fragment number: "[0-9]";
 										),
 										withDirPos(
 											dir("ast",
-												withParamPos(
-													symPosParam(
-														withSymPosPos(symPos(1, false), newPos(4)),
-													),
-													newPos(4),
-												),
-												withParamPos(
-													symPosParam(
-														withSymPosPos(symPos(2, false), newPos(4)),
-													),
-													newPos(4),
-												),
+												withParamPos(idParam("exp"), newPos(4)),
+												withParamPos(idParam("id"), newPos(4)),
 											),
 											newPos(4),
 										),
@@ -861,19 +840,8 @@ func testParameter(t *testing.T, param, expected *ParameterNode, checkPosition b
 	if param.String != expected.String {
 		t.Fatalf("unexpected string parameter; want: %v, got: %v", expected.ID, param.ID)
 	}
-	if expected.SymbolPosition == nil && param.SymbolPosition != nil {
-		t.Fatalf("unexpected symbol position parameter; want: nil, got: %+v", param.SymbolPosition)
-	}
-	if expected.SymbolPosition != nil {
-		if param.SymbolPosition == nil {
-			t.Fatalf("unexpected symbol position parameter; want: %+v, got: nil", expected.SymbolPosition)
-		}
-		if param.SymbolPosition.Position != expected.SymbolPosition.Position {
-			t.Fatalf("unexpected symbol position; want: %v, got: %v", expected.SymbolPosition.Position, param.SymbolPosition.Position)
-		}
-		if checkPosition {
-			testPosition(t, param.Pos, expected.Pos)
-		}
+	if param.Expansion != expected.Expansion {
+		t.Fatalf("unexpected expansion; want: %v, got: %v", expected.Expansion, param.Expansion)
 	}
 	if checkPosition {
 		testPosition(t, param.Pos, expected.Pos)
