@@ -44,10 +44,14 @@ elem
     : a b c
 	;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-a: 'a';
-b: 'b';
-c: 'c';
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+a
+    : 'a';
+b
+    : 'b';
+c
+    : 'c';
 `,
 			src:         `!; a!; ab!;`,
 			synErrCount: 3,
@@ -66,10 +70,14 @@ elem
     : a b c
 	;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-a: 'a';
-b: 'b';
-c: 'c';
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+a
+    : 'a';
+b
+    : 'b';
+c
+    : 'c';
 `,
 			// After the parser trasits to the error state reading the first invalid symbol ('!'),
 			// the second and third invalid symbols ('!') are ignored.
@@ -90,10 +98,14 @@ elem
     : a b c
 	;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-a: 'a';
-b: 'b';
-c: 'c';
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+a
+    : 'a';
+b
+    : 'b';
+c
+    : 'c';
 `,
 			src:         `!**; a!**; ab!**; abc!`,
 			synErrCount: 4,

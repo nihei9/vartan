@@ -179,10 +179,14 @@ expr
 	| id
     ;
 
-whitespaces: "[\u{0009}\u{0020}]+" #skip;
-r1: 'r1';
-r2: 'r2';
-id: "[A-Za-z0-9_]+";
+whitespaces #skip
+    : "[\u{0009}\u{0020}]+";
+r1
+    : 'r1';
+r2
+    : 'r2';
+id
+    : "[A-Za-z0-9_]+";
 `,
 			src: `a r2 b r1 c r1 d r2 e`,
 			cst: nonTermNode("expr",
@@ -226,10 +230,14 @@ expr
 	| id
     ;
 
-whitespaces: "[\u{0009}\u{0020}]+" #skip;
-r1: 'r1';
-r2: 'r2';
-id: "[A-Za-z0-9_]+";
+whitespaces #skip
+    : "[\u{0009}\u{0020}]+";
+r1
+    : 'r1';
+r2
+    : 'r2';
+id
+    : "[A-Za-z0-9_]+";
 `,
 			src: `a r2 b r1 c r1 d r2 e`,
 			cst: nonTermNode("expr",

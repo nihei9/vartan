@@ -16,10 +16,10 @@ type RootNode struct {
 }
 
 type ProductionNode struct {
-	Directive *DirectiveNode
-	LHS       string
-	RHS       []*AlternativeNode
-	Pos       Position
+	Directives []*DirectiveNode
+	LHS        string
+	RHS        []*AlternativeNode
+	Pos        Position
 }
 
 func (n *ProductionNode) isLexical() bool {
@@ -312,7 +312,14 @@ func (p *parser) parseProduction() *ProductionNode {
 	lhs := p.lastTok.text
 	lhsPos := p.lastTok.pos
 
-	dir := p.parseDirective()
+	var dirs []*DirectiveNode
+	for {
+		dir := p.parseDirective()
+		if dir == nil {
+			break
+		}
+		dirs = append(dirs, dir)
+	}
 
 	p.consume(tokenKindNewline)
 
@@ -345,10 +352,10 @@ func (p *parser) parseProduction() *ProductionNode {
 	}
 
 	return &ProductionNode{
-		Directive: dir,
-		LHS:       lhs,
-		RHS:       rhs,
-		Pos:       lhsPos,
+		Directives: dirs,
+		LHS:        lhs,
+		RHS:        rhs,
+		Pos:        lhsPos,
 	}
 }
 

@@ -30,8 +30,8 @@ func TestParse(t *testing.T) {
 		prod.Pos = pos
 		return prod
 	}
-	withProdDir := func(prod *ProductionNode, dir *DirectiveNode) *ProductionNode {
-		prod.Directive = dir
+	withProdDir := func(prod *ProductionNode, dirs ...*DirectiveNode) *ProductionNode {
+		prod.Directives = dirs
 		return prod
 	}
 	alt := func(elems ...*ElementNode) *AlternativeNode {
@@ -299,16 +299,16 @@ mode_tran
     | pop_m2
     ;
 
-push_m1
-    : "->" #push m1;
-push_m2 #mode m1
-    : "-->" #push m2;
-pop_m1 #mode m1
-    : "<-" #pop;
-pop_m2 #mode m2
-    : "<--" #pop;
-whitespace #mode default m1 m2
-    : "\u{0020}+" #skip;
+push_m1 #push m1
+    : "->";
+push_m2 #mode m1 #push m2
+    : "-->";
+pop_m1 #mode m1 #pop
+    : "<-";
+pop_m2 #mode m2 #pop
+    : "<--";
+whitespace #mode default m1 m2 #skip
+    : "\u{0020}+";
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
@@ -324,47 +324,39 @@ whitespace #mode default m1 m2
 					),
 				},
 				LexProductions: []*ProductionNode{
-					prod("push_m1",
-						withAltDir(
+					withProdDir(
+						prod("push_m1",
 							alt(pat(`->`)),
-							dir("push", idParam("m1")),
 						),
+						dir("push", idParam("m1")),
 					),
 					withProdDir(
 						prod("push_m2",
-							withAltDir(
-								alt(pat(`-->`)),
-								dir("push", idParam("m2")),
-							),
+							alt(pat(`-->`)),
 						),
 						dir("mode", idParam("m1")),
+						dir("push", idParam("m2")),
 					),
 					withProdDir(
 						prod("pop_m1",
-							withAltDir(
-								alt(pat(`<-`)),
-								dir("pop"),
-							),
+							alt(pat(`<-`)),
 						),
 						dir("mode", idParam("m1")),
+						dir("pop"),
 					),
 					withProdDir(
 						prod("pop_m2",
-							withAltDir(
-								alt(pat(`<--`)),
-								dir("pop"),
-							),
+							alt(pat(`<--`)),
 						),
 						dir("mode", idParam("m2")),
+						dir("pop"),
 					),
 					withProdDir(
 						prod("whitespace",
-							withAltDir(
-								alt(pat(`\u{0020}+`)),
-								dir("skip"),
-							),
+							alt(pat(`\u{0020}+`)),
 						),
 						dir("mode", idParam("default"), idParam("m1"), idParam("m2")),
+						dir("skip"),
 					),
 				},
 			},
@@ -425,10 +417,15 @@ exp
     : exp "\+" id #ast exp id
     | id
     ;
-whitespace: "\u{0020}+" #skip;
-id: "\f{letter}(\f{letter}|\f{number})*";
-fragment letter: "[A-Za-z_]";
-fragment number: "[0-9]";
+
+whitespace #skip
+    : "\u{0020}+";
+id
+    : "\f{letter}(\f{letter}|\f{number})*";
+fragment letter
+    : "[A-Za-z_]";
+fragment number
+    : "[0-9]";
 `,
 			checkPosition: true,
 			ast: &RootNode{
@@ -464,24 +461,24 @@ fragment number: "[0-9]";
 				},
 				LexProductions: []*ProductionNode{
 					withProdPos(
-						prod("whitespace",
-							withAltPos(
-								withAltDir(
+						withProdDir(
+							prod("whitespace",
+								withAltPos(
 									alt(
 										withElemPos(
 											pat(`\u{0020}+`),
-											newPos(6),
+											newPos(8),
 										),
 									),
-									withDirPos(
-										dir("skip"),
-										newPos(6),
-									),
+									newPos(8),
 								),
-								newPos(6),
+							),
+							withDirPos(
+								dir("skip"),
+								newPos(7),
 							),
 						),
-						newPos(6),
+						newPos(7),
 					),
 					withProdPos(
 						prod("id",
@@ -489,23 +486,23 @@ fragment number: "[0-9]";
 								alt(
 									withElemPos(
 										pat(`\f{letter}(\f{letter}|\f{number})*`),
-										newPos(7),
+										newPos(10),
 									),
 								),
-								newPos(7),
+								newPos(10),
 							),
 						),
-						newPos(7),
+						newPos(9),
 					),
 				},
 				Fragments: []*FragmentNode{
 					withFragmentPos(
 						frag("letter", "[A-Za-z_]"),
-						newPos(8),
+						newPos(11),
 					),
 					withFragmentPos(
 						frag("number", "[0-9]"),
-						newPos(9),
+						newPos(13),
 					),
 				},
 			},
@@ -614,14 +611,22 @@ s
     | id r1 id r2 id r3 id
     ;
 
-whitespaces: "[\u{0009}\u{0020}]+" #skip;
-l1: 'l1';
-l2: 'l2';
-l3: 'l3';
-r1: 'r1';
-r2: 'r2';
-r3: 'r3';
-id: "[A-Za-z0-9_]+";
+whitespaces #skip
+    : "[\u{0009}\u{0020}]+";
+l1
+    : 'l1';
+l2
+    : 'l2';
+l3
+    : 'l3';
+r1
+    : 'r1';
+r2
+    : 'r2';
+r3
+    : 'r3';
+id
+    : "[A-Za-z0-9_]+";
 `,
 			ast: &RootNode{
 				MetaData: []*DirectiveNode{
@@ -659,11 +664,11 @@ id: "[A-Za-z0-9_]+";
 					),
 				},
 				LexProductions: []*ProductionNode{
-					prod("whitespaces",
-						withAltDir(
+					withProdDir(
+						prod("whitespaces",
 							alt(pat(`[\u{0009}\u{0020}]+`)),
-							dir("skip"),
 						),
+						dir("skip"),
 					),
 					prod("l1", alt(pat(`l1`))),
 					prod("l2", alt(pat(`l2`))),
@@ -713,7 +718,7 @@ func testRootNode(t *testing.T, root, expected *RootNode, checkPosition bool) {
 		t.Fatalf("unexpected length of meta data; want: %v, got: %v", len(expected.MetaData), len(root.MetaData))
 	}
 	for i, md := range root.MetaData {
-		testDirective(t, md, expected.MetaData[i], true)
+		testDirectives(t, []*DirectiveNode{md}, []*DirectiveNode{expected.MetaData[i]}, true)
 	}
 	for i, prod := range root.Productions {
 		testProductionNode(t, prod, expected.Productions[i], checkPosition)
@@ -728,14 +733,11 @@ func testRootNode(t *testing.T, root, expected *RootNode, checkPosition bool) {
 
 func testProductionNode(t *testing.T, prod, expected *ProductionNode, checkPosition bool) {
 	t.Helper()
-	if expected.Directive == nil && prod.Directive != nil {
-		t.Fatalf("unexpected directive; want: nil, got: %+v", prod.Directive)
+	if len(expected.Directives) != len(prod.Directives) {
+		t.Fatalf("unexpected directive count; want: %v directives, got: %v directives", len(expected.Directives), len(prod.Directives))
 	}
-	if expected.Directive != nil {
-		if prod.Directive == nil {
-			t.Fatalf("a directive is not set; want: %+v, got: nil", expected.Directive)
-		}
-		testDirective(t, prod.Directive, expected.Directive, checkPosition)
+	if len(expected.Directives) > 0 {
+		testDirectives(t, prod.Directives, expected.Directives, checkPosition)
 	}
 	if prod.LHS != expected.LHS {
 		t.Fatalf("unexpected LHS; want: %v, got: %v", expected.LHS, prod.LHS)
@@ -779,7 +781,7 @@ func testAlternativeNode(t *testing.T, alt, expected *AlternativeNode, checkPosi
 		if alt.Directive == nil {
 			t.Fatalf("a directive is not set; want: %+v, got: nil", expected.Directive)
 		}
-		testDirective(t, alt.Directive, expected.Directive, checkPosition)
+		testDirectives(t, []*DirectiveNode{alt.Directive}, []*DirectiveNode{expected.Directive}, checkPosition)
 	}
 	if checkPosition {
 		testPosition(t, alt.Pos, expected.Pos)
@@ -799,19 +801,23 @@ func testElementNode(t *testing.T, elem, expected *ElementNode, checkPosition bo
 	}
 }
 
-func testDirective(t *testing.T, dir, expected *DirectiveNode, checkPosition bool) {
+func testDirectives(t *testing.T, dirs, expected []*DirectiveNode, checkPosition bool) {
 	t.Helper()
-	if expected.Name != dir.Name {
-		t.Fatalf("unexpected directive name; want: %+v, got: %+v", expected.Name, dir.Name)
-	}
-	if len(expected.Parameters) != len(dir.Parameters) {
-		t.Fatalf("unexpected directive parameter; want: %+v, got: %+v", expected.Parameters, dir.Parameters)
-	}
-	for i, param := range dir.Parameters {
-		testParameter(t, param, expected.Parameters[i], checkPosition)
-	}
-	if checkPosition {
-		testPosition(t, dir.Pos, expected.Pos)
+	for i, exp := range expected {
+		dir := dirs[i]
+
+		if exp.Name != dir.Name {
+			t.Fatalf("unexpected directive name; want: %+v, got: %+v", exp.Name, dir.Name)
+		}
+		if len(exp.Parameters) != len(dir.Parameters) {
+			t.Fatalf("unexpected directive parameter; want: %+v, got: %+v", exp.Parameters, dir.Parameters)
+		}
+		for j, expParam := range exp.Parameters {
+			testParameter(t, dir.Parameters[j], expParam, checkPosition)
+		}
+		if checkPosition {
+			testPosition(t, dir.Pos, exp.Pos)
+		}
 	}
 }
 

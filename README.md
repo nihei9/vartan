@@ -36,7 +36,7 @@ expr
 	| expr mul expr
 	| expr div expr
 	| func_call
-	| integer
+	| int
 	| id
 	| '(' expr ')' #ast expr
 	;
@@ -49,13 +49,20 @@ args
 	| expr
 	;
 
-whitespaces: "[\u{0009}\u{0020}]+" #skip;
-integer: "0|[1-9][0-9]*";
-id: "[A-Za-z_][0-9A-Za-z_]*";
-add: '+';
-sub: '-';
-mul: '*';
-div: '/';
+ws #skip
+	: "[\u{0009}\u{0020}]+";
+int
+	: "0|[1-9][0-9]*";
+id
+	: "[A-Za-z_][0-9A-Za-z_]*";
+add
+	: '+';
+sub
+	: '-';
+mul
+	: '*';
+div
+	: '/';
 ```
 
 Save the above grammar to a file in UTF-8. In this explanation, the file name is `expr.vr`.
@@ -87,7 +94,7 @@ expr
 │     ├─ id "foo"
 │     └─ args
 │        ├─ expr
-│        │  └─ integer "10"
+│        │  └─ int "10"
 │        └─ expr
 │           └─ func_call
 │              ├─ id "bar"
@@ -97,7 +104,7 @@ expr
 ├─ add "+"
 └─ expr
    ├─ expr
-   │  └─ integer "99"
+   │  └─ int "99"
    ├─ mul "*"
    └─ expr
       └─ id "x"
@@ -126,8 +133,8 @@ LALR(1)
    3  - - x_1 (\()
    4  - - x_2 (\))
    5  - - x_3 (,)
-   6  - - whitespaces
-   7  - - integer
+   6  - - ws
+   7  - - int
    8  - - id
    9  2 l add (+)
   10  2 l sub (-)
@@ -142,7 +149,7 @@ LALR(1)
    4  1 l expr → expr * expr
    5  1 l expr → expr / expr
    6  - - expr → func_call
-   7  - - expr → integer
+   7  - - expr → int
    8  - - expr → id
    9  - - expr → \( expr \)
   10  - - func_call → id \( args \)
@@ -157,7 +164,7 @@ LALR(1)
    1 expr' → ・ expr
 
 shift     3 on \(
-shift     4 on integer
+shift     4 on int
 shift     5 on id
 goto      1 on expr
 goto      2 on func_call
@@ -289,7 +296,7 @@ expr
 │  └─ id "foo"
 ├─ add "+"
 └─ expr
-   └─ integer "99"
+   └─ int "99"
 ```
 
 ```sh

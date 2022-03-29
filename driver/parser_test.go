@@ -245,7 +245,38 @@ bar: "bar";
 a
     : foo
     ;
-foo: "foo" #skip;
+
+foo #skip
+    : "foo";
+`,
+			src:     `foo`,
+			specErr: true,
+		},
+		// A lexical production cannot have alternative productions.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo
+    ;
+
+foo: 'foo' #skip;
+`,
+			src:     `foo`,
+			specErr: true,
+		},
+		// A directive must not be duplicated.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo
+    ;
+
+foo #skip #skip
+    : 'foo';
 `,
 			src:     `foo`,
 			specErr: true,
@@ -265,16 +296,16 @@ mode_tran
     | pop_m2
     ;
 
-push_m1
-    : "->" #push m1;
-push_m2 #mode m1
-    : "-->" #push m2;
-pop_m1 #mode m1
-    : "<-" #pop;
-pop_m2 #mode m2
-    : "<--" #pop;
-whitespace #mode default m1 m2
-    : "\u{0020}+" #skip;
+push_m1 #push m1
+    : "->";
+push_m2 #mode m1 #push m2
+    : "-->";
+pop_m1 #mode m1 #pop
+    : "<-";
+pop_m2 #mode m2 #pop
+    : "<--";
+whitespace #mode default m1 m2 #skip
+    : "\u{0020}+";
 `,
 			src: ` -> --> <-- <- `,
 		},
@@ -301,9 +332,13 @@ bar #mode default
 s
     : foo bar
     ;
-foo: "foo";
-bar: "bar";
-white_space: "[\u{0009}\u{0020}]+" #skip;
+
+foo
+    : "foo";
+bar
+    : "bar";
+white_space #skip
+    : "[\u{0009}\u{0020}]+";
 `,
 			src: `foo bar`,
 		},
@@ -332,8 +367,11 @@ elems
     : elems "," id #ast elems... id
     | id
     ;
-whitespace: "\u{0020}+" #skip;
-id: "[A-Za-z]+";
+
+whitespace #skip
+    : "\u{0020}+";
+id
+    : "[A-Za-z]+";
 `,
 			src: `[Byers, Frohike, Langly]`,
 			cst: nonTermNode("list",
@@ -389,20 +427,6 @@ num: "0|[1-9][0-9]*";
 					termNode("num", "3"),
 				),
 			),
-		},
-		// An ast action cannot be applied to a terminal symbol.
-		{
-			specSrc: `
-%name test
-
-s
-    : foo
-    ;
-foo
-    : "foo"@f #ast f...
-    ;
-`,
-			specErr: true,
 		},
 		// The expansion cannot be applied to a terminal symbol.
 		{
@@ -636,12 +660,18 @@ expr
     | int
     ;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-int: "0|[1-9][0-9]*";
-add: '+';
-sub: '-';
-mul: '*';
-div: '/';
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+int
+    : "0|[1-9][0-9]*";
+add
+    : '+';
+sub
+    : '-';
+mul
+    : '*';
+div
+    : '/';
 `,
 			// This source is recognized as the following structure because the production `expr → sub expr`
 			// has the `#prec mul` directive and has the same precedence and associativity of the symbol `mul`.
@@ -729,8 +759,10 @@ s
     | error ';'
     ;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-id: "[A-Za-z_]+";
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+id
+    : "[A-Za-z_]+";
 `,
 			src: `foo bar baz ;`,
 		},
@@ -748,8 +780,10 @@ elem
     | error ';' #recover
     ;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-id: "[A-Za-z_]+";
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+id
+    : "[A-Za-z_]+";
 `,
 			src: `a b c ; d e f ;`,
 		},
@@ -767,8 +801,10 @@ elem
     | error ';' #recover foo
     ;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-id: "[A-Za-z_]+";
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+id
+    : "[A-Za-z_]+";
 `,
 			src:     `a b c ; d e f ;`,
 			specErr: true,
@@ -814,8 +850,10 @@ s
     : foo
     ;
 
-foo: 'foo';
-error: 'error' #skip;
+foo
+    : 'foo';
+error #skip
+    : 'error';
 `,
 			specErr: true,
 		},

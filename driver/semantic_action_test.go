@@ -59,10 +59,14 @@ elem
     : char char char
 	;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-semicolon: ';';
-star: '*';
-char: "[a-z]";
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+semicolon
+    : ';';
+star
+    : '*';
+char
+    : "[a-z]";
 `
 
 	specSrcWithoutErrorProd := `
@@ -76,9 +80,12 @@ elem
     : char char char
 	;
 
-ws: "[\u{0009}\u{0020}]+" #skip;
-semicolon: ';';
-char: "[a-z]";
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+semicolon
+    : ';';
+char
+    : "[a-z]";
 `
 
 	tests := []struct {

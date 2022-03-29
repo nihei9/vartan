@@ -472,9 +472,34 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 }
 
 func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *verr.SpecError, error) {
+	alt := prod.RHS[0]
+	elem := alt.Elements[0]
+
+	var pattern string
+	var alias string
+	if elem.Literally {
+		pattern = mlspec.EscapePattern(elem.Pattern)
+		alias = elem.Pattern
+	} else {
+		pattern = elem.Pattern
+	}
+
 	var modes []mlspec.LexModeName
-	if prod.Directive != nil {
-		dir := prod.Directive
+	var skip bool
+	var push mlspec.LexModeName
+	var pop bool
+	dirConsumed := map[string]struct{}{}
+	for _, dir := range prod.Directives {
+		if _, consumed := dirConsumed[dir.Name]; consumed {
+			return nil, false, "", &verr.SpecError{
+				Cause:  semErrDuplicateDir,
+				Detail: dir.Name,
+				Row:    dir.Pos.Row,
+				Col:    dir.Pos.Col,
+			}, nil
+		}
+		dirConsumed[dir.Name] = struct{}{}
+
 		switch dir.Name {
 		case "mode":
 			if len(dir.Parameters) == 0 {
@@ -496,34 +521,6 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 				}
 				modes = append(modes, mlspec.LexModeName(param.ID))
 			}
-		default:
-			return nil, false, "", &verr.SpecError{
-				Cause:  semErrDirInvalidName,
-				Detail: dir.Name,
-				Row:    dir.Pos.Row,
-				Col:    dir.Pos.Col,
-			}, nil
-		}
-	}
-
-	alt := prod.RHS[0]
-	elem := alt.Elements[0]
-
-	var pattern string
-	var alias string
-	if elem.Literally {
-		pattern = mlspec.EscapePattern(elem.Pattern)
-		alias = elem.Pattern
-	} else {
-		pattern = elem.Pattern
-	}
-
-	var skip bool
-	var push mlspec.LexModeName
-	var pop bool
-	if alt.Directive != nil {
-		dir := alt.Directive
-		switch dir.Name {
 		case "skip":
 			if len(dir.Parameters) > 0 {
 				return nil, false, "", &verr.SpecError{
@@ -572,6 +569,15 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 				Col:    dir.Pos.Col,
 			}, nil
 		}
+	}
+
+	if alt.Directive != nil {
+		return nil, false, "", &verr.SpecError{
+			Cause:  semErrInvalidAltDir,
+			Detail: "a lexical production cannot have alternative directives",
+			Row:    alt.Directive.Pos.Row,
+			Col:    alt.Directive.Pos.Col,
+		}, nil
 	}
 
 	return &mlspec.LexEntry{

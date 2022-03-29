@@ -31,4 +31,6 @@ var (
 	semErrInvalidLabel        = newSemanticError("a label must differ from terminal symbols or non-terminal symbols")
 	semErrDirInvalidName      = newSemanticError("invalid directive name")
 	semErrDirInvalidParam     = newSemanticError("invalid parameter")
+	semErrDuplicateDir        = newSemanticError("a directive must not be duplicated")
+	semErrInvalidAltDir       = newSemanticError("invalid alternative directive")
 )
