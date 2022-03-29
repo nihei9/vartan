@@ -298,15 +298,17 @@ mode_tran
     | pop_m1
     | pop_m2
     ;
-push_m1: "->" #push m1;
-#mode m1
-push_m2: "-->" #push m2;
-#mode m1
-pop_m1 : "<-" #pop;
-#mode m2
-pop_m2: "<--" #pop;
-#mode default m1 m2
-whitespace: "\u{0020}+" #skip;
+
+push_m1
+    : "->" #push m1;
+push_m2 #mode m1
+    : "-->" #push m2;
+pop_m1 #mode m1
+    : "<-" #pop;
+pop_m2 #mode m2
+    : "<--" #pop;
+whitespace #mode default m1 m2
+    : "\u{0020}+" #skip;
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
@@ -368,13 +370,6 @@ whitespace: "\u{0020}+" #skip;
 			},
 		},
 		{
-			caption: "a production directive must be followed by a newline",
-			src: `
-#mode foo;
-`,
-			synErr: synErrProdDirNoNewline,
-		},
-		{
 			caption: "a production must be followed by a newline",
 			src: `
 s: foo; foo: "foo";
@@ -426,7 +421,6 @@ bar: "bar";
 		{
 			caption: "an AST has node positions",
 			src: `
-#mode default
 exp
     : exp "\+" id #ast exp id
     | id
@@ -440,43 +434,32 @@ fragment number: "[0-9]";
 			ast: &RootNode{
 				Productions: []*ProductionNode{
 					withProdPos(
-						withProdDir(
-							prod("exp",
-								withAltPos(
-									withAltDir(
-										alt(
-											withElemPos(id("exp"), newPos(4)),
-											withElemPos(pat(`\+`), newPos(4)),
-											withElemPos(id("id"), newPos(4)),
-										),
-										withDirPos(
-											dir("ast",
-												withParamPos(idParam("exp"), newPos(4)),
-												withParamPos(idParam("id"), newPos(4)),
-											),
-											newPos(4),
-										),
-									),
-									newPos(4),
-								),
-								withAltPos(
+						prod("exp",
+							withAltPos(
+								withAltDir(
 									alt(
-										withElemPos(id("id"), newPos(5)),
+										withElemPos(id("exp"), newPos(3)),
+										withElemPos(pat(`\+`), newPos(3)),
+										withElemPos(id("id"), newPos(3)),
 									),
-									newPos(5),
+									withDirPos(
+										dir("ast",
+											withParamPos(idParam("exp"), newPos(3)),
+											withParamPos(idParam("id"), newPos(3)),
+										),
+										newPos(3),
+									),
 								),
+								newPos(3),
 							),
-							withDirPos(
-								dir("mode",
-									withParamPos(
-										idParam("default"),
-										newPos(2),
-									),
+							withAltPos(
+								alt(
+									withElemPos(id("id"), newPos(4)),
 								),
-								newPos(2),
+								newPos(4),
 							),
 						),
-						newPos(3),
+						newPos(2),
 					),
 				},
 				LexProductions: []*ProductionNode{
@@ -487,11 +470,25 @@ fragment number: "[0-9]";
 									alt(
 										withElemPos(
 											pat(`\u{0020}+`),
-											newPos(7),
+											newPos(6),
 										),
 									),
 									withDirPos(
 										dir("skip"),
+										newPos(6),
+									),
+								),
+								newPos(6),
+							),
+						),
+						newPos(6),
+					),
+					withProdPos(
+						prod("id",
+							withAltPos(
+								alt(
+									withElemPos(
+										pat(`\f{letter}(\f{letter}|\f{number})*`),
 										newPos(7),
 									),
 								),
@@ -500,29 +497,15 @@ fragment number: "[0-9]";
 						),
 						newPos(7),
 					),
-					withProdPos(
-						prod("id",
-							withAltPos(
-								alt(
-									withElemPos(
-										pat(`\f{letter}(\f{letter}|\f{number})*`),
-										newPos(8),
-									),
-								),
-								newPos(8),
-							),
-						),
-						newPos(8),
-					),
 				},
 				Fragments: []*FragmentNode{
 					withFragmentPos(
 						frag("letter", "[A-Za-z_]"),
-						newPos(9),
+						newPos(8),
 					),
 					withFragmentPos(
 						frag("number", "[0-9]"),
-						newPos(10),
+						newPos(9),
 					),
 				},
 			},

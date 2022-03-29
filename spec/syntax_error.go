@@ -31,7 +31,6 @@ var (
 	synErrLabelWithNoSymbol  = newSyntaxError("a label must follow a symbol")
 	synErrNoLabel            = newSyntaxError("an identifier that represents a label is missing after the label marker @")
 	synErrNoDirectiveName    = newSyntaxError("a directive needs a name")
-	synErrProdDirNoNewline   = newSyntaxError("a production directive must be followed by a newline")
 	synErrSemicolonNoNewline = newSyntaxError("a semicolon must be followed by a newline")
 	synErrFragmentNoPattern  = newSyntaxError("a fragment needs one pattern element")
 )

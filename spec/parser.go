@@ -306,18 +306,13 @@ func (p *parser) parseProduction() *ProductionNode {
 		return nil
 	}
 
-	dir := p.parseDirective()
-	if dir != nil {
-		if !p.consume(tokenKindNewline) {
-			raiseSyntaxError(p.pos.Row, synErrProdDirNoNewline)
-		}
-	}
-
 	if !p.consume(tokenKindID) {
 		raiseSyntaxError(p.pos.Row, synErrNoProductionName)
 	}
 	lhs := p.lastTok.text
 	lhsPos := p.lastTok.pos
+
+	dir := p.parseDirective()
 
 	p.consume(tokenKindNewline)
 

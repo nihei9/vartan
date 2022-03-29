@@ -264,15 +264,17 @@ mode_tran
     | pop_m1
     | pop_m2
     ;
-push_m1: "->" #push m1;
-#mode m1
-push_m2: "-->" #push m2;
-#mode m1
-pop_m1 : "<-" #pop;
-#mode m2
-pop_m2: "<--" #pop;
-#mode default m1 m2
-whitespace: "\u{0020}+" #skip;
+
+push_m1
+    : "->" #push m1;
+push_m2 #mode m1
+    : "-->" #push m2;
+pop_m1 #mode m1
+    : "<-" #pop;
+pop_m2 #mode m2
+    : "<--" #pop;
+whitespace #mode default m1 m2
+    : "\u{0020}+" #skip;
 `,
 			src: ` -> --> <-- <- `,
 		},
@@ -283,9 +285,11 @@ whitespace: "\u{0020}+" #skip;
 s
     : foo bar
     ;
-foo: "foo";
-#mode default
-bar: "bar";
+
+foo
+    : "foo";
+bar #mode default
+    : "bar";
 `,
 			src: `foobar`,
 		},
