@@ -252,7 +252,104 @@ foo #skip
 			src:     `foo`,
 			specErr: true,
 		},
-		// A lexical production cannot have alternative productions.
+		// A production cannot have production directives.
+		{
+			specSrc: `
+%name test
+
+s #prec foo
+    : foo
+    ;
+
+foo: 'foo' #skip;
+`,
+			src:     `foo`,
+			specErr: true,
+		},
+		// A production can have multiple alternative productions.
+		{
+			specSrc: `
+%name test
+
+%left mul div
+%left add sub
+
+expr
+    : expr add expr
+    | expr sub expr
+    | expr mul expr
+    | expr div expr
+    | int
+    | sub int #prec mul #ast int sub // This 'sub' means the unary minus symbol.
+    ;
+
+int
+    : "0|[1-9][0-9]*";
+add
+    : '+';
+sub
+    : '-';
+mul
+    : '*';
+div
+    : '/';
+`,
+			src: `-1*-2+3-4/5`,
+			ast: nonTermNode("expr",
+				nonTermNode("expr",
+					nonTermNode("expr",
+						nonTermNode("expr",
+							termNode("int", "1"),
+							termNode("sub", "-"),
+						),
+						termNode("mul", "*"),
+						nonTermNode("expr",
+							termNode("int", "2"),
+							termNode("sub", "-"),
+						),
+					),
+					termNode("add", "+"),
+					nonTermNode("expr",
+						termNode("int", "3"),
+					),
+				),
+				termNode("sub", "-"),
+				nonTermNode("expr",
+					nonTermNode("expr",
+						termNode("int", "4"),
+					),
+					termNode("div", "/"),
+					nonTermNode("expr",
+						termNode("int", "5"),
+					),
+				),
+			),
+		},
+		// A lexical production can have multiple production directives.
+		{
+			specSrc: `
+%name test
+
+s
+    : push_a push_b pop pop
+    ;
+
+push_a #mode default #push a
+    : '->a';
+push_b #mode a #push b
+    : '->b';
+pop #mode a b #pop
+    : '<-';
+`,
+			src: `->a->b<-<-`,
+			ast: nonTermNode("s",
+				termNode("push_a", "->a"),
+				termNode("push_b", "->b"),
+				termNode("pop", "<-"),
+				termNode("pop", "<-"),
+			),
+		},
+		// A lexical production cannot have alternative directives.
 		{
 			specSrc: `
 %name test
@@ -266,7 +363,7 @@ foo: 'foo' #skip;
 			src:     `foo`,
 			specErr: true,
 		},
-		// A directive must not be duplicated.
+		// A production directive must not be duplicated.
 		{
 			specSrc: `
 %name test
@@ -279,6 +376,23 @@ foo #skip #skip
     : 'foo';
 `,
 			src:     `foo`,
+			specErr: true,
+		},
+		// An alternative directive must not be duplicated.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo bar #ast foo bar #ast foo bar
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			src:     `foobar`,
 			specErr: true,
 		},
 		{

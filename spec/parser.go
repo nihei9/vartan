@@ -30,9 +30,9 @@ func (n *ProductionNode) isLexical() bool {
 }
 
 type AlternativeNode struct {
-	Elements  []*ElementNode
-	Directive *DirectiveNode
-	Pos       Position
+	Elements   []*ElementNode
+	Directives []*DirectiveNode
+	Pos        Position
 }
 
 type ElementNode struct {
@@ -375,12 +375,19 @@ func (p *parser) parseAlternative() *AlternativeNode {
 		firstElemPos = elems[0].Pos
 	}
 
-	dir := p.parseDirective()
+	var dirs []*DirectiveNode
+	for {
+		dir := p.parseDirective()
+		if dir == nil {
+			break
+		}
+		dirs = append(dirs, dir)
+	}
 
 	return &AlternativeNode{
-		Elements:  elems,
-		Directive: dir,
-		Pos:       firstElemPos,
+		Elements:   elems,
+		Directives: dirs,
+		Pos:        firstElemPos,
 	}
 }
 

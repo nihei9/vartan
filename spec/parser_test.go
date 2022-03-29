@@ -43,8 +43,8 @@ func TestParse(t *testing.T) {
 		alt.Pos = pos
 		return alt
 	}
-	withAltDir := func(alt *AlternativeNode, dir *DirectiveNode) *AlternativeNode {
-		alt.Directive = dir
+	withAltDir := func(alt *AlternativeNode, dirs ...*DirectiveNode) *AlternativeNode {
+		alt.Directives = dirs
 		return alt
 	}
 	dir := func(name string, params ...*ParameterNode) *DirectiveNode {
@@ -357,6 +357,43 @@ whitespace #mode default m1 m2 #skip
 						),
 						dir("mode", idParam("default"), idParam("m1"), idParam("m2")),
 						dir("skip"),
+					),
+				},
+			},
+		},
+		{
+			caption: "an alternative of a production can have multiple alternative directives",
+			src: `
+s
+    : foo bar #prec baz #ast foo bar
+    ;
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					prod("s",
+						withAltDir(
+							alt(id("foo"), id("bar")),
+							dir("prec", idParam("baz")),
+							dir("ast", idParam("foo"), idParam("bar")),
+						),
+					),
+				},
+			},
+		},
+		{
+			caption: "a lexical production can have multiple production directives",
+			src: `
+foo #mode a #push b
+    : 'foo';
+`,
+			ast: &RootNode{
+				LexProductions: []*ProductionNode{
+					withProdDir(
+						prod("foo",
+							alt(pat("foo")),
+						),
+						dir("mode", idParam("a")),
+						dir("push", idParam("b")),
 					),
 				},
 			},
@@ -774,14 +811,11 @@ func testAlternativeNode(t *testing.T, alt, expected *AlternativeNode, checkPosi
 	for i, elem := range alt.Elements {
 		testElementNode(t, elem, expected.Elements[i], checkPosition)
 	}
-	if expected.Directive == nil && alt.Directive != nil {
-		t.Fatalf("unexpected directive; want: nil, got: %+v", alt.Directive)
+	if len(alt.Directives) != len(expected.Directives) {
+		t.Fatalf("unexpected alternative directive count; want: %v directive, got: %v directive", len(expected.Directives), len(alt.Directives))
 	}
-	if expected.Directive != nil {
-		if alt.Directive == nil {
-			t.Fatalf("a directive is not set; want: %+v, got: nil", expected.Directive)
-		}
-		testDirectives(t, []*DirectiveNode{alt.Directive}, []*DirectiveNode{expected.Directive}, checkPosition)
+	if len(alt.Directives) > 0 {
+		testDirectives(t, alt.Directives, expected.Directives, checkPosition)
 	}
 	if checkPosition {
 		testPosition(t, alt.Pos, expected.Pos)

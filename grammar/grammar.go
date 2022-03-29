@@ -571,12 +571,12 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 		}
 	}
 
-	if alt.Directive != nil {
+	if len(alt.Directives) > 0 {
 		return nil, false, "", &verr.SpecError{
 			Cause:  semErrInvalidAltDir,
 			Detail: "a lexical production cannot have alternative directives",
-			Row:    alt.Directive.Pos.Row,
-			Col:    alt.Directive.Pos.Col,
+			Row:    alt.Directives[0].Pos.Row,
+			Col:    alt.Directives[0].Pos.Col,
 		}, nil
 	}
 
@@ -678,6 +678,16 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 		if !ok {
 			// All symbols are assumed to be pre-detected, so it's a bug if we cannot find them here.
 			return nil, fmt.Errorf("symbol '%v' is undefined", prod.LHS)
+		}
+
+		if len(prod.Directives) > 0 {
+			b.errs = append(b.errs, &verr.SpecError{
+				Cause:  semErrInvalidProdDir,
+				Detail: "a production cannot have production directives",
+				Row:    prod.Directives[0].Pos.Row,
+				Col:    prod.Directives[0].Pos.Col,
+			})
+			continue
 		}
 
 	LOOP_RHS:
@@ -788,8 +798,18 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 			}
 			prods.append(p)
 
-			if alt.Directive != nil {
-				dir := alt.Directive
+			dirConsumed := map[string]struct{}{}
+			for _, dir := range alt.Directives {
+				if _, consumed := dirConsumed[dir.Name]; consumed {
+					b.errs = append(b.errs, &verr.SpecError{
+						Cause:  semErrDuplicateDir,
+						Detail: dir.Name,
+						Row:    dir.Pos.Row,
+						Col:    dir.Pos.Col,
+					})
+				}
+				dirConsumed[dir.Name] = struct{}{}
+
 				switch dir.Name {
 				case "ast":
 					if len(dir.Parameters) == 0 {
