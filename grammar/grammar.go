@@ -274,7 +274,7 @@ func findUsedAndUnusedSymbols(root *spec.RootNode) (*usedAndUnusedSymbols, error
 			}
 			continue
 		}
-		return nil, fmt.Errorf("a definition of unused production was not found: %v", sym)
+		return nil, fmt.Errorf("unknown symbol: a symbol must be a terminal symbol or a non-terminal symbol: %v", sym)
 	}
 
 	return &usedAndUnusedSymbols{
@@ -816,7 +816,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 					if len(dir.Parameters) == 0 {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
-							Detail: "'ast' directive needs at least one symbol position parameter",
+							Detail: "'ast' directive needs at least one parameter",
 							Row:    dir.Pos.Row,
 							Col:    dir.Pos.Col,
 						})
