@@ -3,6 +3,7 @@ package grammar
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -1074,8 +1075,17 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 		opt(config)
 	}
 
-	lexSpec, err := mlcompiler.Compile(gram.lexSpec, mlcompiler.CompressionLevel(mlcompiler.CompressionLevelMax))
+	lexSpec, err, cErrs := mlcompiler.Compile(gram.lexSpec, mlcompiler.CompressionLevel(mlcompiler.CompressionLevelMax))
 	if err != nil {
+		if len(cErrs) > 0 {
+			var b strings.Builder
+			writeCompileError(&b, cErrs[0])
+			for _, cerr := range cErrs[1:] {
+				fmt.Fprintf(&b, "\n")
+				writeCompileError(&b, cerr)
+			}
+			return nil, fmt.Errorf(b.String())
+		}
 		return nil, err
 	}
 
@@ -1273,4 +1283,14 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			Entries: astActEnties,
 		},
 	}, nil
+}
+
+func writeCompileError(w io.Writer, cErr *mlcompiler.CompileError) {
+	if cErr.Fragment {
+		fmt.Fprintf(w, "fragment ")
+	}
+	fmt.Fprintf(w, "%v: %v", cErr.Kind, cErr.Cause)
+	if cErr.Detail != "" {
+		fmt.Fprintf(w, ": %v", cErr.Detail)
+	}
 }

@@ -1,4 +1,4 @@
-//go:generate maleeni compile -l lexspec.json -o clexspec.json
+//go:generate maleeni compile lexspec.json -o clexspec.json
 //go:generate maleeni-go clexspec.json --package spec
 
 package spec
