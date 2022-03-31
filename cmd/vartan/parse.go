@@ -141,14 +141,22 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		fmt.Fprintf(os.Stderr, "\n")
 	}
 
-	if len(synErrs) == 0 && !*parseFlags.onlyParse {
+	if !*parseFlags.onlyParse {
+		// A parser can construct a parse tree even if syntax errors occur.
+		// When therer is a parse tree, print it.
+
 		var tree *driver.Node
 		if *parseFlags.cst {
 			tree = treeAct.CST()
 		} else {
 			tree = treeAct.AST()
 		}
-		driver.PrintTree(os.Stdout, tree)
+		if tree != nil {
+			if len(synErrs) > 0 {
+				fmt.Println("")
+			}
+			driver.PrintTree(os.Stdout, tree)
+		}
 	}
 
 	return nil

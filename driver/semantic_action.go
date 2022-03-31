@@ -37,6 +37,7 @@ type Node struct {
 	Row      int
 	Col      int
 	Children []*Node
+	Error    bool
 }
 
 func PrintTree(w io.Writer, node *Node) {
@@ -48,9 +49,12 @@ func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix s
 		return
 	}
 
-	if node.Text != "" {
+	switch {
+	case node.Error:
+		fmt.Fprintf(w, "%v!%v\n", ruledLine, node.KindName)
+	case node.Text != "":
 		fmt.Fprintf(w, "%v%v %#v\n", ruledLine, node.KindName, node.Text)
-	} else {
+	default:
 		fmt.Fprintf(w, "%v%v\n", ruledLine, node.KindName)
 	}
 
@@ -212,11 +216,13 @@ func (a *SyntaxTreeActionSet) TrapAndShiftError(cause VToken, popped int) {
 	if a.makeAST {
 		ast = &Node{
 			KindName: a.gram.Terminal(a.gram.Error()),
+			Error:    true,
 		}
 	}
 	if a.makeCST {
 		cst = &Node{
 			KindName: a.gram.Terminal(a.gram.Error()),
+			Error:    true,
 		}
 	}
 
