@@ -2,7 +2,6 @@ package driver
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -1072,8 +1071,15 @@ bar: 'bar';
 				}
 
 				gram := NewGrammar(cg)
-				treeAct := NewSyntaxTreeActionSet(gram, true, true)
-				p, err := NewParser(toks, gram, SemanticAction(treeAct))
+				tb := NewDefaultSyntaxTreeBuilder()
+				var opt []ParserOption
+				switch {
+				case tt.ast != nil:
+					opt = append(opt, SemanticAction(NewASTActionSet(gram, tb)))
+				case tt.cst != nil:
+					opt = append(opt, SemanticAction(NewCSTActionSet(gram, tb)))
+				}
+				p, err := NewParser(toks, gram, opt...)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1087,18 +1093,12 @@ bar: 'bar';
 					t.Fatalf("unexpected syntax errors occurred: %+v", p.SyntaxErrors())
 				}
 
-				if tt.cst != nil {
-					testTree(t, treeAct.CST(), tt.cst)
+				switch {
+				case tt.ast != nil:
+					testTree(t, tb.Tree(), tt.ast)
+				case tt.cst != nil:
+					testTree(t, tb.Tree(), tt.cst)
 				}
-
-				if tt.ast != nil {
-					testTree(t, treeAct.AST(), tt.ast)
-				}
-
-				fmt.Println("CST:")
-				PrintTree(os.Stdout, treeAct.CST())
-				fmt.Println("AST:")
-				PrintTree(os.Stdout, treeAct.AST())
 			})
 		}
 	}

@@ -1,8 +1,6 @@
 package driver
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -363,8 +361,8 @@ assign: '=';
 			}
 
 			gram := NewGrammar(cg)
-			treeAct := NewSyntaxTreeActionSet(gram, false, true)
-			p, err := NewParser(toks, gram, SemanticAction(treeAct))
+			tb := NewDefaultSyntaxTreeBuilder()
+			p, err := NewParser(toks, gram, SemanticAction(NewCSTActionSet(gram, tb)))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -374,10 +372,9 @@ assign: '=';
 				t.Fatal(err)
 			}
 
-			fmt.Printf("CST:\n")
-			PrintTree(os.Stdout, treeAct.CST())
-
-			testTree(t, treeAct.CST(), tt.cst)
+			if tt.cst != nil {
+				testTree(t, tb.Tree(), tt.cst)
+			}
 		})
 	}
 }

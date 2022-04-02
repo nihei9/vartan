@@ -226,8 +226,8 @@ func main() {
 		os.Exit(1)
 	}
 	gram := NewGrammar()
-	treeAct := NewSyntaxTreeActionSet(gram, true, false)
-	p, err := NewParser(toks, gram, SemanticAction(treeAct))
+	tb := NewDefaultSyntaxTreeBuilder()
+	p, err := NewParser(toks, gram, SemanticAction(NewASTActionSet(gram, tb)))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -245,7 +245,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("accepted")
-	PrintTree(os.Stdout, treeAct.AST())
+	PrintTree(os.Stdout, tb.Tree())
 }
 
 func printSyntaxError(w io.Writer, synErr *SyntaxError, gram Grammar) {

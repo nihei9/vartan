@@ -70,6 +70,7 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 
 	var p *driver.Parser
 	var treeAct *driver.SyntaxTreeActionSet
+	var tb *driver.DefaulSyntaxTreeBuilder
 	{
 		src := os.Stdin
 		if *parseFlags.source != "" {
@@ -87,9 +88,11 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		{
 			switch {
 			case *parseFlags.cst:
-				treeAct = driver.NewSyntaxTreeActionSet(gram, false, true)
+				tb = driver.NewDefaultSyntaxTreeBuilder()
+				treeAct = driver.NewCSTActionSet(gram, tb)
 			case !*parseFlags.onlyParse:
-				treeAct = driver.NewSyntaxTreeActionSet(gram, true, false)
+				tb = driver.NewDefaultSyntaxTreeBuilder()
+				treeAct = driver.NewASTActionSet(gram, tb)
 			}
 			if treeAct != nil {
 				opts = append(opts, driver.SemanticAction(treeAct))
@@ -147,9 +150,9 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 
 		var tree *driver.Node
 		if *parseFlags.cst {
-			tree = treeAct.CST()
+			tree = tb.Tree()
 		} else {
-			tree = treeAct.AST()
+			tree = tb.Tree()
 		}
 		if tree != nil {
 			if len(synErrs) > 0 {
