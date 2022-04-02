@@ -23,7 +23,7 @@ var compileFlags = struct {
 func init() {
 	cmd := &cobra.Command{
 		Use:     "compile",
-		Short:   "Compile a grammar into a parsing table",
+		Short:   "Compile grammar you defined into a parsing table",
 		Example: `  vartan compile grammar.vr -o grammar.json`,
 		Args:    cobra.MaximumNArgs(1),
 		RunE:    runCompile,
