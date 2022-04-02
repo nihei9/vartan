@@ -74,7 +74,7 @@ Save the above grammar to a file in UTF-8. In this explanation, the file name is
 Next, generate a parsing table using `vartan compile` command.
 
 ```sh
-$ vartan compile -g expr.vr -o expr.json
+$ vartan compile expr.vr -o expr.json
 16 conflicts
 ```
 

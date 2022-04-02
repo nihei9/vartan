@@ -16,19 +16,18 @@ import (
 )
 
 var compileFlags = struct {
-	grammar *string
-	output  *string
-	class   *string
+	output *string
+	class  *string
 }{}
 
 func init() {
 	cmd := &cobra.Command{
 		Use:     "compile",
 		Short:   "Compile a grammar into a parsing table",
-		Example: `  cat grammar | vartan compile -o grammar.json`,
+		Example: `  vartan compile grammar.vr -o grammar.json`,
+		Args:    cobra.MaximumNArgs(1),
 		RunE:    runCompile,
 	}
-	compileFlags.grammar = cmd.Flags().StringP("grammar", "g", "", "grammar file path (default stdin)")
 	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
 	compileFlags.class = cmd.Flags().StringP("class", "", "lalr", "LALR or SLR")
 	rootCmd.AddCommand(cmd)
@@ -43,7 +42,10 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		os.RemoveAll(tmpDirPath)
 	}()
 
-	grmPath := *compileFlags.grammar
+	var grmPath string
+	if len(args) > 0 {
+		grmPath = args[0]
+	}
 	defer func() {
 		panicked := false
 		v := recover()
@@ -63,7 +65,7 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 			specErrs, ok := retErr.(verr.SpecErrors)
 			if ok {
 				for _, err := range specErrs {
-					if *compileFlags.grammar != "" {
+					if len(args) > 0 {
 						err.FilePath = grmPath
 						err.SourceName = grmPath
 					} else {
