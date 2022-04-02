@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.4.0
+
+* [ed2c201](https://github.com/nihei9/vartan/commit/ed2c20102659f4c8aef0e88ea604e91fb56f25f6) - Change semantic action APIs. A parser reports whether it recovered from an error to the semantic action APIs via the argument `recovered`.
+* [72da4b0](https://github.com/nihei9/vartan/commit/72da4b04e42baf3743ecf54b207f446a570d55e2) - Add `SemanticActionSet.TrapAndShiftError` method instead of `TrapError` and `ShiftError` methods.
+* [0cf26ed](https://github.com/nihei9/vartan/commit/0cf26ed10f2563ea6721590ddbd5cccc7fa502b1) - Call `SemanticActionSet.MissError` method when an input doesn't meet an error production.
+* [a57fda7](https://github.com/nihei9/vartan/commit/a57fda765cd32b44cd069da1c9a442b701b36dc2) - Pass a token that caused a syntax error to the semantic action APIs.
+* [1dd7fef](https://github.com/nihei9/vartan/commit/1dd7fefb8c18da0c60807b14389cefbfdbc65993) - Generate the lexer source code.
+* [83bc2b1](https://github.com/nihei9/vartan/commit/83bc2b1307d0e73424437649d26b804f20a83c38), [ba524fa](https://github.com/nihei9/vartan/commit/ba524fa0d49f597a4ace4bec72802334a0972c7a), [d3867e0](https://github.com/nihei9/vartan/commit/d3867e0769a90be422e2514e16017236e040a130), [d0431e3](https://github.com/nihei9/vartan/commit/d0431e3a435e2ad3180d945f66098c04ed0faf22) - Add `vartan-go` command.
+* [5212b7f](https://github.com/nihei9/vartan/commit/5212b7fb22a762e81456134418bfe482a8704434), [bb9bf49](https://github.com/nihei9/vartan/commit/bb9bf495bd6cee65d8bc821939051d1be99861cc) - Use [golangci-lint](https://golangci-lint.run/).
+* [1746609](https://github.com/nihei9/vartan/commit/1746609e248151d575f6e3913ad5023fd421bfff), [ed43562](https://github.com/nihei9/vartan/commit/ed43562cf58e8c0f9390421848879308fdfc60cb), [4d2a389](https://github.com/nihei9/vartan/commit/4d2a389c0ea605413d1cc89ae35f2a3aaa293072) - Use IDs and labels as parameters of an `#ast` directive instead of symbol positions.
+* [dbd2e20](https://github.com/nihei9/vartan/commit/dbd2e20de97cdef56da0de07adff4251de94ef43) - Change syntax of production directives. The position of directives given to productions has moved from before a left-hand side value to after a left-hand side value.
+This change aims to simplify the syntax.
+* [90f28b5](https://github.com/nihei9/vartan/commit/90f28b5f7e7ef08e107e38002d122825764aad09) - Move all directives given to lexical productions from alternative directives to production directives.
+This change aims to ensure consistency with respect to the syntax of definitions of terminal symbols and non-terminal symbols.
+* [a1e4ae7](https://github.com/nihei9/vartan/commit/a1e4ae763cbf824f0d32a706cfe0d9603ce99b02) - Allow an alternative to have multiple directives.
+* [1d0a67b](https://github.com/nihei9/vartan/commit/1d0a67bb7e95038f97e5a6c66bd2705d65f0ab57), [b565c7d](https://github.com/nihei9/vartan/commit/b565c7ddb7cbbf2ccfb8653c9a77140d83e02c55) - Update dependency.
+* [5c26f61](https://github.com/nihei9/vartan/commit/5c26f617583463382978429f4c3fe550de521d42) - Print a parse tree in `vartan parse` command even if syntax errors occur.
+When there is a parse tree, print it.
+* [0636432](https://github.com/nihei9/vartan/commit/0636432f9051797b22e5c77722541c47edb312a0) - Remove `--grammar` option from `vartan compile` command.
+* [8a6cfba](https://github.com/nihei9/vartan/commit/8a6cfbae9078c2095cb242e903dcac1c38c2fdb0), [8fda704](https://github.com/nihei9/vartan/commit/8fda704486c0bfbb9fead619b47f7ca987d56e4b), [180cac3](https://github.com/nihei9/vartan/commit/180cac37e53692c09763fc7bb49ac9ead44409ed) - Update documents.
+* [14b2d7e](https://github.com/nihei9/vartan/commit/14b2d7e2728ab0314db56fc6e493d06fa285d006) - Allow arbitrary user-defined types for nodes in a syntax tree.
+
+[Changes](https://github.com/nihei9/vartan/compare/v0.3.0...v0.4.0)
+
 ## v0.3.0
 
 * [7271e46b](https://github.com/nihei9/vartan/commit/7271e46bbcb11acf860c91eddfe12dd7eed5ccad) - Add `error` symbol and `#recover` directive to recover from an error state.
