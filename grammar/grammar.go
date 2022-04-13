@@ -154,6 +154,9 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 	if err != nil {
 		return nil, err
 	}
+	if pa == nil && len(b.errs) > 0 {
+		return nil, b.errs
+	}
 
 	syms, err := findUsedAndUnusedSymbols(b.AST)
 	if err != nil {
@@ -957,39 +960,43 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 				// Since `name` is used for a purpose other than priority, we will ignore it here.
 				continue
 			default:
-				return nil, &verr.SpecError{
+				b.errs = append(b.errs, &verr.SpecError{
 					Cause: semErrMDInvalidName,
 					Row:   md.Pos.Row,
 					Col:   md.Pos.Col,
-				}
+				})
+				return nil, nil
 			}
 
 			if len(md.Parameters) == 0 {
-				return nil, &verr.SpecError{
+				b.errs = append(b.errs, &verr.SpecError{
 					Cause:  semErrMDInvalidParam,
 					Detail: "associativity needs at least one symbol",
 					Row:    md.Pos.Row,
 					Col:    md.Pos.Col,
-				}
+				})
+				return nil, nil
 			}
 
 			for _, p := range md.Parameters {
 				sym, ok := symTab.toSymbol(p.ID)
 				if !ok {
-					return nil, &verr.SpecError{
+					b.errs = append(b.errs, &verr.SpecError{
 						Cause:  semErrMDInvalidParam,
 						Detail: fmt.Sprintf("'%v' is undefined", p.ID),
 						Row:    p.Pos.Row,
 						Col:    p.Pos.Col,
-					}
+					})
+					return nil, nil
 				}
 				if !sym.isTerminal() {
-					return nil, &verr.SpecError{
+					b.errs = append(b.errs, &verr.SpecError{
 						Cause:  semErrMDInvalidParam,
 						Detail: fmt.Sprintf("associativity can take only terminal symbol ('%v' is a non-terminal)", p.ID),
 						Row:    p.Pos.Row,
 						Col:    p.Pos.Col,
-					}
+					})
+					return nil, nil
 				}
 
 				termPrec[sym.num()] = precN
