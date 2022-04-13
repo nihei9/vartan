@@ -25,6 +25,7 @@ var (
 
 	// syntax errors
 	synErrInvalidToken       = newSyntaxError("invalid token")
+	synErrNoMDName           = newSyntaxError("a metadata name is missing")
 	synErrNoProductionName   = newSyntaxError("a production name is missing")
 	synErrNoColon            = newSyntaxError("the colon must precede alternatives")
 	synErrNoSemicolon        = newSyntaxError("the semicolon is missing at the last of an alternative")

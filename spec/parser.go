@@ -56,6 +56,7 @@ type DirectiveNode struct {
 
 type ParameterNode struct {
 	ID        string
+	Pattern   string
 	String    string
 	Expansion bool
 	Pos       Position
@@ -197,19 +198,17 @@ func (p *parser) parseMetaData() *DirectiveNode {
 	mdPos := p.lastTok.pos
 
 	if !p.consume(tokenKindID) {
-		raiseSyntaxError(p.pos.Row, synErrNoProductionName)
+		raiseSyntaxError(p.pos.Row, synErrNoMDName)
 	}
 	name := p.lastTok.text
 
 	var params []*ParameterNode
 	for {
-		if !p.consume(tokenKindID) {
+		param := p.parseParameter()
+		if param == nil {
 			break
 		}
-		params = append(params, &ParameterNode{
-			ID:  p.lastTok.text,
-			Pos: p.lastTok.pos,
-		})
+		params = append(params, param)
 	}
 
 	return &DirectiveNode{
@@ -462,6 +461,11 @@ func (p *parser) parseParameter() *ParameterNode {
 		param = &ParameterNode{
 			ID:  p.lastTok.text,
 			Pos: p.lastTok.pos,
+		}
+	case p.consume(tokenKindTerminalPattern):
+		param = &ParameterNode{
+			Pattern: p.lastTok.text,
+			Pos:     p.lastTok.pos,
 		}
 	case p.consume(tokenKindStringLiteral):
 		param = &ParameterNode{

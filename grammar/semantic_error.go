@@ -25,6 +25,7 @@ var (
 	semErrUndefinedSym        = newSemanticError("undefined symbol")
 	semErrDuplicateProduction = newSemanticError("duplicate production")
 	semErrDuplicateTerminal   = newSemanticError("duplicate terminal")
+	semErrDuplicateFragment   = newSemanticError("duplicate fragment")
 	semErrDuplicateName       = newSemanticError("duplicate names are not allowed between terminals and non-terminals")
 	semErrErrSymIsReserved    = newSemanticError("symbol 'error' is reserved as a terminal symbol")
 	semErrDuplicateLabel      = newSemanticError("a label must be unique in an alternative")

@@ -158,9 +158,9 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
-	syms, err := findUsedAndUnusedSymbols(b.AST)
-	if err != nil {
-		return nil, err
+	syms := findUsedAndUnusedSymbols(b.AST)
+	if syms == nil && len(b.errs) > 0 {
+		return nil, b.errs
 	}
 
 	// When a terminal symbol that cannot be reached from the start symbol has the skip directive,
@@ -227,7 +227,7 @@ type usedAndUnusedSymbols struct {
 	usedTerminals     map[string]*spec.ProductionNode
 }
 
-func findUsedAndUnusedSymbols(root *spec.RootNode) (*usedAndUnusedSymbols, error) {
+func findUsedAndUnusedSymbols(root *spec.RootNode) *usedAndUnusedSymbols {
 	prods := map[string]*spec.ProductionNode{}
 	lexProds := map[string]*spec.ProductionNode{}
 	mark := map[string]bool{}
@@ -277,14 +277,17 @@ func findUsedAndUnusedSymbols(root *spec.RootNode) (*usedAndUnusedSymbols, error
 			}
 			continue
 		}
-		return nil, fmt.Errorf("unknown symbol: a symbol must be a terminal symbol or a non-terminal symbol: %v", sym)
+
+		// May be reached here when a fragment name appears on the right-hand side of a production rule. However, an error
+		// to the effect that a production rule cannot contain a fragment will be detected in a subsequent process. So we can
+		// ignore it here.
 	}
 
 	return &usedAndUnusedSymbols{
 		usedTerminals:     usedTerms,
 		unusedProductions: unusedProds,
 		unusedTerminals:   unusedTerms,
-	}, nil
+	}
 }
 
 func markUsedSymbols(mark map[string]bool, marked map[string]bool, prods map[string]*spec.ProductionNode, prod *spec.ProductionNode) {
@@ -445,7 +448,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	for _, fragment := range root.Fragments {
 		if _, exist := checkedFragments[fragment.LHS]; exist {
 			b.errs = append(b.errs, &verr.SpecError{
-				Cause:  semErrDuplicateTerminal,
+				Cause:  semErrDuplicateFragment,
 				Detail: fragment.LHS,
 				Row:    fragment.Pos.Row,
 				Col:    fragment.Pos.Col,
@@ -979,6 +982,16 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 			}
 
 			for _, p := range md.Parameters {
+				if p.ID == "" {
+					b.errs = append(b.errs, &verr.SpecError{
+						Cause:  semErrMDInvalidParam,
+						Detail: "a parameter must be an ID",
+						Row:    p.Pos.Row,
+						Col:    p.Pos.Col,
+					})
+					return nil, nil
+				}
+
 				sym, ok := symTab.toSymbol(p.ID)
 				if !ok {
 					b.errs = append(b.errs, &verr.SpecError{

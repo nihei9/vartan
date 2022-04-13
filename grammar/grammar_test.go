@@ -25,8 +25,11 @@ a
     : foo
     ;
 b
-    : foo;
-foo: "foo";
+    : foo
+    ;
+
+foo
+    : "foo";
 `,
 			errs: []*SemanticError{semErrUnusedProduction},
 		},
@@ -38,8 +41,11 @@ foo: "foo";
 s
     : foo
     ;
-foo: "foo";
-bar: "bar";
+
+foo
+    : "foo";
+bar
+    : "bar";
 `,
 			errs: []*SemanticError{semErrUnusedTerminal},
 		},
@@ -54,8 +60,11 @@ a
 b
     : bar
     ;
-foo: "foo";
-bar: "bar";
+
+foo
+    : "foo";
+bar
+    : "bar";
 `,
 			errs: []*SemanticError{
 				semErrUnusedProduction,
@@ -71,7 +80,8 @@ s #prec foo
     : foo
     ;
 
-foo: 'foo';
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrInvalidProdDir},
 		},
@@ -84,7 +94,8 @@ s
     : foo
     ;
 
-foo: 'foo' #skip;
+foo
+    : 'foo' #skip;
 `,
 			errs: []*SemanticError{semErrInvalidAltDir},
 		},
@@ -127,7 +138,9 @@ s
     : foo
     | foo
     ;
-foo: "foo";
+
+foo
+    : "foo";
 `,
 			errs: []*SemanticError{semErrDuplicateProduction},
 		},
@@ -136,18 +149,21 @@ foo: "foo";
 			specSrc: `
 %name test
 
-a
+s
     : foo
-    | b
+    | a
     ;
-b
+a
     : bar
     ;
-a
+s
     : foo
     ;
-foo: "foo";
-bar: "bar";
+
+foo
+    : "foo";
+bar
+    : "bar";
 `,
 			errs: []*SemanticError{semErrDuplicateProduction},
 		},
@@ -156,15 +172,17 @@ bar: "bar";
 			specSrc: `
 %name test
 
-a
+s
     : foo
-    | b
+    | a
     ;
-b
+a
     :
     |
     ;
-foo: "foo";
+
+foo
+    : "foo";
 `,
 			errs: []*SemanticError{semErrDuplicateProduction},
 		},
@@ -173,18 +191,20 @@ foo: "foo";
 			specSrc: `
 %name test
 
-a
+s
     : foo
-    | b
+    | a
     ;
-b
+a
     :
     | foo
     ;
-b
+a
     :
     ;
-foo: "foo";
+
+foo
+    : "foo";
 `,
 			errs: []*SemanticError{semErrDuplicateProduction},
 		},
@@ -193,11 +213,14 @@ foo: "foo";
 			specSrc: `
 %name test
 
-a
+s
     : foo
     ;
-foo: "foo";
-a: "a";
+
+foo
+    : "foo";
+s
+    : "a";
 `,
 			errs: []*SemanticError{semErrDuplicateName},
 		},
@@ -206,16 +229,20 @@ a: "a";
 			specSrc: `
 %name test
 
-a
+s
     : foo
-    | b
+    | a
     ;
-b
+a
     : bar
     ;
-foo: "foo";
-bar: "bar";
-b: "a";
+
+foo
+    : "foo";
+bar
+    : "bar";
+a
+    : "a";
 `,
 			errs: []*SemanticError{semErrDuplicateName},
 		},
@@ -230,7 +257,8 @@ s
     : a
     ;
 
-a: 'a';
+a
+    : 'a';
 `,
 			errs: []*SemanticError{semErrMDInvalidName},
 		},
@@ -243,8 +271,10 @@ s
     : foo@x bar@x
     ;
 
-foo: 'foo';
-bar: 'bar';
+foo
+    : 'foo';
+bar
+    : 'bar';
 `,
 			errs: []*SemanticError{semErrDuplicateLabel},
 		},
@@ -257,8 +287,10 @@ s
     : foo bar@foo
     ;
 
-foo: 'foo';
-bar: 'bar';
+foo
+    : 'foo';
+bar
+    : 'bar';
 `,
 			errs: []*SemanticError{semErrDuplicateLabel},
 		},
@@ -275,8 +307,10 @@ a
     : bar
     ;
 
-foo: 'foo';
-bar: 'bar';
+foo
+    : 'foo';
+bar
+    : 'bar';
 `,
 			errs: []*SemanticError{
 				semErrInvalidLabel,
@@ -286,84 +320,208 @@ bar: 'bar';
 
 	nameTests := []*specErrTest{
 		{
-			caption: "the `%name` is missing",
+			caption: "the `%name` is required",
 			specSrc: `
-a
+s
     : foo
     ;
-foo: "foo";
+
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrMDMissingName},
 		},
 		{
-			caption: "the `%name` needs a parameter",
+			caption: "the `%name` needs an ID parameter",
 			specSrc: `
 %name
 
-a
+s
     : foo
     ;
-foo: "foo";
+
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrMDInvalidParam},
 		},
 		{
 			caption: "the `%name` takes just one parameter",
 			specSrc: `
-%name test foo
+%name test1 test2
 
-a
+s
     : foo
     ;
-foo: "foo";
+
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrMDInvalidParam},
 		},
 	}
 
-	assocTests := []*specErrTest{
+	leftTests := []*specErrTest{
 		{
-			caption: "associativity needs at least one symbol",
+			caption: "the `%left` needs ID parameters",
 			specSrc: `
 %name test
 
 %left
 
 s
-    : a
+    : foo
     ;
 
-a: 'a';
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrMDInvalidParam},
 		},
 		{
-			caption: "associativity cannot take an undefined symbol",
+			caption: "the `%left` cannot take an undefined symbol",
 			specSrc: `
 %name test
 
-%left b
+%left x
 
 s
-    : a
+    : foo
     ;
 
-a: 'a';
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrMDInvalidParam},
 		},
 		{
-			caption: "associativity cannot take a non-terminal symbol",
+			caption: "the `%left` cannot take a non-terminal symbol",
 			specSrc: `
 %name test
 
 %left s
 
 s
-    : a
+    : foo
     ;
 
-a: 'a';
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrMDInvalidParam},
+		},
+		{
+			caption: "the `%left` cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+%left "foo"
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrMDInvalidParam},
+		},
+		{
+			caption: "the `%left` cannot take a string parameter",
+			specSrc: `
+%name test
+
+%left 'foo'
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrMDInvalidParam},
+		},
+	}
+
+	rightTests := []*specErrTest{
+		{
+			caption: "the `%right` needs ID parameters",
+			specSrc: `
+%name test
+
+%right
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrMDInvalidParam},
+		},
+		{
+			caption: "the `%right` cannot take an undefined symbol",
+			specSrc: `
+%name test
+
+%right x
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrMDInvalidParam},
+		},
+		{
+			caption: "the `%right` cannot take a non-terminal symbol",
+			specSrc: `
+%name test
+
+%right s
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrMDInvalidParam},
+		},
+		{
+			caption: "the `%right` cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+%right "foo"
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrMDInvalidParam},
+		},
+		{
+			caption: "the `%right` cannot take a string parameter",
+			specSrc: `
+%name test
+
+%right 'foo'
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrMDInvalidParam},
 		},
@@ -376,22 +534,17 @@ a: 'a';
 %name test
 
 s
-    : foo
+    : error
     ;
 error
-    : bar
+    : foo
     ;
 
 foo: 'foo';
-bar: 'bar';
 `,
 			errs: []*SemanticError{
 				semErrErrSymIsReserved,
 				semErrDuplicateName,
-				// The compiler determines the symbol `bar` is unreachable because the production rule `error → bar` contains
-				// a build error and the compiler doesn't recognize the production rule as a valid one.
-				// This error is essentially irrelevant to this test case.
-				semErrUnusedTerminal, // This error means `bar` is unreachable.
 			},
 		},
 		{
@@ -400,11 +553,9 @@ bar: 'bar';
 %name test
 
 s
-    : foo
-    | error
+    : error
     ;
 
-foo: 'foo';
 error: 'error';
 `,
 			errs: []*SemanticError{semErrErrSymIsReserved},
@@ -429,6 +580,48 @@ error #skip
 
 	astDirTests := []*specErrTest{
 		{
+			caption: "the `#ast` directive needs ID or label prameters",
+			specSrc: `
+%name test
+
+s
+    : foo #ast
+    ;
+
+foo
+    : "foo";
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#ast` directive cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+s
+    : foo #ast "foo"
+    ;
+
+foo
+    : "foo";
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#ast` directive cannot take a string parameter",
+			specSrc: `
+%name test
+
+s
+    : foo #ast 'foo'
+    ;
+
+foo
+    : "foo";
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "a parameter of the `#ast` directive must be either a symbol or a label in an alternative",
 			specSrc: `
 %name test
@@ -436,8 +629,11 @@ error #skip
 s
     : foo bar #ast foo x
     ;
-foo: "foo";
-bar: "bar";
+
+foo
+    : "foo";
+bar
+    : "bar";
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -450,8 +646,11 @@ s
     : foo #ast bar
     | bar
     ;
-foo: "foo";
-bar: "bar";
+
+foo
+    : "foo";
+bar
+    : "bar";
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -464,8 +663,11 @@ s
     : foo #ast b
     | bar@b
     ;
-foo: "foo";
-bar: "bar";
+
+foo
+    : "foo";
+bar
+    : "bar";
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -477,7 +679,9 @@ bar: "bar";
 s
     : foo #ast foo...
     ;
-foo: "foo";
+
+foo
+    : "foo";
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -489,7 +693,9 @@ foo: "foo";
 s
     : foo "bar"@b #ast foo b...
     ;
-foo: "foo";
+
+foo
+    : "foo";
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -501,7 +707,9 @@ foo: "foo";
 s
     : foo 'bar'@b #ast foo b...
     ;
-foo: "foo";
+
+foo
+    : "foo";
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -514,23 +722,25 @@ foo: "foo";
 %name test
 
 s
-    : a #prec
+    : foo #prec
     ;
 
-a: 'a';
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `#prec` directive cannot take an unknown symbol",
+			caption: "the `#prec` directive cannot take an undefined symbol",
 			specSrc: `
 %name test
 
 s
-    : a #prec foo
+    : foo #prec x
     ;
 
-a: 'a';
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -540,18 +750,48 @@ a: 'a';
 %name test
 
 s
-    : foo #prec bar
-    | bar
+    : a #prec b
+    | b
     ;
-foo
-    : a
+a
+    : foo
     ;
-bar
-    : b
+b
+    : bar
     ;
 
-a: 'a';
-b: 'b';
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#prec` directive cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+s
+    : foo #prec "foo"
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#prec` directive cannot take a string parameter",
+			specSrc: `
+%name test
+
+s
+    : foo #prec 'foo'
+    ;
+
+foo
+    : 'foo';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -559,23 +799,319 @@ b: 'b';
 
 	recoverDirTests := []*specErrTest{
 		{
-			caption: "the `#recover` directive cannot take a parameter",
+			caption: "the `#recover` directive cannot take an ID parameter",
 			specSrc: `
 %name test
 
-seq
-    : seq elem
-    | elem
-    ;
-elem
-    : id id id ';'
-    | error ';' #recover foo
+%name test
+
+s
+    : foo #recover foo
     ;
 
-ws #skip
-    : "[\u{0009}\u{0020}]+";
-id
-    : "[A-Za-z_]+";
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#recover` directive cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+%name test
+
+s
+    : foo #recover "foo"
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#recover` directive cannot take a string parameter",
+			specSrc: `
+%name test
+
+%name test
+
+s
+    : foo #recover 'foo'
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+	}
+
+	fragmentTests := []*specErrTest{
+		{
+			caption: "a production cannot contain a fragment",
+			specSrc: `
+%name test
+
+s
+    : f
+    ;
+
+fragment f
+    : 'fragment';
+`,
+			errs: []*SemanticError{semErrUndefinedSym},
+		},
+		{
+			caption: "fragments cannot be duplicated",
+			specSrc: `
+%name test
+
+s
+    : foo
+    ;
+
+foo
+    : "\f{f}";
+fragment f
+    : 'fragment 1';
+fragment f
+    : 'fragment 2';
+`,
+			errs: []*SemanticError{semErrDuplicateFragment},
+		},
+	}
+
+	aliasDirTests := []*specErrTest{
+		{
+			caption: "the `#alias` directive needs a string parameter",
+			specSrc: `
+%name test
+
+s
+    : foo
+    ;
+
+foo #alias
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#alias` directive takes just one string parameter",
+			specSrc: `
+%name test
+
+s
+    : foo
+    ;
+
+foo #alias 'Foo' 'FOO'
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#alias` directive cannot take an ID parameter",
+			specSrc: `
+%name test
+
+s
+    : foo
+    ;
+
+foo #alias Foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#alias` directive cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+s
+    : foo
+    ;
+
+foo #alias "Foo"
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+	}
+
+	modeTests := []*specErrTest{
+		{
+			caption: "the `#mode` directive needs an ID parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#mode` directive cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode "mode_1"
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#mode` directive cannot take a string parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode 'mode_1'
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+	}
+
+	pushTests := []*specErrTest{
+		{
+			caption: "the `#push` directive needs an ID parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #push
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#push` directive takes just one ID parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #push mode_1 mode_2
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#push` directive cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #push "mode_1"
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#push` directive cannot take a string parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #push 'mode_1'
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+	}
+
+	popTests := []*specErrTest{
+		{
+			caption: "the `#pop` directive cannot take an ID parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar baz
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+baz #pop mode_1
+    : 'baz';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#pop` directive cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar baz
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+baz #pop "mode_1"
+    : 'baz';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#pop` directive cannot take a string parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar baz
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+baz #pop 'mode_1'
+    : 'baz';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -583,16 +1119,66 @@ id
 
 	skipDirTests := []*specErrTest{
 		{
+			caption: "the `#skip` directive cannot take an ID parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #skip bar
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#skip` directive cannot take a pattern parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #skip "bar"
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#skip` directive cannot take a string parameter",
+			specSrc: `
+%name test
+
+s
+    : foo bar
+    ;
+
+foo #skip 'bar'
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "a terminal symbol used in productions cannot have the skip directive",
 			specSrc: `
 %name test
 
-a
-    : foo
+s
+    : foo bar
     ;
 
 foo #skip
-    : "foo";
+    : 'foo';
+bar
+    : 'bar';
 `,
 			errs: []*SemanticError{semErrTermCannotBeSkipped},
 		},
@@ -601,11 +1187,17 @@ foo #skip
 	var tests []*specErrTest
 	tests = append(tests, prodTests...)
 	tests = append(tests, nameTests...)
-	tests = append(tests, assocTests...)
+	tests = append(tests, leftTests...)
+	tests = append(tests, rightTests...)
 	tests = append(tests, errorSymTests...)
 	tests = append(tests, astDirTests...)
 	tests = append(tests, precDirTests...)
 	tests = append(tests, recoverDirTests...)
+	tests = append(tests, fragmentTests...)
+	tests = append(tests, aliasDirTests...)
+	tests = append(tests, modeTests...)
+	tests = append(tests, pushTests...)
+	tests = append(tests, popTests...)
 	tests = append(tests, skipDirTests...)
 	for _, test := range tests {
 		t.Run(test.caption, func(t *testing.T) {

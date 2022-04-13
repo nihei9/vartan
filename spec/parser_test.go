@@ -184,6 +184,11 @@ c: ;
 			},
 		},
 		{
+			caption: "`fragment` is a reserved word",
+			src:     `fragment: 'fragment';`,
+			synErr:  synErrNoProductionName,
+		},
+		{
 			caption: "when a source contains an unknown token, the parser raises a syntax error",
 			src:     `a: !;`,
 			synErr:  synErrInvalidToken,
