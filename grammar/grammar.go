@@ -980,7 +980,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 				})
 				return nil, nil
 			}
-
+		ASSOC_PARAM_LOOP:
 			for _, p := range md.Parameters {
 				if p.ID == "" {
 					b.errs = append(b.errs, &verr.SpecError{
@@ -1011,6 +1011,31 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 					})
 					return nil, nil
 				}
+				if prec, alreadySet := termPrec[sym.num()]; alreadySet {
+					if prec == precN {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDuplicateAssoc,
+							Detail: fmt.Sprintf("'%v' already has the same associativity and precedence", p.ID),
+							Row:    p.Pos.Row,
+							Col:    p.Pos.Col,
+						})
+					} else if assoc := termAssoc[sym.num()]; assoc == assocTy {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDuplicateAssoc,
+							Detail: fmt.Sprintf("'%v' already has different precedence", p.ID),
+							Row:    p.Pos.Row,
+							Col:    p.Pos.Col,
+						})
+					} else {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDuplicateAssoc,
+							Detail: fmt.Sprintf("'%v' already has different associativity and precedence", p.ID),
+							Row:    p.Pos.Row,
+							Col:    p.Pos.Col,
+						})
+					}
+					break ASSOC_PARAM_LOOP
+				}
 
 				termPrec[sym.num()] = precN
 				termAssoc[sym.num()] = assocTy
@@ -1018,6 +1043,9 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 
 			precN++
 		}
+	}
+	if len(b.errs) > 0 {
+		return nil, nil
 	}
 
 	prodPrec := map[productionNum]int{}

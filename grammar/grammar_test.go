@@ -442,6 +442,56 @@ foo
 `,
 			errs: []*SemanticError{semErrMDInvalidParam},
 		},
+		{
+			caption: "the `%left` cannot be specified multiple times for a symbol",
+			specSrc: `
+%name test
+
+%left foo foo
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a symbol cannot have different precedence",
+			specSrc: `
+%name test
+
+%left foo
+%left foo
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a symbol cannot have different associativity",
+			specSrc: `
+%name test
+
+%right foo
+%left foo
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
 	}
 
 	rightTests := []*specErrTest{
@@ -524,6 +574,56 @@ foo
     : 'foo';
 `,
 			errs: []*SemanticError{semErrMDInvalidParam},
+		},
+		{
+			caption: "the `%right` cannot be specified multiple times for a symbol",
+			specSrc: `
+%name test
+
+%right foo foo
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a symbol cannot have different precedence",
+			specSrc: `
+%name test
+
+%right foo
+%right foo
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a symbol cannot have different associativity",
+			specSrc: `
+%name test
+
+%left foo
+%right foo
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
 		},
 	}
 
