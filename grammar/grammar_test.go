@@ -772,6 +772,34 @@ bar
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "a symbol can appear in the `#ast` directive only once",
+			specSrc: `
+%name test
+
+s
+    : foo #ast foo foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateElem},
+		},
+		{
+			caption: "a symbol can appear in the `#ast` directive only once, even if the symbol has a label",
+			specSrc: `
+%name test
+
+s
+    : foo@x #ast foo x
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateElem},
+		},
+		{
 			caption: "the expansion operator cannot be applied to a terminal symbol",
 			specSrc: `
 %name test

@@ -752,10 +752,11 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						continue LOOP_RHS
 					}
 					offsets[elem.Label.Name] = i
-				} else {
-					if elem.ID != "" {
-						offsets[elem.ID] = i
-					}
+				}
+				// A symbol having a label can be specified by both the label and the symbol name.
+				// So record the symbol's position, whether or not it has a label.
+				if elem.ID != "" {
+					offsets[elem.ID] = i
 				}
 			}
 
@@ -829,6 +830,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						continue LOOP_RHS
 					}
 					astAct := make([]*astActionEntry, len(dir.Parameters))
+					consumedOffsets := map[int]struct{}{}
 					for i, param := range dir.Parameters {
 						if param.ID == "" {
 							b.errs = append(b.errs, &verr.SpecError{
@@ -850,6 +852,16 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 							})
 							continue LOOP_RHS
 						}
+						if _, consumed := consumedOffsets[offset]; consumed {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDuplicateElem,
+								Detail: param.ID,
+								Row:    param.Pos.Row,
+								Col:    param.Pos.Col,
+							})
+							continue LOOP_RHS
+						}
+						consumedOffsets[offset] = struct{}{}
 
 						if param.Expansion {
 							elem := alt.Elements[offset]

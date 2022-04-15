@@ -34,6 +34,7 @@ var (
 	semErrDirInvalidName      = newSemanticError("invalid directive name")
 	semErrDirInvalidParam     = newSemanticError("invalid parameter")
 	semErrDuplicateDir        = newSemanticError("a directive must not be duplicated")
+	semErrDuplicateElem       = newSemanticError("duplicate element")
 	semErrInvalidProdDir      = newSemanticError("invalid production directive")
 	semErrInvalidAltDir       = newSemanticError("invalid alternative directive")
 )
