@@ -17,6 +17,13 @@ func termNode(kind string, text string, children ...*Node) *Node {
 	}
 }
 
+func errorNode() *Node {
+	return &Node{
+		KindName: "error",
+		Error:    true,
+	}
+}
+
 func nonTermNode(kind string, children ...*Node) *Node {
 	return &Node{
 		KindName: kind,
@@ -28,6 +35,7 @@ func TestParser_Parse(t *testing.T) {
 	tests := []struct {
 		specSrc string
 		src     string
+		synErr  bool
 		cst     *Node
 		ast     *Node
 	}{
@@ -278,6 +286,54 @@ bar #mode default
 `,
 			src: `foobar`,
 		},
+		// When #push and #pop are applied to the same symbol, #pop will run first, then #push.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo bar baz
+    ;
+
+foo #push m1
+    : 'foo';
+bar #mode m1 #pop #push m2
+    : 'bar';
+baz #mode m2
+    : 'baz';
+`,
+			src: `foobarbaz`,
+			ast: nonTermNode("s",
+				termNode("foo", "foo"),
+				termNode("bar", "bar"),
+				termNode("baz", "baz"),
+			),
+		},
+		// When #push and #pop are applied to the same symbol, #pop will run first, then #push, even if #push appears first
+		// in a definition. That is, the order in which #push and #pop appear in grammar has nothing to do with the order in which
+		// they are executed.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo bar baz
+    ;
+
+foo #push m1
+    : 'foo';
+bar #mode m1 #push m2 #pop
+    : 'bar';
+baz #mode m2
+    : 'baz';
+`,
+			src: `foobarbaz`,
+			ast: nonTermNode("s",
+				termNode("foo", "foo"),
+				termNode("bar", "bar"),
+				termNode("baz", "baz"),
+			),
+		},
 		// The parser can skips specified tokens.
 		{
 			specSrc: `
@@ -349,6 +405,45 @@ id
 				termNode("id", "Langly"),
 			),
 		},
+		// The '...' operator can expand child nodes.
+		{
+			specSrc: `
+%name test
+
+s
+    : a #ast a...
+    ;
+a
+    : a ',' foo #ast a... foo
+    | foo
+    ;
+
+foo
+    : 'foo';
+`,
+			src: `foo,foo,foo`,
+			ast: nonTermNode("s",
+				termNode("foo", "foo"),
+				termNode("foo", "foo"),
+				termNode("foo", "foo"),
+			),
+		},
+		// The '...' operator also can applied to an element having no children.
+		{
+			specSrc: `
+%name test
+
+s
+    : a ';' #ast a...
+    ;
+
+a
+    :
+    ;
+`,
+			src: `;`,
+			ast: nonTermNode("s"),
+		},
 		// A label can be a parameter of #ast directive.
 		{
 			specSrc: `
@@ -380,6 +475,23 @@ num: "0|[1-9][0-9]*";
 				nonTermNode("expr",
 					termNode("num", "3"),
 				),
+			),
+		},
+		// An AST can contain a symbol name, even if the symbol has a label. That is, unused labels are allowed.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo@x ';' #ast foo
+    ;
+
+foo
+    : 'foo';
+`,
+			src: `foo;`,
+			ast: nonTermNode("s",
+				termNode("foo", "foo"),
 			),
 		},
 		// The 'prec' directive can set precedence and associativity of a production.
@@ -457,6 +569,44 @@ id
     : "[A-Za-z_]+";
 `,
 			src: `foo bar baz ;`,
+		},
+		// The 'error' symbol can appear in an #ast directive.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo ';'
+    | error ';' #ast error
+    ;
+
+foo
+    : 'foo';
+`,
+			src:    `bar;`,
+			synErr: true,
+			ast: nonTermNode("s",
+				errorNode(),
+			),
+		},
+		// The 'error' symbol can have a label, and an #ast can reference it.
+		{
+			specSrc: `
+%name test
+
+s
+    : foo ';'
+    | error@e ';' #ast e
+    ;
+
+foo
+    : 'foo';
+`,
+			src:    `bar;`,
+			synErr: true,
+			ast: nonTermNode("s",
+				errorNode(),
+			),
 		},
 		// The grammar can contain the 'recover' directive.
 		{
@@ -546,8 +696,10 @@ bar: 'bar';
 					t.Fatal(err)
 				}
 
-				if len(p.SyntaxErrors()) > 0 {
-					t.Fatalf("unexpected syntax errors occurred: %+v", p.SyntaxErrors())
+				if !tt.synErr && len(p.SyntaxErrors()) > 0 {
+					for _, synErr := range p.SyntaxErrors() {
+						t.Fatalf("unexpected syntax errors occurred: %v", synErr)
+					}
 				}
 
 				switch {
@@ -564,7 +716,7 @@ bar: 'bar';
 func testTree(t *testing.T, node, expected *Node) {
 	t.Helper()
 
-	if node.KindName != expected.KindName || node.Text != expected.Text {
+	if node.KindName != expected.KindName || node.Text != expected.Text || node.Error != expected.Error {
 		t.Fatalf("unexpected node; want: %+v, got: %+v", expected, node)
 	}
 	if len(node.Children) != len(expected.Children) {
