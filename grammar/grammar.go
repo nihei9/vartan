@@ -701,6 +701,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 		for _, alt := range prod.RHS {
 			altSyms := make([]symbol, len(alt.Elements))
 			offsets := map[string]int{}
+			ambiguousIDOffsets := map[string]struct{}{}
 			for i, elem := range alt.Elements {
 				var sym symbol
 				if elem.Pattern != "" {
@@ -756,7 +757,15 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 				// A symbol having a label can be specified by both the label and the symbol name.
 				// So record the symbol's position, whether or not it has a label.
 				if elem.ID != "" {
-					offsets[elem.ID] = i
+					if _, exist := offsets[elem.ID]; exist {
+						// When the same symbol appears multiple times in an alternative, the symbol is ambiguous. When we need
+						// to specify the symbol in a directive, we cannot use the name of the ambiguous symbol. Instead, specify
+						// a label to resolve the ambiguity.
+						delete(offsets, elem.ID)
+						ambiguousIDOffsets[elem.ID] = struct{}{}
+					} else {
+						offsets[elem.ID] = i
+					}
 				}
 			}
 
@@ -838,6 +847,16 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 								Detail: "'ast' directive can take only ID parameters",
 								Row:    dir.Pos.Row,
 								Col:    dir.Pos.Col,
+							})
+							continue LOOP_RHS
+						}
+
+						if _, ambiguous := ambiguousIDOffsets[param.ID]; ambiguous {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrAmbiguousElem,
+								Detail: fmt.Sprintf("'%v' is ambiguous", param.ID),
+								Row:    param.Pos.Row,
+								Col:    param.Pos.Col,
 							})
 							continue LOOP_RHS
 						}

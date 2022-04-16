@@ -1024,6 +1024,34 @@ foo
 			errs: []*SemanticError{semErrDuplicateElem},
 		},
 		{
+			caption: "symbol `foo` is ambiguous because it appears in an alternative twice",
+			specSrc: `
+%name test
+
+s
+    : foo foo #ast foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrAmbiguousElem},
+		},
+		{
+			caption: "symbol `foo` is ambiguous because it appears in an alternative twice, even if one of them has a label",
+			specSrc: `
+%name test
+
+s
+    : foo@x foo #ast foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrAmbiguousElem},
+		},
+		{
 			caption: "the expansion operator cannot be applied to a terminal symbol",
 			specSrc: `
 %name test
