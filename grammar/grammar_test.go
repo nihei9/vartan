@@ -8,6 +8,216 @@ import (
 	"github.com/nihei9/vartan/spec"
 )
 
+func TestGrammarBuilderOK(t *testing.T) {
+	type okTest struct {
+		caption  string
+		specSrc  string
+		validate func(t *testing.T, g *Grammar)
+	}
+
+	nameTests := []*okTest{
+		{
+			caption: "the `%name` can be the same identifier as a non-terminal symbol",
+			specSrc: `
+%name s
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				expected := "s"
+				if g.name != expected {
+					t.Fatalf("unexpected name: want: %v, got: %v", expected, g.name)
+				}
+			},
+		},
+		{
+			caption: "the `%name` can be the same identifier as a terminal symbol",
+			specSrc: `
+%name foo
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				expected := "foo"
+				if g.name != expected {
+					t.Fatalf("unexpected name: want: %v, got: %v", expected, g.name)
+				}
+			},
+		},
+		{
+			caption: "the `%name` can be the same identifier as the error symbol",
+			specSrc: `
+%name error
+s
+    : foo
+    | error
+    ;
+
+foo
+    : 'foo';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				expected := "error"
+				if g.name != expected {
+					t.Fatalf("unexpected name: want: %v, got: %v", expected, g.name)
+				}
+			},
+		},
+		{
+			caption: "the `%name` can be the same identifier as a fragment",
+			specSrc: `
+%name f
+s
+    : foo
+    ;
+
+foo
+    : "\f{f}";
+fragment f
+    : 'foo';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				expected := "f"
+				if g.name != expected {
+					t.Fatalf("unexpected name: want: %v, got: %v", expected, g.name)
+				}
+			},
+		},
+	}
+
+	modeTests := []*okTest{
+		{
+			caption: "a `#mode` can be the same identifier as a non-terminal symbol",
+			specSrc: `
+%name test
+s
+    : foo bar
+    ;
+
+foo #push s
+    : 'foo';
+bar #mode s
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				kind := "bar"
+				expectedMode := "s"
+				for _, e := range g.lexSpec.Entries {
+					if e.Kind.String() == kind && e.Modes[0].String() == expectedMode {
+						return
+					}
+				}
+				t.Fatalf("symbol having expected mode was not found: want: %v #mode %v", kind, expectedMode)
+			},
+		},
+		{
+			caption: "a `#mode` can be the same identifier as a terminal symbol",
+			specSrc: `
+%name test
+s
+    : foo bar
+    ;
+
+foo #push bar
+    : 'foo';
+bar #mode bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				kind := "bar"
+				expectedMode := "bar"
+				for _, e := range g.lexSpec.Entries {
+					if e.Kind.String() == kind && e.Modes[0].String() == expectedMode {
+						return
+					}
+				}
+				t.Fatalf("symbol having expected mode was not found: want: %v #mode %v", kind, expectedMode)
+			},
+		},
+		{
+			caption: "a `#mode` can be the same identifier as the error symbol",
+			specSrc: `
+%name test
+s
+    : foo bar
+    | error
+    ;
+
+foo #push error
+    : 'foo';
+bar #mode error
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				kind := "bar"
+				expectedMode := "error"
+				for _, e := range g.lexSpec.Entries {
+					if e.Kind.String() == kind && e.Modes[0].String() == expectedMode {
+						return
+					}
+				}
+				t.Fatalf("symbol having expected mode was not found: want: %v #mode %v", kind, expectedMode)
+			},
+		},
+		{
+			caption: "a `#mode` can be the same identifier as a fragment",
+			specSrc: `
+%name test
+s
+    : foo bar
+    ;
+
+foo #push f
+    : "\f{f}";
+bar #mode f
+    : 'bar';
+fragment f
+    : 'foo';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				kind := "bar"
+				expectedMode := "f"
+				for _, e := range g.lexSpec.Entries {
+					if e.Kind.String() == kind && e.Modes[0].String() == expectedMode {
+						return
+					}
+				}
+				t.Fatalf("symbol having expected mode was not found: want: %v #mode %v", kind, expectedMode)
+			},
+		},
+	}
+
+	var tests []*okTest
+	tests = append(tests, nameTests...)
+	tests = append(tests, modeTests...)
+
+	for _, test := range tests {
+		t.Run(test.caption, func(t *testing.T) {
+			ast, err := spec.Parse(strings.NewReader(test.specSrc))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			b := GrammarBuilder{
+				AST: ast,
+			}
+			g, err := b.Build()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			test.validate(t, g)
+		})
+	}
+}
+
 func TestGrammarBuilderSpecError(t *testing.T) {
 	type specErrTest struct {
 		caption string
@@ -778,6 +988,20 @@ bar
 
 s
     : foo #ast foo foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateElem},
+		},
+		{
+			caption: "a label can appear in the `#ast` directive only once",
+			specSrc: `
+%name test
+
+s
+    : foo@x #ast x x
     ;
 
 foo
