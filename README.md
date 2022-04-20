@@ -118,80 +118,6 @@ When `vartan parse` command successfully parses the input data, it prints a CST 
 
 ```sh
 $ vartan show expr-description.json
-# Class
-
-LALR(1)
-
-# Conflicts
-
-16 conflicts were detected.
-
-# Terminals
-
-   1  - - <eof>
-   2  - - error
-   3  - - x_1 (\()
-   4  - - x_2 (\))
-   5  - - x_3 (,)
-   6  - - ws
-   7  - - int
-   8  - - id
-   9  2 l add (+)
-  10  2 l sub (-)
-  11  1 l mul (*)
-  12  1 l div (/)
-
-# Productions
-
-   1  - - expr' → expr
-   2  2 l expr → expr + expr
-   3  2 l expr → expr - expr
-   4  1 l expr → expr * expr
-   5  1 l expr → expr / expr
-   6  - - expr → func_call
-   7  - - expr → int
-   8  - - expr → id
-   9  - - expr → \( expr \)
-  10  - - func_call → id \( args \)
-  11  - - func_call → id \( \)
-  12  - - args → args , expr
-  13  - - args → expr
-
-# States
-
-## State 0
-
-   1 expr' → ・ expr
-
-shift     3 on \(
-shift     4 on int
-shift     5 on id
-goto      1 on expr
-goto      2 on func_call
-
-
-## State 1
-
-   1 expr' → expr ・
-   2 expr → expr ・ + expr
-   3 expr → expr ・ - expr
-   4 expr → expr ・ * expr
-   5 expr → expr ・ / expr
-
-shift     6 on +
-shift     7 on -
-shift     8 on *
-shift     9 on /
-reduce    1 on <eof>
-
-
-## State 2
-
-   6 expr → func_call ・
-
-reduce    6 on <eof>, \), ,, +, -, *, /
-
-...
 ```
 
 ### 4. Generate a parser
@@ -313,7 +239,7 @@ A grammar name `%name <Identifier>` is an identifier that represents a grammar n
 
 ### Production rules
 
-A production rule consists of a non-terminal symbol and sequences of symbols the non-terminal symbol derives.
+A production rule consists of a non-terminal symbol and sequences of symbols the non-terminal symbol derives. The first production rule will be the start production rule.
 
 Production rule:
 
@@ -323,6 +249,14 @@ Production rule:
 	| <alternative-2>
 	| ...
 	| <alternative-N>
+	;
+```
+
+or
+
+```
+<terminal-symbol>
+	: <pattern-or-string-literal>
 	;
 ```
 
@@ -340,6 +274,16 @@ If a production rule satisfies all of the following conditions, it is considered
 
 * A production rule has only one alternative.
 * the alternative has only one pattern or string literal.
+
+Fragment:
+
+```
+fragment <terminal-symbol>
+	: <pattern-or-string>
+	;
+```
+
+Using the `fragment` keyword, you can also define a fragment that represents a part of a pattern. You can use a fragment by embedding it into a pattern like `"\f{some_fragment}"`.
 
 ### Types
 
@@ -436,6 +380,8 @@ if_expr
 ├─ int "0"
 └─ int "99"
 ```
+
+Labels are intended to identify elements in directives. An AST doesn't contain labels.
 
 #### `#prec <symbol: Identifier>`
 
