@@ -60,6 +60,9 @@ const (
 	symbolStart = symbol(maskNonTerminal | maskStartOrEOF | symbolNumStart) // 0100 0000 0000 0001
 	symbolEOF   = symbol(maskTerminal | maskStartOrEOF | symbolNumEOF)      // 1100 0000 0000 0001: The EOF symbol is treated as a terminal symbol.
 
+	// The symbol name contains `<` and `>` to avoid conflicting with user-defined symbols.
+	symbolNameEOF = "<eof>"
+
 	nonTerminalNumMin = symbolNum(2)           // The number 1 is used by a start symbol.
 	terminalNumMin    = symbolNum(2)           // The number 1 is used by the EOF symbol.
 	symbolNumMax      = symbolNum(0xffff) >> 2 // 0011 1111 1111 1111
@@ -161,11 +164,15 @@ type symbolTable struct {
 
 func newSymbolTable() *symbolTable {
 	return &symbolTable{
-		text2Sym: map[string]symbol{},
-		sym2Text: map[symbol]string{},
+		text2Sym: map[string]symbol{
+			symbolNameEOF: symbolEOF,
+		},
+		sym2Text: map[symbol]string{
+			symbolEOF: symbolNameEOF,
+		},
 		termTexts: []string{
-			"", // Nil
-			"", // EOF
+			"",            // Nil
+			symbolNameEOF, // EOF
 		},
 		nonTermTexts: []string{
 			"", // Nil
@@ -228,7 +235,7 @@ func (t *symbolTable) toText(sym symbol) (string, bool) {
 func (t *symbolTable) terminalSymbols() []symbol {
 	syms := make([]symbol, 0, t.termNum.Int()-terminalNumMin.Int())
 	for sym := range t.sym2Text {
-		if !sym.isTerminal() || sym.isNil() || sym.isEOF() {
+		if !sym.isTerminal() || sym.isNil() {
 			continue
 		}
 		syms = append(syms, sym)

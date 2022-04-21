@@ -377,11 +377,6 @@ func (p *Parser) searchLookahead(state int) []string {
 			continue
 		}
 
-		if term == p.gram.EOF() {
-			kinds = append(kinds, "<eof>")
-			continue
-		}
-
 		if alias := p.gram.TerminalAlias(term); alias != "" {
 			kinds = append(kinds, alias)
 		} else {

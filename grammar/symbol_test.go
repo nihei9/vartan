@@ -23,8 +23,8 @@ func TestSymbol(t *testing.T) {
 	}
 
 	termTexts := []string{
-		"", // Nil
-		"", // EOF
+		"",            // Nil
+		symbolNameEOF, // EOF
 		"id",
 		"add",
 		"mul",

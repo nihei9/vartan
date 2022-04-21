@@ -300,12 +300,7 @@ func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec
 	var terms []*spec.Terminal
 	{
 		termSyms := b.symTab.terminalSymbols()
-		terms = make([]*spec.Terminal, len(termSyms)+2)
-
-		terms[symbolEOF.num()] = &spec.Terminal{
-			Number: symbolEOF.num().Int(),
-			Name:   "<eof>",
-		}
+		terms = make([]*spec.Terminal, len(termSyms)+1)
 
 		for _, sym := range termSyms {
 			name, ok := b.symTab.toText(sym)
@@ -435,59 +430,50 @@ func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec
 			})
 
 			var shift []*spec.Transition
-			var goTo []*spec.Transition
-			for sym, kID := range s.next {
-				nextState := b.automaton.states[kID]
-				if sym.isTerminal() {
-					shift = append(shift, &spec.Transition{
-						Symbol: sym.num().Int(),
-						State:  nextState.num.Int(),
-					})
-				} else {
-					goTo = append(goTo, &spec.Transition{
-						Symbol: sym.num().Int(),
-						State:  nextState.num.Int(),
-					})
-				}
-			}
-
-			sort.Slice(shift, func(i, j int) bool {
-				return shift[i].State < shift[j].State
-			})
-
-			sort.Slice(goTo, func(i, j int) bool {
-				return goTo[i].State < goTo[j].State
-			})
-
 			var reduce []*spec.Reduce
-			for _, item := range s.items {
-				if !item.reducible {
-					continue
+			var goTo []*spec.Transition
+			{
+			TERMINALS_LOOP:
+				for _, t := range b.symTab.terminalSymbols() {
+					act, next, prod := tab.getAction(s.num, t.num())
+					switch act {
+					case ActionTypeShift:
+						shift = append(shift, &spec.Transition{
+							Symbol: t.num().Int(),
+							State:  next.Int(),
+						})
+					case ActionTypeReduce:
+						for _, r := range reduce {
+							if r.Production == prod.Int() {
+								r.LookAhead = append(r.LookAhead, t.num().Int())
+								continue TERMINALS_LOOP
+							}
+						}
+						reduce = append(reduce, &spec.Reduce{
+							LookAhead:  []int{t.num().Int()},
+							Production: prod.Int(),
+						})
+					}
 				}
 
-				syms := make([]int, len(item.lookAhead.symbols))
-				i := 0
-				for a := range item.lookAhead.symbols {
-					syms[i] = a.num().Int()
-					i++
+				for _, n := range b.symTab.nonTerminalSymbols() {
+					ty, next := tab.getGoTo(s.num, n.num())
+					if ty == GoToTypeRegistered {
+						goTo = append(goTo, &spec.Transition{
+							Symbol: n.num().Int(),
+							State:  next.Int(),
+						})
+					}
 				}
 
-				sort.Slice(syms, func(i, j int) bool {
-					return syms[i] < syms[j]
+				sort.Slice(shift, func(i, j int) bool {
+					return shift[i].State < shift[j].State
 				})
-
-				prod, ok := gram.productionSet.findByID(item.prod)
-				if !ok {
-					return nil, fmt.Errorf("failed to generate states: reducible production not found: %v", item.prod)
-				}
-
-				reduce = append(reduce, &spec.Reduce{
-					LookAhead:  syms,
-					Production: prod.num.Int(),
-				})
-
 				sort.Slice(reduce, func(i, j int) bool {
 					return reduce[i].Production < reduce[j].Production
+				})
+				sort.Slice(goTo, func(i, j int) bool {
+					return goTo[i].State < goTo[j].State
 				})
 			}
 
