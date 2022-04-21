@@ -1287,8 +1287,21 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			}
 		}
 
-		if len(b.conflicts) > 0 {
-			fmt.Fprintf(os.Stderr, "%v conflicts\n", len(b.conflicts))
+		var implicitlyResolvedCount int
+		for _, s := range desc.States {
+			for _, c := range s.SRConflict {
+				if c.ResolvedBy == ResolvedByShift.Int() {
+					implicitlyResolvedCount++
+				}
+			}
+			for _, c := range s.RRConflict {
+				if c.ResolvedBy == ResolvedByProdOrder.Int() {
+					implicitlyResolvedCount++
+				}
+			}
+		}
+		if implicitlyResolvedCount > 0 {
+			fmt.Fprintf(os.Stderr, "%v conflicts\n", implicitlyResolvedCount)
 		}
 	}
 

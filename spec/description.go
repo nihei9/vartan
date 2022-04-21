@@ -44,6 +44,7 @@ type SRConflict struct {
 	Production        int  `json:"production"`
 	AdoptedState      *int `json:"adopted_state"`
 	AdoptedProduction *int `json:"adopted_production"`
+	ResolvedBy        int  `json:"resolved_by"`
 }
 
 type RRConflict struct {
@@ -51,6 +52,7 @@ type RRConflict struct {
 	Production1       int `json:"production_1"`
 	Production2       int `json:"production_2"`
 	AdoptedProduction int `json:"adopted_production"`
+	ResolvedBy        int `json:"resolved_by"`
 }
 
 type State struct {

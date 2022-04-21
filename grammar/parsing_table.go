@@ -63,25 +63,40 @@ func (e goToEntry) describe() (GoToType, stateNum) {
 	return GoToTypeRegistered, stateNum(e)
 }
 
+type conflictResolutionMethod int
+
+func (m conflictResolutionMethod) Int() int {
+	return int(m)
+}
+
+const (
+	ResolvedByPrec      conflictResolutionMethod = 1
+	ResolvedByAssoc     conflictResolutionMethod = 2
+	ResolvedByShift     conflictResolutionMethod = 3
+	ResolvedByProdOrder conflictResolutionMethod = 4
+)
+
 type conflict interface {
 	conflict()
 }
 
 type shiftReduceConflict struct {
-	state     stateNum
-	sym       symbol
-	nextState stateNum
-	prodNum   productionNum
+	state      stateNum
+	sym        symbol
+	nextState  stateNum
+	prodNum    productionNum
+	resolvedBy conflictResolutionMethod
 }
 
 func (c *shiftReduceConflict) conflict() {
 }
 
 type reduceReduceConflict struct {
-	state    stateNum
-	sym      symbol
-	prodNum1 productionNum
-	prodNum2 productionNum
+	state      stateNum
+	sym        symbol
+	prodNum1   productionNum
+	prodNum2   productionNum
+	resolvedBy conflictResolutionMethod
 }
 
 func (c *reduceReduceConflict) conflict() {
@@ -218,21 +233,20 @@ func (b *lrTableBuilder) writeShiftAction(tab *ParsingTable, state stateNum, sym
 	if !act.isEmpty() {
 		ty, _, p := act.describe()
 		if ty == ActionTypeReduce {
+			act, method := b.resolveSRConflict(sym.num(), p)
 			b.conflicts = append(b.conflicts, &shiftReduceConflict{
-				state:     state,
-				sym:       sym,
-				nextState: nextState,
-				prodNum:   p,
+				state:      state,
+				sym:        sym,
+				nextState:  nextState,
+				prodNum:    p,
+				resolvedBy: method,
 			})
-
-			if b.resolveConflict(sym.num(), p) == ActionTypeShift {
+			if act == ActionTypeShift {
 				tab.writeAction(state.Int(), sym.num().Int(), newShiftActionEntry(nextState))
 			}
-
 			return
 		}
 	}
-
 	tab.writeAction(state.Int(), sym.num().Int(), newShiftActionEntry(nextState))
 }
 
@@ -250,50 +264,52 @@ func (b *lrTableBuilder) writeReduceAction(tab *ParsingTable, state stateNum, sy
 			}
 
 			b.conflicts = append(b.conflicts, &reduceReduceConflict{
-				state:    state,
-				sym:      sym,
-				prodNum1: p,
-				prodNum2: prod,
+				state:      state,
+				sym:        sym,
+				prodNum1:   p,
+				prodNum2:   prod,
+				resolvedBy: ResolvedByProdOrder,
 			})
-
 			if p < prod {
 				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(p))
 			} else {
 				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
 			}
 		case ActionTypeShift:
+			act, method := b.resolveSRConflict(sym.num(), prod)
 			b.conflicts = append(b.conflicts, &shiftReduceConflict{
-				state:     state,
-				sym:       sym,
-				nextState: s,
-				prodNum:   prod,
+				state:      state,
+				sym:        sym,
+				nextState:  s,
+				prodNum:    prod,
+				resolvedBy: method,
 			})
-
-			if b.resolveConflict(sym.num(), prod) == ActionTypeReduce {
+			if act == ActionTypeReduce {
 				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
 			}
 		}
-
 		return
 	}
-
 	tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
 }
 
-func (b *lrTableBuilder) resolveConflict(sym symbolNum, prod productionNum) ActionType {
+func (b *lrTableBuilder) resolveSRConflict(sym symbolNum, prod productionNum) (ActionType, conflictResolutionMethod) {
 	symPrec := b.precAndAssoc.terminalPrecedence(sym)
 	prodPrec := b.precAndAssoc.productionPredence(prod)
-	if symPrec < prodPrec {
-		return ActionTypeShift
+	if symPrec == 0 || prodPrec == 0 {
+		return ActionTypeShift, ResolvedByShift
 	}
 	if symPrec == prodPrec {
 		assoc := b.precAndAssoc.productionAssociativity(prod)
 		if assoc != assocTypeLeft {
-			return ActionTypeShift
+			return ActionTypeShift, ResolvedByAssoc
 		}
+		return ActionTypeReduce, ResolvedByAssoc
 	}
-
-	return ActionTypeReduce
+	if symPrec < prodPrec {
+		return ActionTypeShift, ResolvedByPrec
+	}
+	return ActionTypeReduce, ResolvedByPrec
 }
 
 func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec.Description, error) {
@@ -485,6 +501,7 @@ func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec
 						Symbol:     c.sym.num().Int(),
 						State:      c.nextState.Int(),
 						Production: c.prodNum.Int(),
+						ResolvedBy: c.resolvedBy.Int(),
 					}
 
 					ty, s, p := tab.getAction(s.num, c.sym.num())
@@ -509,6 +526,7 @@ func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec
 						Symbol:      c.sym.num().Int(),
 						Production1: c.prodNum1.Int(),
 						Production2: c.prodNum2.Int(),
+						ResolvedBy:  c.resolvedBy.Int(),
 					}
 
 					_, _, p := tab.getAction(s.num, c.sym.num())

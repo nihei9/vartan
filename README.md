@@ -75,7 +75,6 @@ Next, generate a parsing table using `vartan compile` command.
 
 ```sh
 $ vartan compile expr.vr -o expr.json
-16 conflicts
 ```
 
 ### 3. Debug

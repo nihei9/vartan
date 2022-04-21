@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/nihei9/vartan/grammar"
 	"github.com/nihei9/vartan/spec"
 	"github.com/spf13/cobra"
 )
@@ -138,20 +139,64 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 		return desc.NonTerminals[sym].Name
 	}
 
+	termAssoc := func(sym int) string {
+		switch desc.Terminals[sym].Associativity {
+		case "l":
+			return "left"
+		case "r":
+			return "right"
+		default:
+			return "no"
+		}
+	}
+
+	prodAssoc := func(prod int) string {
+		switch desc.Productions[prod].Associativity {
+		case "l":
+			return "left"
+		case "r":
+			return "right"
+		default:
+			return "no"
+		}
+	}
+
 	fns := template.FuncMap{
 		"printConflictSummary": func(desc *spec.Description) string {
-			count := 0
+			var implicitlyResolvedCount int
+			var explicitlyResolvedCount int
 			for _, s := range desc.States {
-				count += len(s.SRConflict)
-				count += len(s.RRConflict)
+				for _, c := range s.SRConflict {
+					if c.ResolvedBy == grammar.ResolvedByShift.Int() {
+						implicitlyResolvedCount++
+					} else {
+						explicitlyResolvedCount++
+					}
+				}
+				for _, c := range s.RRConflict {
+					if c.ResolvedBy == grammar.ResolvedByProdOrder.Int() {
+						implicitlyResolvedCount++
+					} else {
+						explicitlyResolvedCount++
+					}
+				}
 			}
 
-			if count == 1 {
-				return "1 conflict was detected."
-			} else if count > 1 {
-				return fmt.Sprintf("%v conflicts were detected.", count)
+			var b strings.Builder
+			if implicitlyResolvedCount == 1 {
+				fmt.Fprintf(&b, "%v conflict occurred and resolved implicitly.\n", implicitlyResolvedCount)
+			} else if implicitlyResolvedCount > 1 {
+				fmt.Fprintf(&b, "%v conflicts occurred and resolved implicitly.\n", implicitlyResolvedCount)
 			}
-			return "No conflict was detected."
+			if explicitlyResolvedCount == 1 {
+				fmt.Fprintf(&b, "%v conflict occurred and resolved explicitly.\n", explicitlyResolvedCount)
+			} else if explicitlyResolvedCount > 1 {
+				fmt.Fprintf(&b, "%v conflicts occurred and resolved explicitly.\n", explicitlyResolvedCount)
+			}
+			if implicitlyResolvedCount == 0 && explicitlyResolvedCount == 0 {
+				fmt.Fprintf(&b, "No conflict")
+			}
+			return b.String()
 		},
 		"printTerminal": func(term spec.Terminal) string {
 			var prec string
@@ -249,10 +294,36 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 			case sr.AdoptedProduction != nil:
 				adopted = fmt.Sprintf("reduce %v", *sr.AdoptedProduction)
 			}
-			return fmt.Sprintf("shift/reduce conflict (shift %v, reduce %v) on %v: %v adopted", sr.State, sr.Production, termName(sr.Symbol), adopted)
+			var resolvedBy string
+			switch sr.ResolvedBy {
+			case grammar.ResolvedByPrec.Int():
+				if sr.AdoptedState != nil {
+					resolvedBy = fmt.Sprintf("symbol %v has higher precedence than production %v", termName(sr.Symbol), sr.Production)
+				} else {
+					resolvedBy = fmt.Sprintf("production %v has higher precedence than symbol %v", sr.Production, termName(sr.Symbol))
+				}
+			case grammar.ResolvedByAssoc.Int():
+				if sr.AdoptedState != nil {
+					resolvedBy = fmt.Sprintf("symbol %v and production %v has the same precedence, and symbol %v has %v associativity", termName(sr.Symbol), sr.Production, termName(sr.Symbol), termAssoc(sr.Symbol))
+				} else {
+					resolvedBy = fmt.Sprintf("production %v and symbol %v has the same precedence, and production %v has %v associativity", sr.Production, termName(sr.Symbol), sr.Production, prodAssoc(sr.Production))
+				}
+			case grammar.ResolvedByShift.Int():
+				resolvedBy = fmt.Sprintf("symbol %v and production %v don't define a precedence comparison (default rule)", sr.Symbol, sr.Production)
+			default:
+				resolvedBy = "?" // This is a bug.
+			}
+			return fmt.Sprintf("shift/reduce conflict (shift %v, reduce %v) on %v: %v adopted because %v", sr.State, sr.Production, termName(sr.Symbol), adopted, resolvedBy)
 		},
 		"printRRConflict": func(rr spec.RRConflict) string {
-			return fmt.Sprintf("reduce/reduce conflict (%v, %v) on %v: reduce %v adopted", rr.Production1, rr.Production2, termName(rr.Symbol), rr.AdoptedProduction)
+			var resolvedBy string
+			switch rr.ResolvedBy {
+			case grammar.ResolvedByProdOrder.Int():
+				resolvedBy = fmt.Sprintf("production %v and %v don't define a precedence comparison (default rule)", rr.Production1, rr.Production2)
+			default:
+				resolvedBy = "?" // This is a bug.
+			}
+			return fmt.Sprintf("reduce/reduce conflict (%v, %v) on %v: reduce %v adopted because %v", rr.Production1, rr.Production2, termName(rr.Symbol), rr.AdoptedProduction, resolvedBy)
 		},
 	}
 
