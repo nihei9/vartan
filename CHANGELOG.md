@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.1
+
+* [18a3317](https://github.com/nihei9/vartan/commit/18a3317ac9c79651e5c74a2afc6b14fd9a3f9d4a), [97d3696](https://github.com/nihei9/vartan/commit/97d36965cbb30108340727a982539e67dafea92d), [8340b9f](https://github.com/nihei9/vartan/commit/8340b9f1dc1339d88762f361e284ea4ad6c079d7), [533c454](https://github.com/nihei9/vartan/commit/533c4545213b01d12a800c1c9d4ce2c85a12ae48) - Enhance tests.
+* [389dd01](https://github.com/nihei9/vartan/commit/389dd0121475bdba7dea54f4cb02287fa48718da) -  Prohibit specifying associativity and precedence multiple times for a symbol.
+* [9a9444b](https://github.com/nihei9/vartan/commit/9a9444bdc00e2a738fb0aa7cac4afa8a123d679b) - Prohibit using the same element multiple times in an `#ast` directive.
+* [8bf4d23](https://github.com/nihei9/vartan/commit/8bf4d234d0b983d92378ba91660cae30e35f16f0) - Prohibit ambiguous symbol in an `#ast` directive.
+* [b0bf8eb](https://github.com/nihei9/vartan/commit/b0bf8ebcc335b4193982b971e7779bd0d973421f) - Update dependencies.
+* [0aa3e53](https://github.com/nihei9/vartan/commit/0aa3e53b50649052371edc9c09b470a63f889371) - `vartan show` command prints only adopted actions when conflicts occur.
+* [0f5c301](https://github.com/nihei9/vartan/commit/0f5c30198eae1777262aaa6c65d8b59875049beb) - Suppress a report about conflicts resolved explicitly.
+
+[Changes](https://github.com/nihei9/vartan/compare/v0.4.0...v0.4.1)
+
 ## v0.4.0
 
 * [ed2c201](https://github.com/nihei9/vartan/commit/ed2c20102659f4c8aef0e88ea604e91fb56f25f6) - Change semantic action APIs. A parser reports whether it recovered from an error to the semantic action APIs via the argument `recovered`.
