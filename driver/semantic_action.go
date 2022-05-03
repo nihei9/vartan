@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -68,6 +69,7 @@ func NewDefaultSyntaxTreeBuilder() *DefaulSyntaxTreeBuilder {
 // Shift is a implementation of SyntaxTreeBuilder.Shift.
 func (b *DefaulSyntaxTreeBuilder) Shift(kindName string, text string, row, col int) SyntaxTreeNode {
 	return &Node{
+		Type:     NodeTypeTerminal,
 		KindName: kindName,
 		Text:     text,
 		Row:      row,
@@ -78,8 +80,8 @@ func (b *DefaulSyntaxTreeBuilder) Shift(kindName string, text string, row, col i
 // ShiftError is a implementation of SyntaxTreeBuilder.ShiftError.
 func (b *DefaulSyntaxTreeBuilder) ShiftError(kindName string) SyntaxTreeNode {
 	return &Node{
+		Type:     NodeTypeError,
 		KindName: kindName,
-		Error:    true,
 	}
 }
 
@@ -90,6 +92,7 @@ func (b *DefaulSyntaxTreeBuilder) Reduce(kindName string, children []SyntaxTreeN
 		cNodes[i] = c.(*Node)
 	}
 	return &Node{
+		Type:     NodeTypeNonTerminal,
 		KindName: kindName,
 		Children: cNodes,
 	}
@@ -238,14 +241,61 @@ func (s *semanticStack) pop(n int) []SyntaxTreeNode {
 	return fs
 }
 
+type NodeType int
+
+const (
+	NodeTypeError       = 0
+	NodeTypeTerminal    = 1
+	NodeTypeNonTerminal = 2
+)
+
 // Node is a implementation of SyntaxTreeNode interface.
 type Node struct {
+	Type     NodeType
 	KindName string
 	Text     string
 	Row      int
 	Col      int
 	Children []*Node
-	Error    bool
+}
+
+func (n *Node) MarshalJSON() ([]byte, error) {
+	switch n.Type {
+	case NodeTypeError:
+		return json.Marshal(struct {
+			Type     NodeType `json:"type"`
+			KindName string   `json:"kind_name"`
+		}{
+			Type:     n.Type,
+			KindName: n.KindName,
+		})
+	case NodeTypeTerminal:
+		return json.Marshal(struct {
+			Type     NodeType `json:"type"`
+			KindName string   `json:"kind_name"`
+			Text     string   `json:"text"`
+			Row      int      `json:"row"`
+			Col      int      `json:"col"`
+		}{
+			Type:     n.Type,
+			KindName: n.KindName,
+			Text:     n.Text,
+			Row:      n.Row,
+			Col:      n.Col,
+		})
+	case NodeTypeNonTerminal:
+		return json.Marshal(struct {
+			Type     NodeType `json:"type"`
+			KindName string   `json:"kind_name"`
+			Children []*Node  `json:"children"`
+		}{
+			Type:     n.Type,
+			KindName: n.KindName,
+			Children: n.Children,
+		})
+	default:
+		return nil, fmt.Errorf("invalid node type: %v", n.Type)
+	}
 }
 
 // ChildCount is a implementation of SyntaxTreeNode.ChildCount.
@@ -272,31 +322,31 @@ func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix s
 		return
 	}
 
-	switch {
-	case node.Error:
+	switch node.Type {
+	case NodeTypeError:
 		fmt.Fprintf(w, "%v!%v\n", ruledLine, node.KindName)
-	case node.Text != "":
+	case NodeTypeTerminal:
 		fmt.Fprintf(w, "%v%v %#v\n", ruledLine, node.KindName, node.Text)
-	default:
+	case NodeTypeNonTerminal:
 		fmt.Fprintf(w, "%v%v\n", ruledLine, node.KindName)
-	}
 
-	num := len(node.Children)
-	for i, child := range node.Children {
-		var line string
-		if num > 1 && i < num-1 {
-			line = "├─ "
-		} else {
-			line = "└─ "
+		num := len(node.Children)
+		for i, child := range node.Children {
+			var line string
+			if num > 1 && i < num-1 {
+				line = "├─ "
+			} else {
+				line = "└─ "
+			}
+
+			var prefix string
+			if i >= num-1 {
+				prefix = "   "
+			} else {
+				prefix = "│  "
+			}
+
+			printTree(w, child, childRuledLinePrefix+line, childRuledLinePrefix+prefix)
 		}
-
-		var prefix string
-		if i >= num-1 {
-			prefix = "   "
-		} else {
-			prefix = "│  "
-		}
-
-		printTree(w, child, childRuledLinePrefix+line, childRuledLinePrefix+prefix)
 	}
 }

@@ -11,6 +11,7 @@ import (
 
 func termNode(kind string, text string, children ...*Node) *Node {
 	return &Node{
+		Type:     NodeTypeTerminal,
 		KindName: kind,
 		Text:     text,
 		Children: children,
@@ -19,13 +20,14 @@ func termNode(kind string, text string, children ...*Node) *Node {
 
 func errorNode() *Node {
 	return &Node{
+		Type:     NodeTypeError,
 		KindName: "error",
-		Error:    true,
 	}
 }
 
 func nonTermNode(kind string, children ...*Node) *Node {
 	return &Node{
+		Type:     NodeTypeNonTerminal,
 		KindName: kind,
 		Children: children,
 	}
@@ -131,8 +133,8 @@ bar_text: "bar";
 `,
 			src: ``,
 			cst: nonTermNode("s",
-				termNode("foo", ""),
-				termNode("bar", ""),
+				nonTermNode("foo"),
+				nonTermNode("bar"),
 			),
 		},
 		// The driver can reduce productions that have the empty alternative and can generate a CST (and AST) node.
@@ -154,7 +156,7 @@ bar_text: "bar";
 `,
 			src: `bar`,
 			cst: nonTermNode("s",
-				termNode("foo", ""),
+				nonTermNode("foo"),
 				nonTermNode("bar",
 					termNode("bar_text", "bar"),
 				),
@@ -716,7 +718,7 @@ bar: 'bar';
 func testTree(t *testing.T, node, expected *Node) {
 	t.Helper()
 
-	if node.KindName != expected.KindName || node.Text != expected.Text || node.Error != expected.Error {
+	if node.Type != expected.Type || node.KindName != expected.KindName || node.Text != expected.Text {
 		t.Fatalf("unexpected node; want: %+v, got: %+v", expected, node)
 	}
 	if len(node.Children) != len(expected.Children) {

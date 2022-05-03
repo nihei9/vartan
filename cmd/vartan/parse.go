@@ -17,6 +17,7 @@ var parseFlags = struct {
 	onlyParse  *bool
 	cst        *bool
 	disableLAC *bool
+	json       *bool
 }{}
 
 func init() {
@@ -31,6 +32,7 @@ func init() {
 	parseFlags.onlyParse = cmd.Flags().Bool("only-parse", false, "when this option is enabled, the parser performs only parse and doesn't semantic actions")
 	parseFlags.cst = cmd.Flags().Bool("cst", false, "when this option is enabled, the parser generates a CST")
 	parseFlags.disableLAC = cmd.Flags().Bool("disable-lac", false, "disable LAC (lookahead correction)")
+	parseFlags.json = cmd.Flags().Bool("json", false, "enable JSON output")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -158,7 +160,16 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			if len(synErrs) > 0 {
 				fmt.Println("")
 			}
-			driver.PrintTree(os.Stdout, tree)
+
+			if *parseFlags.json {
+				b, err := json.Marshal(tree)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintln(os.Stdout, string(b))
+			} else {
+				driver.PrintTree(os.Stdout, tree)
+			}
 		}
 	}
 
