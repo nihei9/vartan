@@ -25,10 +25,12 @@ $ go install github.com/nihei9/vartan/cmd/vartan-go@latest
 vartan uses BNF-like DSL to define your grammar. As an example, let's write a grammar that represents a simple expression.
 
 ```
-%name expr
+#name expr;
 
-%left mul div
-%left add sub
+#prec (
+    #left mul div
+    #left add sub
+);
 
 expr
 	: expr add expr
@@ -234,7 +236,7 @@ exit status 1
 
 ### Grammar name
 
-A grammar name `%name <Identifier>` is an identifier that represents a grammar name. For now, this identifier is used as a file name generated like _<grammar-name>\_parser.go_.
+A grammar name `#name <Identifier>` is an identifier that represents a grammar name. For now, this identifier is used as a file name generated like _<grammar-name>\_parser.go_.
 
 ### Production rules
 
@@ -325,7 +327,7 @@ example 1:
 Consider a grammar that accepts comma-separated list of integers. You can avoid including brackets and commas in an AST by specifying only the necessary symbols int the `#ast` directive parameters. Also, you can flatten an AST using `...` operator. `...` operator expands child nodes of a specified symbol.
 
 ```
-%name example
+#name example;
 
 list
 	: '[' elems ']' #ast elems...
@@ -356,7 +358,7 @@ example 2:
 Consider a grammar that accepts ternary-if expression (`<condition> ? <value if true> : <value if false>`). As this grammar contains two `int` symbols, you need to add labels to each symbol to distinguish them. A label consists of `@` + an identifier.
 
 ```
-%name example
+#name example;
 
 if_expr
 	: id '?' int@true ':' int@false #ast id true false
@@ -405,7 +407,7 @@ An `#alias` directive aliases for a terminal symbol. You can use the alias in er
 example:
 
 ```
-%name example
+#name example;
 
 s
 	: id
@@ -424,7 +426,7 @@ When the parser shifts a terminal symbol having the `#push` directive, the curre
 example:
 
 ```
-%name example
+#name example;
 
 tag_pairs
 	: tag_pairs tag_pair
@@ -471,7 +473,7 @@ The parser doesn't shift a terminal symbol having a `#skip` directive. In other 
 example:
 
 ```
-%name example
+#name example;
 
 s
 	: foo bar
@@ -497,7 +499,7 @@ foobar
 
 ### Operator precedence and associativity
 
-`%left` and `%right` allow you to define precedence and associativiry of symbols. `%left`/`%right` each assign the left/right associativity to symbols.
+`#left` and `#right` directives allow you to define precedence and associativiry of symbols. `#left`/`#right` each assign the left/right associativity to symbols.
 
 When the right-most terminal symbol of an alternative has precedence or associativity defined explicitly, the alternative inherits its precedence and associativity.
 
@@ -506,11 +508,13 @@ When the right-most terminal symbol of an alternative has precedence or associat
 The grammar for simple four arithmetic operations and assignment expression can be defined as follows:
 
 ```
-%name example
+#name example;
 
-%left mul div
-%left add sub
-%right assign
+#prec (
+    #left mul div
+    #left add sub
+    #right assign
+);
 
 expr
 	: expr add expr
@@ -541,11 +545,11 @@ assign
 	: '=';
 ```
 
-`%left` and `%right` can appear multiple times, and the first symbols applied to will have the highest precedence. That is, `mul` and `div` have the highest precedence, and `assign` has the lowest precedence.
+`#left` and `#right` can appear multiple times, and the first symbols applied to will have the highest precedence. That is, `mul` and `div` have the highest precedence, and `assign` has the lowest precedence.
 
 ⚠️ In many Yacc-like tools, the last symbols defined have the highest precedence. Not that in vartan, it is the opposite.
 
-When you compile the above grammar, some conflicts occur. However, vartan can resolve the conflicts following `%left`, `%right`, and `#prec`.
+When you compile the above grammar, some conflicts occur. However, vartan can resolve the conflicts following `#left`, `#right`, and `#prec`.
 
 ```
 $ echo -n 'foo = bar = x * -1 / -2' | vartan parse example.json
@@ -572,7 +576,7 @@ expr
 Incidentally, using no directives, you can define the above example as the following grammar:
 
 ```
-%name example
+#name example;
 
 expr
 	: id assign expr
@@ -651,7 +655,7 @@ When a syntax error occurs, the parser pops states from a state stack. If a stat
 Consider grammar of simple assignment statements.
 
 ```
-%name example
+#name example;
 
 statements
 	: statements statement #ast statements... statement

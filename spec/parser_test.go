@@ -8,6 +8,20 @@ import (
 )
 
 func TestParse(t *testing.T) {
+	name := func(param *ParameterNode) *DirectiveNode {
+		return &DirectiveNode{
+			Name:       "name",
+			Parameters: []*ParameterNode{param},
+		}
+	}
+
+	prec := func(param *ParameterNode) *DirectiveNode {
+		return &DirectiveNode{
+			Name:       "prec",
+			Parameters: []*ParameterNode{param},
+		}
+	}
+
 	leftAssoc := func(params ...*ParameterNode) *DirectiveNode {
 		return &DirectiveNode{
 			Name:       "left",
@@ -66,6 +80,11 @@ func TestParse(t *testing.T) {
 		param.Expansion = true
 		return param
 	}
+	group := func(dirs ...*DirectiveNode) *ParameterNode {
+		return &ParameterNode{
+			Group: dirs,
+		}
+	}
 	withParamPos := func(param *ParameterNode, pos Position) *ParameterNode {
 		param.Pos = pos
 		return param
@@ -121,6 +140,82 @@ func TestParse(t *testing.T) {
 		ast           *RootNode
 		synErr        *SyntaxError
 	}{
+		{
+			caption: "a grammar can contain top-level directives",
+			src: `
+#name test;
+
+#prec (
+    #left a b
+    #right c d
+);
+`,
+			ast: &RootNode{
+				Directives: []*DirectiveNode{
+					withDirPos(
+						name(
+							withParamPos(
+								idParam("test"),
+								newPos(2),
+							),
+						),
+						newPos(2),
+					),
+					withDirPos(
+						prec(
+							withParamPos(
+								group(
+									withDirPos(
+										leftAssoc(
+											withParamPos(
+												idParam("a"),
+												newPos(5),
+											),
+											withParamPos(
+												idParam("b"),
+												newPos(5),
+											),
+										),
+										newPos(5),
+									),
+									withDirPos(
+										rightAssoc(
+											withParamPos(
+												idParam("c"),
+												newPos(6),
+											),
+											withParamPos(
+												idParam("d"),
+												newPos(6),
+											),
+										),
+										newPos(6),
+									),
+								),
+								newPos(4),
+							),
+						),
+						newPos(4),
+					),
+				},
+			},
+		},
+		{
+			caption: "a top-level directive must be followed by ';'",
+			src: `
+#name test
+`,
+			synErr: synErrTopLevelDirNoSemicolon,
+		},
+		{
+			caption: "a directive group must be closed by ')'",
+			src: `
+#prec (
+    #left a b
+;
+`,
+			synErr: synErrUnclosedDirGroup,
+		},
 		{
 			caption: "single production is a valid grammar",
 			src:     `a: "a";`,
@@ -643,10 +738,12 @@ foo
 		{
 			caption: "a grammar can contain left and right associativities",
 			src: `
-%left l1 l2
-%left l3
-%right r1 r2
-%right r3
+#prec (
+    #left l1 l2
+    #left l3
+    #right r1 r2
+    #right r3
+);
 
 s
     : id l1 id l2 id l3 id
@@ -671,32 +768,42 @@ id
     : "[A-Za-z0-9_]+";
 `,
 			ast: &RootNode{
-				MetaData: []*DirectiveNode{
+				Directives: []*DirectiveNode{
 					withDirPos(
-						leftAssoc(
-							withParamPos(idParam("l1"), newPos(2)),
-							withParamPos(idParam("l2"), newPos(2)),
+						prec(
+							withParamPos(
+								group(
+									withDirPos(
+										leftAssoc(
+											withParamPos(idParam("l1"), newPos(3)),
+											withParamPos(idParam("l2"), newPos(3)),
+										),
+										newPos(3),
+									),
+									withDirPos(
+										leftAssoc(
+											withParamPos(idParam("l3"), newPos(4)),
+										),
+										newPos(4),
+									),
+									withDirPos(
+										rightAssoc(
+											withParamPos(idParam("r1"), newPos(5)),
+											withParamPos(idParam("r2"), newPos(5)),
+										),
+										newPos(5),
+									),
+									withDirPos(
+										rightAssoc(
+											withParamPos(idParam("r3"), newPos(6)),
+										),
+										newPos(6),
+									),
+								),
+								newPos(2),
+							),
 						),
 						newPos(2),
-					),
-					withDirPos(
-						leftAssoc(
-							withParamPos(idParam("l3"), newPos(3)),
-						),
-						newPos(3),
-					),
-					withDirPos(
-						rightAssoc(
-							withParamPos(idParam("r1"), newPos(4)),
-							withParamPos(idParam("r2"), newPos(4)),
-						),
-						newPos(4),
-					),
-					withDirPos(
-						rightAssoc(
-							withParamPos(idParam("r3"), newPos(5)),
-						),
-						newPos(5),
 					),
 				},
 				Productions: []*ProductionNode{
@@ -756,11 +863,11 @@ func testRootNode(t *testing.T, root, expected *RootNode, checkPosition bool) {
 	if len(root.Productions) != len(expected.Productions) {
 		t.Fatalf("unexpected length of productions; want: %v, got: %v", len(expected.Productions), len(root.Productions))
 	}
-	if len(root.MetaData) != len(expected.MetaData) {
-		t.Fatalf("unexpected length of meta data; want: %v, got: %v", len(expected.MetaData), len(root.MetaData))
+	if len(root.Directives) != len(expected.Directives) {
+		t.Fatalf("unexpected length of top-level directives; want: %v, got: %v", len(expected.Directives), len(root.Directives))
 	}
-	for i, md := range root.MetaData {
-		testDirectives(t, []*DirectiveNode{md}, []*DirectiveNode{expected.MetaData[i]}, true)
+	for i, dir := range root.Directives {
+		testDirectives(t, []*DirectiveNode{dir}, []*DirectiveNode{expected.Directives[i]}, true)
 	}
 	for i, prod := range root.Productions {
 		testProductionNode(t, prod, expected.Productions[i], checkPosition)

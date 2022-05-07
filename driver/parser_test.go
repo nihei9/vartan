@@ -43,7 +43,7 @@ func TestParser_Parse(t *testing.T) {
 	}{
 		{
 			specSrc: `
-%name test
+#name test;
 
 expr
     : expr "\+" term
@@ -117,7 +117,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		// The driver can reduce productions that have the empty alternative and can generate a CST (and AST) node.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -140,7 +140,7 @@ bar_text: "bar";
 		// The driver can reduce productions that have the empty alternative and can generate a CST (and AST) node.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -165,10 +165,12 @@ bar_text: "bar";
 		// A production can have multiple alternative productions.
 		{
 			specSrc: `
-%name test
+#name test;
 
-%left mul div
-%left add sub
+#prec (
+    #left mul div
+    #left add sub
+);
 
 expr
     : expr add expr
@@ -224,7 +226,7 @@ div
 		// A lexical production can have multiple production directives.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : push_a push_b pop pop
@@ -247,7 +249,7 @@ pop #mode a b #pop
 		},
 		{
 			specSrc: `
-%name test
+#name test;
 
 mode_tran_seq
     : mode_tran_seq mode_tran
@@ -275,7 +277,7 @@ whitespace #mode default m1 m2 #skip
 		},
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -291,7 +293,7 @@ bar #mode default
 		// When #push and #pop are applied to the same symbol, #pop will run first, then #push.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar baz
@@ -316,7 +318,7 @@ baz #mode m2
 		// they are executed.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar baz
@@ -339,7 +341,7 @@ baz #mode m2
 		// The parser can skips specified tokens.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -357,7 +359,7 @@ white_space #skip
 		// A grammar can contain fragments.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : tagline
@@ -370,7 +372,7 @@ fragment words: "[A-Za-z\u{0020}]+";
 		// A grammar can contain ast actions.
 		{
 			specSrc: `
-%name test
+#name test;
 
 list
     : "\[" elems "]" #ast elems...
@@ -410,7 +412,7 @@ id
 		// The '...' operator can expand child nodes.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : a #ast a...
@@ -433,7 +435,7 @@ foo
 		// The '...' operator also can applied to an element having no children.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : a ';' #ast a...
@@ -449,9 +451,11 @@ a
 		// A label can be a parameter of #ast directive.
 		{
 			specSrc: `
-%name test
+#name test;
 
-%left add sub
+#prec (
+    #left add sub
+);
 
 expr
     : expr@lhs add expr@rhs #ast add lhs rhs
@@ -482,7 +486,7 @@ num: "0|[1-9][0-9]*";
 		// An AST can contain a symbol name, even if the symbol has a label. That is, unused labels are allowed.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo@x ';' #ast foo
@@ -499,9 +503,11 @@ foo
 		// A production has the same precedence and associativity as the right-most terminal symbol.
 		{
 			specSrc: `
-%name test
+#name test;
 
-%left add
+#prec (
+    #left add
+);
 
 expr
     : expr add expr // This alternative has the same precedence and associativiry as 'add'.
@@ -544,10 +550,12 @@ add
 		// The 'prec' directive can set precedence of a production.
 		{
 			specSrc: `
-%name test
+#name test;
 
-%left mul div
-%left add sub
+#prec (
+    #left mul div
+    #left add sub
+);
 
 expr
     : expr add expr
@@ -603,7 +611,7 @@ div
 		// The grammar can contain the 'error' symbol.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : id id id ';'
@@ -620,7 +628,7 @@ id
 		// The 'error' symbol can appear in an #ast directive.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo ';'
@@ -639,7 +647,7 @@ foo
 		// The 'error' symbol can have a label, and an #ast can reference it.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo ';'
@@ -658,7 +666,7 @@ foo
 		// The grammar can contain the 'recover' directive.
 		{
 			specSrc: `
-%name test
+#name test;
 
 seq
     : seq elem
@@ -679,7 +687,7 @@ id
 		// The same label can be used between different alternatives.
 		{
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo@x bar

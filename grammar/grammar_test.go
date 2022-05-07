@@ -17,9 +17,10 @@ func TestGrammarBuilderOK(t *testing.T) {
 
 	nameTests := []*okTest{
 		{
-			caption: "the `%name` can be the same identifier as a non-terminal symbol",
+			caption: "the `#name` can be the same identifier as a non-terminal symbol",
 			specSrc: `
-%name s
+#name s;
+
 s
     : foo
     ;
@@ -35,9 +36,10 @@ foo
 			},
 		},
 		{
-			caption: "the `%name` can be the same identifier as a terminal symbol",
+			caption: "the `#name` can be the same identifier as a terminal symbol",
 			specSrc: `
-%name foo
+#name foo;
+
 s
     : foo
     ;
@@ -53,9 +55,10 @@ foo
 			},
 		},
 		{
-			caption: "the `%name` can be the same identifier as the error symbol",
+			caption: "the `#name` can be the same identifier as the error symbol",
 			specSrc: `
-%name error
+#name error;
+
 s
     : foo
     | error
@@ -72,9 +75,10 @@ foo
 			},
 		},
 		{
-			caption: "the `%name` can be the same identifier as a fragment",
+			caption: "the `#name` can be the same identifier as a fragment",
 			specSrc: `
-%name f
+#name f;
+
 s
     : foo
     ;
@@ -97,7 +101,8 @@ fragment f
 		{
 			caption: "a `#mode` can be the same identifier as a non-terminal symbol",
 			specSrc: `
-%name test
+#name test;
+
 s
     : foo bar
     ;
@@ -121,7 +126,8 @@ bar #mode s
 		{
 			caption: "a `#mode` can be the same identifier as a terminal symbol",
 			specSrc: `
-%name test
+#name test;
+
 s
     : foo bar
     ;
@@ -145,7 +151,8 @@ bar #mode bar
 		{
 			caption: "a `#mode` can be the same identifier as the error symbol",
 			specSrc: `
-%name test
+#name test;
+
 s
     : foo bar
     | error
@@ -170,7 +177,8 @@ bar #mode error
 		{
 			caption: "a `#mode` can be the same identifier as a fragment",
 			specSrc: `
-%name test
+#name test;
+
 s
     : foo bar
     ;
@@ -194,11 +202,28 @@ fragment f
 			},
 		},
 		{
+			caption: "a `#prec` allows the empty directive group",
+			specSrc: `
+#name test;
+
+#prec ();
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+		},
+		{
 			caption: "a production has the same precedence and associativity as the right-most terminal symbol",
 			specSrc: `
-%name test
+#name test;
 
-%left foo
+#prec (
+    #left foo
+);
 
 s
     : foo bar // This alternative has the same precedence and associativity as the right-most terminal symbol 'bar', not 'foo'.
@@ -236,10 +261,12 @@ bar
 		{
 			caption: "a production has the same precedence and associativity as the right-most terminal symbol",
 			specSrc: `
-%name test
+#name test;
 
-%left foo
-%right bar
+#prec (
+    #left foo
+    #right bar
+);
 
 s
     : foo bar // This alternative has the same precedence and associativity as the right-most terminal symbol 'bar'.
@@ -275,11 +302,13 @@ bar
 			},
 		},
 		{
-			caption: "the `#prec` directive changes only precedence, not associativity",
+			caption: "the `#prec` directive applied to an alternative changes only precedence, not associativity",
 			specSrc: `
-%name test
+#name test;
 
-%left foo
+#prec (
+    #left foo
+);
 
 s
     : foo bar #prec foo
@@ -315,12 +344,14 @@ bar
 			},
 		},
 		{
-			caption: "the `#prec` directive changes only precedence, not associativity",
+			caption: "the `#prec` directive applied to an alternative changes only precedence, not associativity",
 			specSrc: `
-%name test
+#name test;
 
-%left foo
-%right bar
+#prec (
+    #left foo
+    #right bar
+);
 
 s
     : foo bar #prec foo
@@ -385,7 +416,9 @@ bar
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			test.validate(t, g)
+			if test.validate != nil {
+				test.validate(t, g)
+			}
 		})
 	}
 }
@@ -401,7 +434,7 @@ func TestGrammarBuilderSpecError(t *testing.T) {
 		{
 			caption: "a production `b` is unused",
 			specSrc: `
-%name test
+#name test;
 
 a
     : foo
@@ -418,7 +451,7 @@ foo
 		{
 			caption: "a terminal symbol `bar` is unused",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -434,7 +467,7 @@ bar
 		{
 			caption: "a production `b` and terminal symbol `bar` is unused",
 			specSrc: `
-%name test
+#name test;
 
 a
     : foo
@@ -456,7 +489,7 @@ bar
 		{
 			caption: "a production cannot have production directives",
 			specSrc: `
-%name test
+#name test;
 
 s #prec foo
     : foo
@@ -470,7 +503,7 @@ foo
 		{
 			caption: "a lexical production cannot have alternative directives",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -484,7 +517,7 @@ foo
 		{
 			caption: "a production directive must not be duplicated",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -498,7 +531,7 @@ foo #skip #skip
 		{
 			caption: "an alternative directive must not be duplicated",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar #ast foo bar #ast foo bar
@@ -514,7 +547,7 @@ bar
 		{
 			caption: "a production must not have a duplicate alternative (non-empty alternatives)",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -529,7 +562,7 @@ foo
 		{
 			caption: "a production must not have a duplicate alternative (non-empty and split alternatives)",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -552,7 +585,7 @@ bar
 		{
 			caption: "a production must not have a duplicate alternative (empty alternatives)",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -571,7 +604,7 @@ foo
 		{
 			caption: "a production must not have a duplicate alternative (empty and split alternatives)",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -593,7 +626,7 @@ foo
 		{
 			caption: "a terminal symbol and a non-terminal symbol (start symbol) are duplicates",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -609,7 +642,7 @@ s
 		{
 			caption: "a terminal symbol and a non-terminal symbol (not start symbol) are duplicates",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -629,11 +662,11 @@ a
 			errs: []*SemanticError{semErrDuplicateName},
 		},
 		{
-			caption: "an invalid associativity type",
+			caption: "an invalid top-level directive",
 			specSrc: `
-%name test
+#name test;
 
-%foo
+#foo;
 
 s
     : a
@@ -642,12 +675,12 @@ s
 a
     : 'a';
 `,
-			errs: []*SemanticError{semErrMDInvalidName},
+			errs: []*SemanticError{semErrDirInvalidName},
 		},
 		{
 			caption: "a label must be unique in an alternative",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo@x bar@x
@@ -663,7 +696,7 @@ bar
 		{
 			caption: "a label cannot be the same name as terminal symbols",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar@foo
@@ -679,7 +712,7 @@ bar
 		{
 			caption: "a label cannot be the same name as non-terminal symbols",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo@a
@@ -700,9 +733,9 @@ bar
 		},
 	}
 
-	nameTests := []*specErrTest{
+	nameDirTests := []*specErrTest{
 		{
-			caption: "the `%name` is required",
+			caption: "the `#name` directive is required",
 			specSrc: `
 s
     : foo
@@ -711,12 +744,12 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDMissingName},
+			errs: []*SemanticError{semErrNoGrammarName},
 		},
 		{
-			caption: "the `%name` needs an ID parameter",
+			caption: "the `#name` directive needs an ID parameter",
 			specSrc: `
-%name
+#name;
 
 s
     : foo
@@ -725,12 +758,12 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%name` takes just one parameter",
+			caption: "the `#name` directive cannot take a pattern parameter",
 			specSrc: `
-%name test1 test2
+#name "test";
 
 s
     : foo
@@ -739,17 +772,45 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#name` directive cannot take a string parameter",
+			specSrc: `
+#name 'test';
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#name` directive takes just one parameter",
+			specSrc: `
+#name test1 test2;
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 	}
 
-	leftTests := []*specErrTest{
+	precDirTests := []*specErrTest{
 		{
-			caption: "the `%left` needs ID parameters",
+			caption: "the `#prec` directive needs a directive group parameter",
 			specSrc: `
-%name test
+#name test;
 
-%left
+#prec;
 
 s
     : foo
@@ -758,14 +819,14 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%left` cannot take an undefined symbol",
+			caption: "the `#prec` directive cannot take an ID parameter",
 			specSrc: `
-%name test
+#name test;
 
-%left x
+#prec foo;
 
 s
     : foo
@@ -774,14 +835,14 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%left` cannot take a non-terminal symbol",
+			caption: "the `#prec` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
-%left s
+#prec "foo";
 
 s
     : foo
@@ -790,14 +851,14 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%left` cannot take a pattern parameter",
+			caption: "the `#prec` directive cannot take a string parameter",
 			specSrc: `
-%name test
+#name test;
 
-%left "foo"
+#prec 'foo';
 
 s
     : foo
@@ -806,14 +867,14 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%left` cannot take a string parameter",
+			caption: "the `#prec` directive takes just one directive group parameter",
 			specSrc: `
-%name test
+#name test;
 
-%left 'foo'
+#prec () ();
 
 s
     : foo
@@ -822,14 +883,127 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+	}
+
+	leftDirTests := []*specErrTest{
+		{
+			caption: "the `#left` directive needs ID parameters",
+			specSrc: `
+#name test;
+
+#prec (
+    #left
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%left` cannot be specified multiple times for a symbol",
+			caption: "the `#left` directive cannot take an undefined symbol",
 			specSrc: `
-%name test
+#name test;
 
-%left foo foo
+#prec (
+    #left x
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#left` directive cannot take a non-terminal symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #left s
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#left` directive cannot take a pattern parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #left "foo"
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#left` directive cannot take a string parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #left 'foo'
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#left` directive cannot take a directive parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #left ()
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#left` dirctive cannot be specified multiple times for a symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #left foo foo
+);
 
 s
     : foo
@@ -843,10 +1017,12 @@ foo
 		{
 			caption: "a symbol cannot have different precedence",
 			specSrc: `
-%name test
+#name test;
 
-%left foo
-%left foo
+#prec (
+    #left foo
+    #left foo
+);
 
 s
     : foo
@@ -860,10 +1036,12 @@ foo
 		{
 			caption: "a symbol cannot have different associativity",
 			specSrc: `
-%name test
+#name test;
 
-%right foo
-%left foo
+#prec (
+    #right foo
+    #left foo
+);
 
 s
     : foo
@@ -876,13 +1054,15 @@ foo
 		},
 	}
 
-	rightTests := []*specErrTest{
+	rightDirTests := []*specErrTest{
 		{
-			caption: "the `%right` needs ID parameters",
+			caption: "the `#right` directive needs ID parameters",
 			specSrc: `
-%name test
+#name test;
 
-%right
+#prec (
+    #right
+);
 
 s
     : foo
@@ -891,14 +1071,16 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%right` cannot take an undefined symbol",
+			caption: "the `#right` directive cannot take an undefined symbol",
 			specSrc: `
-%name test
+#name test;
 
-%right x
+#prec (
+    #right x
+);
 
 s
     : foo
@@ -907,14 +1089,16 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%right` cannot take a non-terminal symbol",
+			caption: "the `#right` directive cannot take a non-terminal symbol",
 			specSrc: `
-%name test
+#name test;
 
-%right s
+#prec (
+    #right s
+);
 
 s
     : foo
@@ -923,14 +1107,16 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%right` cannot take a pattern parameter",
+			caption: "the `#right` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
-%right "foo"
+#prec (
+    #right "foo"
+);
 
 s
     : foo
@@ -939,14 +1125,16 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%right` cannot take a string parameter",
+			caption: "the `#right` directive cannot take a string parameter",
 			specSrc: `
-%name test
+#name test;
 
-%right 'foo'
+#prec (
+    #right 'foo'
+);
 
 s
     : foo
@@ -955,14 +1143,34 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrMDInvalidParam},
+			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `%right` cannot be specified multiple times for a symbol",
+			caption: "the `#right` directive cannot take a directive group parameter",
 			specSrc: `
-%name test
+#name test;
 
-%right foo foo
+#prec (
+    #right ()
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#right` directive cannot be specified multiple times for a symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #right foo foo
+);
 
 s
     : foo
@@ -976,10 +1184,12 @@ foo
 		{
 			caption: "a symbol cannot have different precedence",
 			specSrc: `
-%name test
+#name test;
 
-%right foo
-%right foo
+#prec (
+    #right foo
+    #right foo
+);
 
 s
     : foo
@@ -993,10 +1203,12 @@ foo
 		{
 			caption: "a symbol cannot have different associativity",
 			specSrc: `
-%name test
+#name test;
 
-%left foo
-%right foo
+#prec (
+    #left foo
+    #right foo
+);
 
 s
     : foo
@@ -1013,7 +1225,7 @@ foo
 		{
 			caption: "cannot use the error symbol as a non-terminal symbol",
 			specSrc: `
-%name test
+#name test;
 
 s
     : error
@@ -1032,7 +1244,7 @@ foo: 'foo';
 		{
 			caption: "cannot use the error symbol as a terminal symbol",
 			specSrc: `
-%name test
+#name test;
 
 s
     : error
@@ -1045,7 +1257,7 @@ error: 'error';
 		{
 			caption: "cannot use the error symbol as a terminal symbol, even if given the skip directive",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -1064,7 +1276,7 @@ error #skip
 		{
 			caption: "the `#ast` directive needs ID or label prameters",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #ast
@@ -1078,7 +1290,7 @@ foo
 		{
 			caption: "the `#ast` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #ast "foo"
@@ -1092,7 +1304,7 @@ foo
 		{
 			caption: "the `#ast` directive cannot take a string parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #ast 'foo'
@@ -1104,9 +1316,23 @@ foo
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "the `#ast` directive cannot take a directive group parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo #ast ()
+    ;
+
+foo
+    : "foo";
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "a parameter of the `#ast` directive must be either a symbol or a label in an alternative",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar #ast foo x
@@ -1122,7 +1348,7 @@ bar
 		{
 			caption: "a symbol in a different alternative cannot be a parameter of the `#ast` directive",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #ast bar
@@ -1139,7 +1365,7 @@ bar
 		{
 			caption: "a label in a different alternative cannot be a parameter of the `#ast` directive",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #ast b
@@ -1156,7 +1382,7 @@ bar
 		{
 			caption: "a symbol can appear in the `#ast` directive only once",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #ast foo foo
@@ -1170,7 +1396,7 @@ foo
 		{
 			caption: "a label can appear in the `#ast` directive only once",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo@x #ast x x
@@ -1184,7 +1410,7 @@ foo
 		{
 			caption: "a symbol can appear in the `#ast` directive only once, even if the symbol has a label",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo@x #ast foo x
@@ -1198,7 +1424,7 @@ foo
 		{
 			caption: "symbol `foo` is ambiguous because it appears in an alternative twice",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo foo #ast foo
@@ -1212,7 +1438,7 @@ foo
 		{
 			caption: "symbol `foo` is ambiguous because it appears in an alternative twice, even if one of them has a label",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo@x foo #ast foo
@@ -1226,7 +1452,7 @@ foo
 		{
 			caption: "the expansion operator cannot be applied to a terminal symbol",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #ast foo...
@@ -1240,7 +1466,7 @@ foo
 		{
 			caption: "the expansion operator cannot be applied to a pattern",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo "bar"@b #ast foo b...
@@ -1254,7 +1480,7 @@ foo
 		{
 			caption: "the expansion operator cannot be applied to a string",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo 'bar'@b #ast foo b...
@@ -1267,11 +1493,11 @@ foo
 		},
 	}
 
-	precDirTests := []*specErrTest{
+	altPrecDirTests := []*specErrTest{
 		{
 			caption: "the `#prec` directive needs an ID parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #prec
@@ -1285,7 +1511,7 @@ foo
 		{
 			caption: "the `#prec` directive cannot take an undefined symbol",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #prec x
@@ -1299,7 +1525,7 @@ foo
 		{
 			caption: "the `#prec` directive cannot take a non-terminal symbol",
 			specSrc: `
-%name test
+#name test;
 
 s
     : a #prec b
@@ -1322,7 +1548,7 @@ bar
 		{
 			caption: "the `#prec` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #prec "foo"
@@ -1336,7 +1562,7 @@ foo
 		{
 			caption: "the `#prec` directive cannot take a string parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo #prec 'foo'
@@ -1348,9 +1574,23 @@ foo
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "the `#prec` directive cannot take a directive parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo #prec ()
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "a symbol the `#prec` directive takes must be given precedence explicitly",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar #prec foo
@@ -1369,9 +1609,7 @@ bar
 		{
 			caption: "the `#recover` directive cannot take an ID parameter",
 			specSrc: `
-%name test
-
-%name test
+#name test;
 
 s
     : foo #recover foo
@@ -1385,9 +1623,7 @@ foo
 		{
 			caption: "the `#recover` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
-
-%name test
+#name test;
 
 s
     : foo #recover "foo"
@@ -1401,12 +1637,24 @@ foo
 		{
 			caption: "the `#recover` directive cannot take a string parameter",
 			specSrc: `
-%name test
-
-%name test
+#name test;
 
 s
     : foo #recover 'foo'
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#recover` directive cannot take a directive group parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo #recover ()
     ;
 
 foo
@@ -1420,7 +1668,7 @@ foo
 		{
 			caption: "a production cannot contain a fragment",
 			specSrc: `
-%name test
+#name test;
 
 s
     : f
@@ -1434,7 +1682,7 @@ fragment f
 		{
 			caption: "fragments cannot be duplicated",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -1455,7 +1703,7 @@ fragment f
 		{
 			caption: "the `#alias` directive needs a string parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -1469,7 +1717,7 @@ foo #alias
 		{
 			caption: "the `#alias` directive takes just one string parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -1483,7 +1731,7 @@ foo #alias 'Foo' 'FOO'
 		{
 			caption: "the `#alias` directive cannot take an ID parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -1497,7 +1745,7 @@ foo #alias Foo
 		{
 			caption: "the `#alias` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo
@@ -1508,13 +1756,27 @@ foo #alias "Foo"
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
+		{
+			caption: "the `#alias` directive cannot take a directive group parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo
+    ;
+
+foo #alias ()
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
 	}
 
-	modeTests := []*specErrTest{
+	modeDirTests := []*specErrTest{
 		{
 			caption: "the `#mode` directive needs an ID parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1530,7 +1792,7 @@ bar #mode
 		{
 			caption: "the `#mode` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1546,7 +1808,7 @@ bar #mode "mode_1"
 		{
 			caption: "the `#mode` directive cannot take a string parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1559,13 +1821,29 @@ bar #mode 'mode_1'
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
+		{
+			caption: "the `#mode` directive cannot take a directive group parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo bar
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode ()
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
 	}
 
-	pushTests := []*specErrTest{
+	pushDirTests := []*specErrTest{
 		{
 			caption: "the `#push` directive needs an ID parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1581,7 +1859,7 @@ bar #mode mode_1
 		{
 			caption: "the `#push` directive takes just one ID parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1597,7 +1875,7 @@ bar #mode mode_1
 		{
 			caption: "the `#push` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1613,7 +1891,7 @@ bar #mode mode_1
 		{
 			caption: "the `#push` directive cannot take a string parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1626,13 +1904,29 @@ bar #mode mode_1
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
+		{
+			caption: "the `#push` directive cannot take a directive group parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo bar
+    ;
+
+foo #push ()
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
 	}
 
-	popTests := []*specErrTest{
+	popDirTests := []*specErrTest{
 		{
 			caption: "the `#pop` directive cannot take an ID parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar baz
@@ -1650,7 +1944,7 @@ baz #pop mode_1
 		{
 			caption: "the `#pop` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar baz
@@ -1668,7 +1962,7 @@ baz #pop "mode_1"
 		{
 			caption: "the `#pop` directive cannot take a string parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar baz
@@ -1683,13 +1977,31 @@ baz #pop 'mode_1'
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
+		{
+			caption: "the `#pop` directive cannot take a directive parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo bar baz
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+baz #pop ()
+    : 'baz';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
 	}
 
 	skipDirTests := []*specErrTest{
 		{
 			caption: "the `#skip` directive cannot take an ID parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1705,7 +2017,7 @@ bar
 		{
 			caption: "the `#skip` directive cannot take a pattern parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1721,7 +2033,7 @@ bar
 		{
 			caption: "the `#skip` directive cannot take a string parameter",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1735,9 +2047,25 @@ bar
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "the `#skip` directive cannot take a directive group parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo bar
+    ;
+
+foo #skip ()
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "a terminal symbol used in productions cannot have the skip directive",
 			specSrc: `
-%name test
+#name test;
 
 s
     : foo bar
@@ -1754,18 +2082,19 @@ bar
 
 	var tests []*specErrTest
 	tests = append(tests, prodTests...)
-	tests = append(tests, nameTests...)
-	tests = append(tests, leftTests...)
-	tests = append(tests, rightTests...)
+	tests = append(tests, nameDirTests...)
+	tests = append(tests, precDirTests...)
+	tests = append(tests, leftDirTests...)
+	tests = append(tests, rightDirTests...)
 	tests = append(tests, errorSymTests...)
 	tests = append(tests, astDirTests...)
-	tests = append(tests, precDirTests...)
+	tests = append(tests, altPrecDirTests...)
 	tests = append(tests, recoverDirTests...)
 	tests = append(tests, fragmentTests...)
 	tests = append(tests, aliasDirTests...)
-	tests = append(tests, modeTests...)
-	tests = append(tests, pushTests...)
-	tests = append(tests, popTests...)
+	tests = append(tests, modeDirTests...)
+	tests = append(tests, pushDirTests...)
+	tests = append(tests, popDirTests...)
 	tests = append(tests, skipDirTests...)
 	for _, test := range tests {
 		t.Run(test.caption, func(t *testing.T) {

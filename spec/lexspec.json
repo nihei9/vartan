@@ -118,8 +118,12 @@
 			"pattern": "#"
 		},
 		{
-			"kind": "metadata_marker",
-			"pattern": "%"
+			"kind": "l_paren",
+			"pattern": "\\("
+		},
+		{
+			"kind": "r_paren",
+			"pattern": "\\)"
 		}
 	]
 }

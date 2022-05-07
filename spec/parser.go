@@ -9,7 +9,7 @@ import (
 )
 
 type RootNode struct {
-	MetaData       []*DirectiveNode
+	Directives     []*DirectiveNode
 	Productions    []*ProductionNode
 	LexProductions []*ProductionNode
 	Fragments      []*FragmentNode
@@ -58,6 +58,7 @@ type ParameterNode struct {
 	ID        string
 	Pattern   string
 	String    string
+	Group     []*DirectiveNode
 	Expansion bool
 	Pos       Position
 }
@@ -134,14 +135,14 @@ func (p *parser) parseRoot() *RootNode {
 		}
 	}()
 
-	var metadata []*DirectiveNode
+	var dirs []*DirectiveNode
 	var prods []*ProductionNode
 	var lexProds []*ProductionNode
 	var fragments []*FragmentNode
 	for {
-		md := p.parseMetaData()
-		if md != nil {
-			metadata = append(metadata, md)
+		dir := p.parseTopLevelDirective()
+		if dir != nil {
+			dirs = append(dirs, dir)
 			continue
 		}
 
@@ -167,14 +168,14 @@ func (p *parser) parseRoot() *RootNode {
 	}
 
 	return &RootNode{
-		MetaData:       metadata,
+		Directives:     dirs,
 		Productions:    prods,
 		LexProductions: lexProds,
 		Fragments:      fragments,
 	}
 }
 
-func (p *parser) parseMetaData() *DirectiveNode {
+func (p *parser) parseTopLevelDirective() *DirectiveNode {
 	defer func() {
 		err := recover()
 		if err == nil {
@@ -187,35 +188,21 @@ func (p *parser) parseMetaData() *DirectiveNode {
 		}
 
 		p.errs = append(p.errs, specErr)
-		p.skipOverTo(tokenKindNewline)
+		p.skipOverTo(tokenKindSemicolon)
 	}()
+
+	dir := p.parseDirective()
+	if dir == nil {
+		return nil
+	}
 
 	p.consume(tokenKindNewline)
 
-	if !p.consume(tokenKindMetaDataMarker) {
-		return nil
-	}
-	mdPos := p.lastTok.pos
-
-	if !p.consume(tokenKindID) {
-		raiseSyntaxError(p.pos.Row, synErrNoMDName)
-	}
-	name := p.lastTok.text
-
-	var params []*ParameterNode
-	for {
-		param := p.parseParameter()
-		if param == nil {
-			break
-		}
-		params = append(params, param)
+	if !p.consume(tokenKindSemicolon) {
+		raiseSyntaxError(p.pos.Row, synErrTopLevelDirNoSemicolon)
 	}
 
-	return &DirectiveNode{
-		Name:       name,
-		Parameters: params,
-		Pos:        mdPos,
-	}
+	return dir
 }
 
 func (p *parser) parseFragment() *FragmentNode {
@@ -428,6 +415,8 @@ func (p *parser) parseElement() *ElementNode {
 }
 
 func (p *parser) parseDirective() *DirectiveNode {
+	p.consume(tokenKindNewline)
+
 	if !p.consume(tokenKindDirectiveMarker) {
 		return nil
 	}
@@ -471,6 +460,30 @@ func (p *parser) parseParameter() *ParameterNode {
 		param = &ParameterNode{
 			String: p.lastTok.text,
 			Pos:    p.lastTok.pos,
+		}
+	case p.consume(tokenKindLParen):
+		pos := p.lastTok.pos
+		var g []*DirectiveNode
+		for {
+			dir := p.parseDirective()
+			if dir == nil {
+				break
+			}
+			g = append(g, dir)
+		}
+		if !p.consume(tokenKindRParen) {
+			raiseSyntaxError(p.pos.Row, synErrUnclosedDirGroup)
+		}
+		if len(g) == 0 {
+			// Set an empty slice representing an empty directive group to distinguish between the following two cases.
+			//
+			// - #prec (); // vartan allows this case.
+			// - #prec;    // This case will raise an error.
+			g = []*DirectiveNode{}
+		}
+		param = &ParameterNode{
+			Group: g,
+			Pos:   pos,
 		}
 	default:
 		return nil

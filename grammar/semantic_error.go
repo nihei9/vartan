@@ -15,9 +15,7 @@ func (e *SemanticError) Error() string {
 }
 
 var (
-	semErrMDInvalidName       = newSemanticError("invalid meta data name")
-	semErrMDInvalidParam      = newSemanticError("invalid parameter")
-	semErrMDMissingName       = newSemanticError("name is missing")
+	semErrNoGrammarName       = newSemanticError("name is missing")
 	semErrDuplicateAssoc      = newSemanticError("associativity and precedence cannot be specified multiple times for a symbol")
 	semErrUndefinedPrec       = newSemanticError("symbol must has precedence")
 	semErrUnusedProduction    = newSemanticError("unused production")

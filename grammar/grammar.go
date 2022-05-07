@@ -109,30 +109,30 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 	var specName string
 	{
 		errOccurred := false
-		for _, md := range b.AST.MetaData {
-			if md.Name != "name" {
+		for _, dir := range b.AST.Directives {
+			if dir.Name != "name" {
 				continue
 			}
 
-			if len(md.Parameters) != 1 || md.Parameters[0].ID == "" {
+			if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
 				b.errs = append(b.errs, &verr.SpecError{
-					Cause:  semErrMDInvalidParam,
+					Cause:  semErrDirInvalidParam,
 					Detail: "'name' takes just one ID parameter",
-					Row:    md.Pos.Row,
-					Col:    md.Pos.Col,
+					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
 				})
 
 				errOccurred = true
 				break
 			}
 
-			specName = md.Parameters[0].ID
+			specName = dir.Parameters[0].ID
 			break
 		}
 
 		if specName == "" && !errOccurred {
 			b.errs = append(b.errs, &verr.SpecError{
-				Cause: semErrMDMissingName,
+				Cause: semErrNoGrammarName,
 			})
 		}
 	}
@@ -986,40 +986,63 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 	termPrec := map[symbolNum]int{}
 	termAssoc := map[symbolNum]assocType{}
 	{
+		var precGroup []*spec.DirectiveNode
+		for _, dir := range b.AST.Directives {
+			if dir.Name == "prec" {
+				if dir.Parameters == nil || len(dir.Parameters) != 1 || dir.Parameters[0].Group == nil {
+					b.errs = append(b.errs, &verr.SpecError{
+						Cause:  semErrDirInvalidParam,
+						Detail: "'prec' needs just one directive group",
+						Row:    dir.Pos.Row,
+						Col:    dir.Pos.Col,
+					})
+					continue
+				}
+				precGroup = dir.Parameters[0].Group
+				continue
+			}
+
+			if dir.Name != "name" && dir.Name != "prec" {
+				b.errs = append(b.errs, &verr.SpecError{
+					Cause: semErrDirInvalidName,
+					Row:   dir.Pos.Row,
+					Col:   dir.Pos.Col,
+				})
+				continue
+			}
+		}
+
 		precN := precMin
-		for _, md := range b.AST.MetaData {
+		for _, dir := range precGroup {
 			var assocTy assocType
-			switch md.Name {
+			switch dir.Name {
 			case "left":
 				assocTy = assocTypeLeft
 			case "right":
 				assocTy = assocTypeRight
-			case "name":
-				// Since `name` is used for a purpose other than priority, we will ignore it here.
-				continue
 			default:
 				b.errs = append(b.errs, &verr.SpecError{
-					Cause: semErrMDInvalidName,
-					Row:   md.Pos.Row,
-					Col:   md.Pos.Col,
+					Cause: semErrDirInvalidName,
+					Row:   dir.Pos.Row,
+					Col:   dir.Pos.Col,
 				})
 				return nil, nil
 			}
 
-			if len(md.Parameters) == 0 {
+			if len(dir.Parameters) == 0 {
 				b.errs = append(b.errs, &verr.SpecError{
-					Cause:  semErrMDInvalidParam,
+					Cause:  semErrDirInvalidParam,
 					Detail: "associativity needs at least one symbol",
-					Row:    md.Pos.Row,
-					Col:    md.Pos.Col,
+					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
 				})
 				return nil, nil
 			}
 		ASSOC_PARAM_LOOP:
-			for _, p := range md.Parameters {
+			for _, p := range dir.Parameters {
 				if p.ID == "" {
 					b.errs = append(b.errs, &verr.SpecError{
-						Cause:  semErrMDInvalidParam,
+						Cause:  semErrDirInvalidParam,
 						Detail: "a parameter must be an ID",
 						Row:    p.Pos.Row,
 						Col:    p.Pos.Col,
@@ -1030,7 +1053,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 				sym, ok := symTab.toSymbol(p.ID)
 				if !ok {
 					b.errs = append(b.errs, &verr.SpecError{
-						Cause:  semErrMDInvalidParam,
+						Cause:  semErrDirInvalidParam,
 						Detail: fmt.Sprintf("'%v' is undefined", p.ID),
 						Row:    p.Pos.Row,
 						Col:    p.Pos.Col,
@@ -1039,7 +1062,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 				}
 				if !sym.isTerminal() {
 					b.errs = append(b.errs, &verr.SpecError{
-						Cause:  semErrMDInvalidParam,
+						Cause:  semErrDirInvalidParam,
 						Detail: fmt.Sprintf("associativity can take only terminal symbol ('%v' is a non-terminal)", p.ID),
 						Row:    p.Pos.Row,
 						Col:    p.Pos.Col,

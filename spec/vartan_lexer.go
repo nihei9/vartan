@@ -356,14 +356,15 @@ const (
 	KindIDLabelMarker        KindID = 11
 	KindIDExpansion          KindID = 12
 	KindIDDirectiveMarker    KindID = 13
-	KindIDMetadataMarker     KindID = 14
-	KindIDPattern            KindID = 15
-	KindIDTerminalClose      KindID = 16
-	KindIDEscapeSymbol       KindID = 17
-	KindIDCharSeq            KindID = 18
-	KindIDEscapedQuot        KindID = 19
-	KindIDEscapedBackSlash   KindID = 20
-	KindIDStringLiteralClose KindID = 21
+	KindIDLParen             KindID = 14
+	KindIDRParen             KindID = 15
+	KindIDPattern            KindID = 16
+	KindIDTerminalClose      KindID = 17
+	KindIDEscapeSymbol       KindID = 18
+	KindIDCharSeq            KindID = 19
+	KindIDEscapedQuot        KindID = 20
+	KindIDEscapedBackSlash   KindID = 21
+	KindIDStringLiteralClose KindID = 22
 )
 
 const (
@@ -381,7 +382,8 @@ const (
 	KindNameLabelMarker        = "label_marker"
 	KindNameExpansion          = "expansion"
 	KindNameDirectiveMarker    = "directive_marker"
-	KindNameMetadataMarker     = "metadata_marker"
+	KindNameLParen             = "l_paren"
+	KindNameRParen             = "r_paren"
 	KindNamePattern            = "pattern"
 	KindNameTerminalClose      = "terminal_close"
 	KindNameEscapeSymbol       = "escape_symbol"
@@ -422,8 +424,10 @@ func KindIDToName(id KindID) string {
 		return KindNameExpansion
 	case KindIDDirectiveMarker:
 		return KindNameDirectiveMarker
-	case KindIDMetadataMarker:
-		return KindNameMetadataMarker
+	case KindIDLParen:
+		return KindNameLParen
+	case KindIDRParen:
+		return KindNameRParen
 	case KindIDPattern:
 		return KindNamePattern
 	case KindIDTerminalClose:
@@ -467,7 +471,7 @@ func NewLexSpec() *lexSpec {
 		pop: [][]bool{
 			nil,
 			{
-				false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
+				false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
 			},
 			{
 				false, false, true, false,
@@ -479,7 +483,7 @@ func NewLexSpec() *lexSpec {
 		push: [][]ModeID{
 			nil,
 			{
-				0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0,
 			},
 			{
 				0, 0, 0, 0,
@@ -505,7 +509,7 @@ func NewLexSpec() *lexSpec {
 			{
 				0, 0, 1, 2, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 4, 5, 0, 0, 2, 6, 7, 8, 9,
-				10, 11, 12, 13, 14,
+				10, 11, 12, 13, 14, 15,
 			},
 			{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -536,7 +540,8 @@ func NewLexSpec() *lexSpec {
 				KindIDLabelMarker,
 				KindIDExpansion,
 				KindIDDirectiveMarker,
-				KindIDMetadataMarker,
+				KindIDLParen,
+				KindIDRParen,
 			},
 			{
 				KindIDNil,
@@ -568,7 +573,8 @@ func NewLexSpec() *lexSpec {
 			KindNameLabelMarker,
 			KindNameExpansion,
 			KindNameDirectiveMarker,
-			KindNameMetadataMarker,
+			KindNameLParen,
+			KindNameRParen,
 			KindNamePattern,
 			KindNameTerminalClose,
 			KindNameEscapeSymbol,
@@ -587,7 +593,7 @@ func NewLexSpec() *lexSpec {
 			{
 				0, 1, 2, 3, 4, 5, 6, 7, 6, 8, 6, 9, 6, 10, 6, 11, 12, 6, 13, 14,
 				6, 15, 16, 6, 17, 18, 19, 20, 21, 22, 23, 24, 24, 25, 26, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0,
 			},
 			{
 				0, 1, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 8, 2, 9, 10, 2, 11, 12, 2,
@@ -633,7 +639,7 @@ func NewLexSpec() *lexSpec {
 				5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 				5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 				5, 5, 5, 5, 5, 1, 1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-				-1, -1, -1, -1, -1, -1, -1, -1, 1, -1, 1, 1, -1, 1, -1, 1, -1, -1, -1, -1,
+				-1, -1, -1, -1, -1, -1, -1, -1, 1, -1, 1, 1, -1, -1, -1, 1, 1, 1, -1, -1,
 				-1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1,
 				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 				1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, 1, -1, 1, 1, 1, 1, 1, 1, 1,
@@ -978,7 +984,7 @@ func NewLexSpec() *lexSpec {
 				6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
 				6, 6, 6, 6, 7, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 11, 13, 13,
 				15, 18, 18, 18, 21, 2, 35, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 36, 43, 0, 44, 0, 37, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 36, 43, 0, 0, 0, 37, 44, 45, 0, 0,
 				0, 0, 33, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 40, 0, 0, 0, 0,
 				41, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
 				32, 32, 32, 32, 32, 32, 32, 0, 0, 0, 0, 32, 0, 32, 32, 32, 32, 32, 24, 32,

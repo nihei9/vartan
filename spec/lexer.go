@@ -25,7 +25,8 @@ const (
 	tokenKindLabelMarker     = tokenKind("@")
 	tokenKindDirectiveMarker = tokenKind("#")
 	tokenKindExpantion       = tokenKind("...")
-	tokenKindMetaDataMarker  = tokenKind("%")
+	tokenKindLParen          = tokenKind("(")
+	tokenKindRParen          = tokenKind(")")
 	tokenKindNewline         = tokenKind("newline")
 	tokenKindEOF             = tokenKind("eof")
 	tokenKindInvalid         = tokenKind("invalid")
@@ -265,8 +266,10 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		return newSymbolToken(tokenKindDirectiveMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDExpansion:
 		return newSymbolToken(tokenKindExpantion, newPosition(tok.Row+1, tok.Col+1)), nil
-	case KindIDMetadataMarker:
-		return newSymbolToken(tokenKindMetaDataMarker, newPosition(tok.Row+1, tok.Col+1)), nil
+	case KindIDLParen:
+		return newSymbolToken(tokenKindLParen, newPosition(tok.Row+1, tok.Col+1)), nil
+	case KindIDRParen:
+		return newSymbolToken(tokenKindRParen, newPosition(tok.Row+1, tok.Col+1)), nil
 	default:
 		return newInvalidToken(string(tok.Lexeme), newPosition(tok.Row+1, tok.Col+1)), nil
 	}

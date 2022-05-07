@@ -9,7 +9,7 @@ import (
 
 func TestGenSLR1Automaton(t *testing.T) {
 	src := `
-%name test
+#name test;
 
 expr
     : expr add term

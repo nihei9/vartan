@@ -47,7 +47,7 @@ func (a *testSemAct) MissError(cause VToken) {
 
 func TestParserWithSemanticAction(t *testing.T) {
 	specSrcWithErrorProd := `
-%name test
+#name test;
 
 seq
     : seq elem semicolon
@@ -70,7 +70,7 @@ char
 `
 
 	specSrcWithoutErrorProd := `
-%name test
+#name test;
 
 seq
     : seq elem semicolon
