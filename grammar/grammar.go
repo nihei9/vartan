@@ -39,7 +39,7 @@ type precAndAssoc struct {
 	termAssoc map[symbolNum]assocType
 
 	// prodPrec and prodAssoc represent the precedence and the associativities of the production.
-	// These values are inherited from the right-most symbols in the RHS of the productions.
+	// These values are inherited from the right-most terminal symbols in the RHS of the productions.
 	prodPrec  map[productionNum]int
 	prodAssoc map[productionNum]assocType
 }
@@ -150,7 +150,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
-	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs.prods, prodsAndActs.prodPrecs)
+	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs.prods, prodsAndActs.prodPrecs, prodsAndActs.prodPrecPoss)
 	if err != nil {
 		return nil, err
 	}
@@ -601,6 +601,7 @@ type productionsAndActions struct {
 	augStartSym  symbol
 	astActs      map[productionID][]*astActionEntry
 	prodPrecs    map[productionID]symbol
+	prodPrecPoss map[productionID]*spec.Position
 	recoverProds map[productionID]struct{}
 }
 
@@ -620,6 +621,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	var augStartSym symbol
 	astActs := map[productionID][]*astActionEntry{}
 	prodPrecs := map[productionID]symbol{}
+	prodPrecPoss := map[productionID]*spec.Position{}
 	recoverProds := map[productionID]struct{}{}
 
 	startProd := root.Productions[0]
@@ -945,6 +947,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						continue LOOP_RHS
 					}
 					prodPrecs[p.id] = sym
+					prodPrecPoss[p.id] = &dir.Parameters[0].Pos
 				case "recover":
 					if len(dir.Parameters) > 0 {
 						b.errs = append(b.errs, &verr.SpecError{
@@ -974,11 +977,12 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 		augStartSym:  augStartSym,
 		astActs:      astActs,
 		prodPrecs:    prodPrecs,
+		prodPrecPoss: prodPrecPoss,
 		recoverProds: recoverProds,
 	}, nil
 }
 
-func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionSet, prodPrecs map[productionID]symbol) (*precAndAssoc, error) {
+func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionSet, prodPrecs map[productionID]symbol, prodPrecPoss map[productionID]*spec.Position) (*precAndAssoc, error) {
 	termPrec := map[symbolNum]int{}
 	termAssoc := map[symbolNum]assocType{}
 	{
@@ -1082,34 +1086,39 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 	prodPrec := map[productionNum]int{}
 	prodAssoc := map[productionNum]assocType{}
 	for _, prod := range prods.getAllProductions() {
-		term, ok := prodPrecs[prod.id]
-		if !ok {
-			mostrightTerm := symbolNil
-			for _, sym := range prod.rhs {
-				if !sym.isTerminal() {
-					continue
-				}
-				mostrightTerm = sym
+		mostrightTerm := symbolNil
+		for _, sym := range prod.rhs {
+			if !sym.isTerminal() {
+				continue
 			}
-
-			term = mostrightTerm
+			mostrightTerm = sym
 		}
-		if term.isNil() {
-			continue
-		}
-
-		prec, ok := termPrec[term.num()]
-		if !ok {
-			continue
-		}
-
-		assoc, ok := termAssoc[term.num()]
-		if !ok {
-			continue
+		if !mostrightTerm.isNil() {
+			if prec, ok := termPrec[mostrightTerm.num()]; ok {
+				prodPrec[prod.num] = prec
+			}
+			if assoc, ok := termAssoc[mostrightTerm.num()]; ok {
+				prodAssoc[prod.num] = assoc
+			}
 		}
 
-		prodPrec[prod.num] = prec
-		prodAssoc[prod.num] = assoc
+		// #prec directive changes only precedence, not associativity.
+		if term, ok := prodPrecs[prod.id]; ok {
+			if prec, ok := termPrec[term.num()]; ok {
+				prodPrec[prod.num] = prec
+			} else {
+				text, _ := symTab.toText(term)
+				b.errs = append(b.errs, &verr.SpecError{
+					Cause:  semErrUndefinedPrec,
+					Detail: text,
+					Row:    prodPrecPoss[prod.id].Row,
+					Col:    prodPrecPoss[prod.id].Col,
+				})
+			}
+		}
+	}
+	if len(b.errs) > 0 {
+		return nil, nil
 	}
 
 	return &precAndAssoc{

@@ -496,7 +496,52 @@ foo
 				termNode("foo", "foo"),
 			),
 		},
-		// The 'prec' directive can set precedence and associativity of a production.
+		// A production has the same precedence and associativity as the right-most terminal symbol.
+		{
+			specSrc: `
+%name test
+
+%left add
+
+expr
+    : expr add expr // This alternative has the same precedence and associativiry as 'add'.
+    | int
+    ;
+
+ws #skip
+    : "[\u{0009}\u{0020}]+";
+int
+    : "0|[1-9][0-9]*";
+add
+    : '+';
+`,
+			// This source is recognized as the following structure because the production `expr → expr add expr` has the same
+			// precedence and associativity as the symbol 'add'.
+			//
+			// ((1+2)+3)
+			//
+			// If the symbol doesn't have the precedence and left associativity, the production also doesn't have the precedence
+			// and associativity and this source will be recognized as the following structure.
+			//
+			// (1+(2+3))
+			src: `1+2+3`,
+			ast: nonTermNode("expr",
+				nonTermNode("expr",
+					nonTermNode("expr",
+						termNode("int", "1"),
+					),
+					termNode("add", "+"),
+					nonTermNode("expr",
+						termNode("int", "2"),
+					),
+				),
+				termNode("add", "+"),
+				nonTermNode("expr",
+					termNode("int", "3"),
+				),
+			),
+		},
+		// The 'prec' directive can set precedence of a production.
 		{
 			specSrc: `
 %name test
@@ -527,7 +572,7 @@ div
     : '/';
 `,
 			// This source is recognized as the following structure because the production `expr → sub expr`
-			// has the `#prec mul` directive and has the same precedence and associativity of the symbol `mul`.
+			// has the `#prec mul` directive and has the same precedence of the symbol `mul`.
 			//
 			// (((-1) * 20) / 5)
 			//

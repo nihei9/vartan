@@ -19,6 +19,7 @@ var (
 	semErrMDInvalidParam      = newSemanticError("invalid parameter")
 	semErrMDMissingName       = newSemanticError("name is missing")
 	semErrDuplicateAssoc      = newSemanticError("associativity and precedence cannot be specified multiple times for a symbol")
+	semErrUndefinedPrec       = newSemanticError("symbol must has precedence")
 	semErrUnusedProduction    = newSemanticError("unused production")
 	semErrUnusedTerminal      = newSemanticError("unused terminal")
 	semErrTermCannotBeSkipped = newSemanticError("a terminal used in productions cannot be skipped")

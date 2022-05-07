@@ -193,6 +193,178 @@ fragment f
 				t.Fatalf("symbol having expected mode was not found: want: %v #mode %v", kind, expectedMode)
 			},
 		},
+		{
+			caption: "a production has the same precedence and associativity as the right-most terminal symbol",
+			specSrc: `
+%name test
+
+%left foo
+
+s
+    : foo bar // This alternative has the same precedence and associativity as the right-most terminal symbol 'bar', not 'foo'.
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var sPrec int
+				var sAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
+					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+				}
+				if barPrec != precNil || barAssoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, barPrec, barAssoc)
+				}
+				if sPrec != barPrec || sAssoc != barAssoc {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", barPrec, barAssoc, sPrec, sAssoc)
+				}
+			},
+		},
+		{
+			caption: "a production has the same precedence and associativity as the right-most terminal symbol",
+			specSrc: `
+%name test
+
+%left foo
+%right bar
+
+s
+    : foo bar // This alternative has the same precedence and associativity as the right-most terminal symbol 'bar'.
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var sPrec int
+				var sAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
+					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+				}
+				if barPrec != 2 || barAssoc != assocTypeRight {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, barPrec, barAssoc)
+				}
+				if sPrec != barPrec || sAssoc != barAssoc {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", barPrec, barAssoc, sPrec, sAssoc)
+				}
+			},
+		},
+		{
+			caption: "the `#prec` directive changes only precedence, not associativity",
+			specSrc: `
+%name test
+
+%left foo
+
+s
+    : foo bar #prec foo
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var sPrec int
+				var sAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
+					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+				}
+				if fooPrec != 1 || fooAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, fooPrec, fooAssoc)
+				}
+				if sPrec != fooPrec || sAssoc != assocTypeNil {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", fooPrec, assocTypeNil, sPrec, sAssoc)
+				}
+			},
+		},
+		{
+			caption: "the `#prec` directive changes only precedence, not associativity",
+			specSrc: `
+%name test
+
+%left foo
+%right bar
+
+s
+    : foo bar #prec foo
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var sPrec int
+				var sAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
+					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+				}
+				if fooPrec != 1 || fooAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, fooPrec, fooAssoc)
+				}
+				if barPrec != 2 || barAssoc != assocTypeRight {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, barPrec, barAssoc)
+				}
+				if sPrec != fooPrec || sAssoc != barAssoc {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", fooPrec, barAssoc, sPrec, sAssoc)
+				}
+			},
+		},
 	}
 
 	var tests []*okTest
@@ -1174,6 +1346,22 @@ foo
     : 'foo';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "a symbol the `#prec` directive takes must be given precedence explicitly",
+			specSrc: `
+%name test
+
+s
+    : foo bar #prec foo
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrUndefinedPrec},
 		},
 	}
 

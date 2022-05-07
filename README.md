@@ -384,7 +384,7 @@ Labels are intended to identify elements in directives. An AST doesn't contain l
 
 #### `#prec <symbol: Identifier>`
 
-A `#prec` directive gives alternatives the same precedence and associativety as `symbol`. To be precise, precedence and associativity are given to the right-most symbol in an alternative, not to an alternative.
+A `#prec` directive gives alternatives the same precedence as `symbol`.
 
 See [Operator precedence and associativity](#operator-precedence-and-associativity) section for more details on the `#prec` directive.
 
@@ -499,7 +499,9 @@ foobar
 
 `%left` and `%right` allow you to define precedence and associativiry of symbols. `%left`/`%right` each assign the left/right associativity to symbols.
 
-`#prec` directive assigns the same precedence and associativity as a specified symbol to an alternative.
+When the right-most terminal symbol of an alternative has precedence or associativity defined explicitly, the alternative inherits its precedence and associativity.
+
+`#prec` directive assigns the same precedence as a specified symbol to an alternative.
 
 The grammar for simple four arithmetic operations and assignment expression can be defined as follows:
 
