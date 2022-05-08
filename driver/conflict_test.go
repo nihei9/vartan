@@ -275,13 +275,122 @@ id
 			),
 		},
 		{
-			caption: "left and right associativities can be mixed",
+			caption: "terminal symbols with an #assign directive defined earlier in the grammar have higher precedence",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign a1
+    #assign a2
+);
+
+expr
+    : expr a2 expr
+    | expr a1 expr
+	| id
+    ;
+
+whitespaces #skip
+    : "[\u{0009}\u{0020}]+";
+a1
+    : 'a1';
+a2
+    : 'a2';
+id
+    : "[A-Za-z0-9_]+";
+`,
+			src: `a a2 b a1 c a1 d a2 e`,
+			cst: nonTermNode("expr",
+				nonTermNode("expr",
+					termNode("id", "a"),
+				),
+				termNode("a2", "a2"),
+				nonTermNode("expr",
+					nonTermNode("expr",
+						nonTermNode("expr",
+							termNode("id", "b"),
+						),
+						termNode("a1", "a1"),
+						nonTermNode("expr",
+							nonTermNode("expr",
+								termNode("id", "c"),
+							),
+							termNode("a1", "a1"),
+							nonTermNode("expr",
+								termNode("id", "d"),
+							),
+						),
+					),
+					termNode("a2", "a2"),
+					nonTermNode("expr",
+						termNode("id", "e"),
+					),
+				),
+			),
+		},
+		{
+			caption: "terminal symbols with an #assign directive defined in the same line have the same precedence",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign a1 a2
+);
+
+expr
+    : expr a2 expr
+    | expr a1 expr
+	| id
+    ;
+
+whitespaces #skip
+    : "[\u{0009}\u{0020}]+";
+a1
+    : 'a1';
+a2
+    : 'a2';
+id
+    : "[A-Za-z0-9_]+";
+`,
+			src: `a a2 b a1 c a1 d a2 e`,
+			cst: nonTermNode("expr",
+				nonTermNode("expr",
+					termNode("id", "a"),
+				),
+				termNode("a2", "a2"),
+				nonTermNode("expr",
+					nonTermNode("expr",
+						termNode("id", "b"),
+					),
+					termNode("a1", "a1"),
+					nonTermNode("expr",
+						nonTermNode("expr",
+							termNode("id", "c"),
+						),
+						termNode("a1", "a1"),
+						nonTermNode("expr",
+							nonTermNode("expr",
+								termNode("id", "d"),
+							),
+							termNode("a2", "a2"),
+							nonTermNode("expr",
+								termNode("id", "e"),
+							),
+						),
+					),
+				),
+			),
+		},
+		{
+			caption: "#left, #right, and #assign can be mixed",
 			specSrc: `
 #name test;
 
 #prec (
     #left mul div
     #left add sub
+    #assign else
+    #assign then
     #right assign
 );
 
@@ -290,10 +399,16 @@ expr
     | expr sub expr
     | expr mul expr
     | expr div expr
-	| expr assign expr
-	| id
+    | expr assign expr
+    | if expr then expr
+    | if expr then expr else expr
+    | id
     ;
 
+ws #skip: "[\u{0009}\u{0020}]+";
+if: 'if';
+then: 'then';
+else: 'else';
 id: "[A-Za-z0-9_]+";
 add: '+';
 sub: '-';
@@ -301,7 +416,7 @@ mul: '*';
 div: '/';
 assign: '=';
 `,
-			src: `x=y=a+b*c-d/e`,
+			src: `x = y = a + b * c - d / e + if f then if g then h else i`,
 			cst: nonTermNode(
 				"expr",
 				nonTermNode("expr",
@@ -316,27 +431,51 @@ assign: '=';
 					nonTermNode("expr",
 						nonTermNode("expr",
 							nonTermNode("expr",
-								termNode("id", "a"),
+								nonTermNode("expr",
+									termNode("id", "a"),
+								),
+								termNode("add", "+"),
+								nonTermNode("expr",
+									nonTermNode("expr",
+										termNode("id", "b"),
+									),
+									termNode("mul", "*"),
+									nonTermNode("expr",
+										termNode("id", "c"),
+									),
+								),
 							),
-							termNode("add", "+"),
+							termNode("sub", "-"),
 							nonTermNode("expr",
 								nonTermNode("expr",
-									termNode("id", "b"),
+									termNode("id", "d"),
 								),
-								termNode("mul", "*"),
+								termNode("div", "/"),
 								nonTermNode("expr",
-									termNode("id", "c"),
+									termNode("id", "e"),
 								),
 							),
 						),
-						termNode("sub", "-"),
+						termNode("add", "+"),
 						nonTermNode("expr",
+							termNode("if", "if"),
 							nonTermNode("expr",
-								termNode("id", "d"),
+								termNode("id", "f"),
 							),
-							termNode("div", "/"),
+							termNode("then", "then"),
 							nonTermNode("expr",
-								termNode("id", "e"),
+								termNode("if", "if"),
+								nonTermNode("expr",
+									termNode("id", "g"),
+								),
+								termNode("then", "then"),
+								nonTermNode("expr",
+									termNode("id", "h"),
+								),
+								termNode("else", "else"),
+								nonTermNode("expr",
+									termNode("id", "i"),
+								),
 							),
 						),
 					),

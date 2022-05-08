@@ -501,6 +501,8 @@ foobar
 
 `#left` and `#right` directives allow you to define precedence and associativiry of symbols. `#left`/`#right` each assign the left/right associativity to symbols.
 
+If you want to change precedence, `#assign` directive helps you. `#assign` directive changes only precedence, not associativity.
+
 When the right-most terminal symbol of an alternative has precedence or associativity defined explicitly, the alternative inherits its precedence and associativity.
 
 `#prec` directive assigns the same precedence as a specified symbol to an alternative.

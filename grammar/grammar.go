@@ -1020,6 +1020,8 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 				assocTy = assocTypeLeft
 			case "right":
 				assocTy = assocTypeRight
+			case "assign":
+				assocTy = assocTypeNil
 			default:
 				b.errs = append(b.errs, &verr.SpecError{
 					Cause: semErrDirInvalidName,

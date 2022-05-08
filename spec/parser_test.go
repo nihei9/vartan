@@ -34,6 +34,12 @@ func TestParse(t *testing.T) {
 			Parameters: params,
 		}
 	}
+	assign := func(params ...*ParameterNode) *DirectiveNode {
+		return &DirectiveNode{
+			Name:       "assign",
+			Parameters: params,
+		}
+	}
 	prod := func(lhs string, alts ...*AlternativeNode) *ProductionNode {
 		return &ProductionNode{
 			LHS: lhs,
@@ -148,6 +154,7 @@ func TestParse(t *testing.T) {
 #prec (
     #left a b
     #right c d
+    #assign e f
 );
 `,
 			ast: &RootNode{
@@ -190,6 +197,19 @@ func TestParse(t *testing.T) {
 											),
 										),
 										newPos(6),
+									),
+									withDirPos(
+										assign(
+											withParamPos(
+												idParam("e"),
+												newPos(7),
+											),
+											withParamPos(
+												idParam("f"),
+												newPos(7),
+											),
+										),
+										newPos(7),
 									),
 								),
 								newPos(4),

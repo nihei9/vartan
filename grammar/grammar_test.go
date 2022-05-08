@@ -201,6 +201,9 @@ fragment f
 				t.Fatalf("symbol having expected mode was not found: want: %v #mode %v", kind, expectedMode)
 			},
 		},
+	}
+
+	precTests := []*okTest{
 		{
 			caption: "a `#prec` allows the empty directive group",
 			specSrc: `
@@ -215,6 +218,165 @@ s
 foo
     : 'foo';
 `,
+		},
+		{
+			caption: "a `#left` directive gives a precedence and the left associativity to specified terminal symbols",
+			specSrc: `
+#name test;
+
+#prec (
+    #left foo bar
+);
+
+s
+    : foo bar baz
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+baz
+    : 'baz';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if fooPrec != 1 || fooAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, fooPrec, fooAssoc)
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if barPrec != 1 || barAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, barPrec, barAssoc)
+				}
+				var bazPrec int
+				var bazAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("baz")
+					bazPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					bazAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if bazPrec != precNil || bazAssoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, bazPrec, bazAssoc)
+				}
+			},
+		},
+		{
+			caption: "a `#right` directive gives a precedence and the right associativity to specified terminal symbols",
+			specSrc: `
+#name test;
+
+#prec (
+    #right foo bar
+);
+
+s
+    : foo bar baz
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+baz
+    : 'baz';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if fooPrec != 1 || fooAssoc != assocTypeRight {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeRight, fooPrec, fooAssoc)
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if barPrec != 1 || barAssoc != assocTypeRight {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeRight, barPrec, barAssoc)
+				}
+				var bazPrec int
+				var bazAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("baz")
+					bazPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					bazAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if bazPrec != precNil || bazAssoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, bazPrec, bazAssoc)
+				}
+			},
+		},
+		{
+			caption: "an `#assign` directive gives only a precedence to specified terminal symbols",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign foo bar
+);
+
+s
+    : foo bar baz
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+baz
+    : 'baz';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if fooPrec != 1 || fooAssoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeNil, fooPrec, fooAssoc)
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if barPrec != 1 || barAssoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeNil, barPrec, barAssoc)
+				}
+				var bazPrec int
+				var bazAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("baz")
+					bazPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					bazAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if bazPrec != precNil || bazAssoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, bazPrec, bazAssoc)
+				}
+			},
 		},
 		{
 			caption: "a production has the same precedence and associativity as the right-most terminal symbol",
@@ -401,6 +563,7 @@ bar
 	var tests []*okTest
 	tests = append(tests, nameTests...)
 	tests = append(tests, modeTests...)
+	tests = append(tests, precTests...)
 
 	for _, test := range tests {
 		t.Run(test.caption, func(t *testing.T) {
@@ -1208,6 +1371,173 @@ foo
 #prec (
     #left foo
     #right foo
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+	}
+
+	assignDirTests := []*specErrTest{
+		{
+			caption: "the `#assign` directive needs ID parameters",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#assign` directive cannot take an undefined symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign x
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#assign` directive cannot take a non-terminal symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign s
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#assign` directive cannot take a pattern parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign "foo"
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#assign` directive cannot take a string parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign 'foo'
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#assign` directive cannot take a directive parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign ()
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#assign` dirctive cannot be specified multiple times for a symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign foo foo
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a symbol cannot have different precedence",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign foo
+    #assign foo
+);
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a symbol cannot have different associativity",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign foo
+    #left foo
 );
 
 s
@@ -2086,6 +2416,7 @@ bar
 	tests = append(tests, precDirTests...)
 	tests = append(tests, leftDirTests...)
 	tests = append(tests, rightDirTests...)
+	tests = append(tests, assignDirTests...)
 	tests = append(tests, errorSymTests...)
 	tests = append(tests, astDirTests...)
 	tests = append(tests, altPrecDirTests...)
