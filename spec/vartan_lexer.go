@@ -342,55 +342,57 @@ func ModeIDToName(id ModeID) string {
 }
 
 const (
-	KindIDNil                KindID = 0
-	KindIDWhiteSpace         KindID = 1
-	KindIDNewline            KindID = 2
-	KindIDLineComment        KindID = 3
-	KindIDKwFragment         KindID = 4
-	KindIDIdentifier         KindID = 5
-	KindIDTerminalOpen       KindID = 6
-	KindIDStringLiteralOpen  KindID = 7
-	KindIDColon              KindID = 8
-	KindIDOr                 KindID = 9
-	KindIDSemicolon          KindID = 10
-	KindIDLabelMarker        KindID = 11
-	KindIDExpansion          KindID = 12
-	KindIDDirectiveMarker    KindID = 13
-	KindIDLParen             KindID = 14
-	KindIDRParen             KindID = 15
-	KindIDPattern            KindID = 16
-	KindIDTerminalClose      KindID = 17
-	KindIDEscapeSymbol       KindID = 18
-	KindIDCharSeq            KindID = 19
-	KindIDEscapedQuot        KindID = 20
-	KindIDEscapedBackSlash   KindID = 21
-	KindIDStringLiteralClose KindID = 22
+	KindIDNil                 KindID = 0
+	KindIDWhiteSpace          KindID = 1
+	KindIDNewline             KindID = 2
+	KindIDLineComment         KindID = 3
+	KindIDKwFragment          KindID = 4
+	KindIDIdentifier          KindID = 5
+	KindIDTerminalOpen        KindID = 6
+	KindIDStringLiteralOpen   KindID = 7
+	KindIDColon               KindID = 8
+	KindIDOr                  KindID = 9
+	KindIDSemicolon           KindID = 10
+	KindIDLabelMarker         KindID = 11
+	KindIDExpansion           KindID = 12
+	KindIDDirectiveMarker     KindID = 13
+	KindIDOrderedSymbolMarker KindID = 14
+	KindIDLParen              KindID = 15
+	KindIDRParen              KindID = 16
+	KindIDPattern             KindID = 17
+	KindIDTerminalClose       KindID = 18
+	KindIDEscapeSymbol        KindID = 19
+	KindIDCharSeq             KindID = 20
+	KindIDEscapedQuot         KindID = 21
+	KindIDEscapedBackSlash    KindID = 22
+	KindIDStringLiteralClose  KindID = 23
 )
 
 const (
-	KindNameNil                = ""
-	KindNameWhiteSpace         = "white_space"
-	KindNameNewline            = "newline"
-	KindNameLineComment        = "line_comment"
-	KindNameKwFragment         = "kw_fragment"
-	KindNameIdentifier         = "identifier"
-	KindNameTerminalOpen       = "terminal_open"
-	KindNameStringLiteralOpen  = "string_literal_open"
-	KindNameColon              = "colon"
-	KindNameOr                 = "or"
-	KindNameSemicolon          = "semicolon"
-	KindNameLabelMarker        = "label_marker"
-	KindNameExpansion          = "expansion"
-	KindNameDirectiveMarker    = "directive_marker"
-	KindNameLParen             = "l_paren"
-	KindNameRParen             = "r_paren"
-	KindNamePattern            = "pattern"
-	KindNameTerminalClose      = "terminal_close"
-	KindNameEscapeSymbol       = "escape_symbol"
-	KindNameCharSeq            = "char_seq"
-	KindNameEscapedQuot        = "escaped_quot"
-	KindNameEscapedBackSlash   = "escaped_back_slash"
-	KindNameStringLiteralClose = "string_literal_close"
+	KindNameNil                 = ""
+	KindNameWhiteSpace          = "white_space"
+	KindNameNewline             = "newline"
+	KindNameLineComment         = "line_comment"
+	KindNameKwFragment          = "kw_fragment"
+	KindNameIdentifier          = "identifier"
+	KindNameTerminalOpen        = "terminal_open"
+	KindNameStringLiteralOpen   = "string_literal_open"
+	KindNameColon               = "colon"
+	KindNameOr                  = "or"
+	KindNameSemicolon           = "semicolon"
+	KindNameLabelMarker         = "label_marker"
+	KindNameExpansion           = "expansion"
+	KindNameDirectiveMarker     = "directive_marker"
+	KindNameOrderedSymbolMarker = "ordered_symbol_marker"
+	KindNameLParen              = "l_paren"
+	KindNameRParen              = "r_paren"
+	KindNamePattern             = "pattern"
+	KindNameTerminalClose       = "terminal_close"
+	KindNameEscapeSymbol        = "escape_symbol"
+	KindNameCharSeq             = "char_seq"
+	KindNameEscapedQuot         = "escaped_quot"
+	KindNameEscapedBackSlash    = "escaped_back_slash"
+	KindNameStringLiteralClose  = "string_literal_close"
 )
 
 // KindIDToName converts a kind ID to a name.
@@ -424,6 +426,8 @@ func KindIDToName(id KindID) string {
 		return KindNameExpansion
 	case KindIDDirectiveMarker:
 		return KindNameDirectiveMarker
+	case KindIDOrderedSymbolMarker:
+		return KindNameOrderedSymbolMarker
 	case KindIDLParen:
 		return KindNameLParen
 	case KindIDRParen:
@@ -471,7 +475,7 @@ func NewLexSpec() *lexSpec {
 		pop: [][]bool{
 			nil,
 			{
-				false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
+				false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
 			},
 			{
 				false, false, true, false,
@@ -483,7 +487,7 @@ func NewLexSpec() *lexSpec {
 		push: [][]ModeID{
 			nil,
 			{
-				0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			},
 			{
 				0, 0, 0, 0,
@@ -509,7 +513,7 @@ func NewLexSpec() *lexSpec {
 			{
 				0, 0, 1, 2, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 4, 5, 0, 0, 2, 6, 7, 8, 9,
-				10, 11, 12, 13, 14, 15,
+				10, 11, 12, 13, 14, 15, 16,
 			},
 			{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -540,6 +544,7 @@ func NewLexSpec() *lexSpec {
 				KindIDLabelMarker,
 				KindIDExpansion,
 				KindIDDirectiveMarker,
+				KindIDOrderedSymbolMarker,
 				KindIDLParen,
 				KindIDRParen,
 			},
@@ -573,6 +578,7 @@ func NewLexSpec() *lexSpec {
 			KindNameLabelMarker,
 			KindNameExpansion,
 			KindNameDirectiveMarker,
+			KindNameOrderedSymbolMarker,
 			KindNameLParen,
 			KindNameRParen,
 			KindNamePattern,
@@ -593,7 +599,7 @@ func NewLexSpec() *lexSpec {
 			{
 				0, 1, 2, 3, 4, 5, 6, 7, 6, 8, 6, 9, 6, 10, 6, 11, 12, 6, 13, 14,
 				6, 15, 16, 6, 17, 18, 19, 20, 21, 22, 23, 24, 24, 25, 26, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0,
 			},
 			{
 				0, 1, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 8, 2, 9, 10, 2, 11, 12, 2,
@@ -639,7 +645,7 @@ func NewLexSpec() *lexSpec {
 				5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 				5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 				5, 5, 5, 5, 5, 1, 1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-				-1, -1, -1, -1, -1, -1, -1, -1, 1, -1, 1, 1, -1, -1, -1, 1, 1, 1, -1, -1,
+				-1, -1, -1, -1, -1, -1, -1, -1, 1, -1, 1, 1, 1, -1, -1, 1, 1, 1, -1, -1,
 				-1, -1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, -1, -1, -1, -1,
 				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 				1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, 1, -1, 1, 1, 1, 1, 1, 1, 1,
@@ -984,7 +990,7 @@ func NewLexSpec() *lexSpec {
 				6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
 				6, 6, 6, 6, 7, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 11, 13, 13,
 				15, 18, 18, 18, 21, 2, 35, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 36, 43, 0, 0, 0, 37, 44, 45, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 36, 43, 44, 0, 0, 37, 45, 46, 0, 0,
 				0, 0, 33, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 40, 0, 0, 0, 0,
 				41, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
 				32, 32, 32, 32, 32, 32, 32, 0, 0, 0, 0, 32, 0, 32, 32, 32, 32, 32, 24, 32,

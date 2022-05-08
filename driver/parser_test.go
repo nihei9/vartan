@@ -168,6 +168,7 @@ bar_text: "bar";
 #name test;
 
 #prec (
+    #assign $uminus
     #left mul div
     #left add sub
 );
@@ -178,7 +179,7 @@ expr
     | expr mul expr
     | expr div expr
     | int
-    | sub int #prec mul #ast int sub // This 'sub' means the unary minus symbol.
+    | sub int #prec $uminus // This 'sub' means the unary minus symbol.
     ;
 
 int
@@ -197,13 +198,13 @@ div
 				nonTermNode("expr",
 					nonTermNode("expr",
 						nonTermNode("expr",
-							termNode("int", "1"),
 							termNode("sub", "-"),
+							termNode("int", "1"),
 						),
 						termNode("mul", "*"),
 						nonTermNode("expr",
-							termNode("int", "2"),
 							termNode("sub", "-"),
+							termNode("int", "2"),
 						),
 					),
 					termNode("add", "+"),
@@ -553,6 +554,7 @@ add
 #name test;
 
 #prec (
+    #assign $uminus
     #left mul div
     #left add sub
 );
@@ -562,8 +564,8 @@ expr
     | expr sub expr
     | expr mul expr
     | expr div expr
-    | sub expr #prec mul // This 'sub' means a unary minus symbol.
     | int
+    | sub int #prec $uminus // This 'sub' means a unary minus symbol.
     ;
 
 ws #skip
@@ -593,9 +595,7 @@ div
 				nonTermNode("expr",
 					nonTermNode("expr",
 						termNode("sub", "-"),
-						nonTermNode("expr",
-							termNode("int", "1"),
-						),
+						termNode("int", "1"),
 					),
 					termNode("mul", "*"),
 					nonTermNode("expr",

@@ -28,8 +28,8 @@ vartan uses BNF-like DSL to define your grammar. As an example, let's write a gr
 #name expr;
 
 #prec (
-    #left mul div
-    #left add sub
+	#left mul div
+	#left add sub
 );
 
 expr
@@ -505,7 +505,9 @@ If you want to change precedence, `#assign` directive helps you. `#assign` direc
 
 When the right-most terminal symbol of an alternative has precedence or associativity defined explicitly, the alternative inherits its precedence and associativity.
 
-`#prec` directive assigns the same precedence as a specified symbol to an alternative.
+`#prec` directive assigns the same precedence as a specified symbol to an alternative and disables associativity.
+
+You can define an ordered symbol with the form `$<ID>`. The ordered symbol is an identifier having only precedence, and you can use it in `#prec` directive applied to an alternative. The ordered symbol helps you to resolve shift/reduce conflicts without terminal symbol definitions.
 
 The grammar for simple four arithmetic operations and assignment expression can be defined as follows:
 
@@ -513,9 +515,10 @@ The grammar for simple four arithmetic operations and assignment expression can 
 #name example;
 
 #prec (
-    #left mul div
-    #left add sub
-    #right assign
+	#assign $uminus
+	#left mul div
+	#left add sub
+	#right assign
 );
 
 expr
@@ -525,7 +528,7 @@ expr
 	| expr div expr
 	| id assign expr
 	| int
-	| sub int #prec mul // This `sub` means a unary minus symbol.
+	| sub int #prec $uminus // This `sub` means a unary minus symbol.
 	| id
 	;
 

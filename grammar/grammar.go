@@ -150,7 +150,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
-	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs.prods, prodsAndActs.prodPrecs, prodsAndActs.prodPrecPoss)
+	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs)
 	if err != nil {
 		return nil, err
 	}
@@ -597,12 +597,13 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 }
 
 type productionsAndActions struct {
-	prods        *productionSet
-	augStartSym  symbol
-	astActs      map[productionID][]*astActionEntry
-	prodPrecs    map[productionID]symbol
-	prodPrecPoss map[productionID]*spec.Position
-	recoverProds map[productionID]struct{}
+	prods           *productionSet
+	augStartSym     symbol
+	astActs         map[productionID][]*astActionEntry
+	prodPrecsTerm   map[productionID]symbol
+	prodPrecsOrdSym map[productionID]string
+	prodPrecPoss    map[productionID]*spec.Position
+	recoverProds    map[productionID]struct{}
 }
 
 func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTableAndLexSpec) (*productionsAndActions, error) {
@@ -620,7 +621,8 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	prods := newProductionSet()
 	var augStartSym symbol
 	astActs := map[productionID][]*astActionEntry{}
-	prodPrecs := map[productionID]symbol{}
+	prodPrecsTerm := map[productionID]symbol{}
+	prodPrecsOrdSym := map[productionID]string{}
 	prodPrecPoss := map[productionID]*spec.Position{}
 	recoverProds := map[productionID]struct{}{}
 
@@ -918,36 +920,42 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 					}
 					astActs[p.id] = astAct
 				case "prec":
-					if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
+					if len(dir.Parameters) != 1 || (dir.Parameters[0].ID == "" && dir.Parameters[0].OrderedSymbol == "") {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
-							Detail: "'prec' directive needs an ID parameter",
+							Detail: "'prec' directive needs just one ID parameter or ordered symbol",
 							Row:    dir.Pos.Row,
 							Col:    dir.Pos.Col,
 						})
 						continue LOOP_RHS
 					}
-					sym, ok := symTab.toSymbol(dir.Parameters[0].ID)
-					if !ok {
-						b.errs = append(b.errs, &verr.SpecError{
-							Cause:  semErrDirInvalidParam,
-							Detail: fmt.Sprintf("unknown terminal symbol: %v", dir.Parameters[0].ID),
-							Row:    dir.Pos.Row,
-							Col:    dir.Pos.Col,
-						})
-						continue LOOP_RHS
+					switch {
+					case dir.Parameters[0].ID != "":
+						sym, ok := symTab.toSymbol(dir.Parameters[0].ID)
+						if !ok {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDirInvalidParam,
+								Detail: fmt.Sprintf("unknown terminal symbol: %v", dir.Parameters[0].ID),
+								Row:    dir.Pos.Row,
+								Col:    dir.Pos.Col,
+							})
+							continue LOOP_RHS
+						}
+						if !sym.isTerminal() {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDirInvalidParam,
+								Detail: fmt.Sprintf("the symbol must be a terminal: %v", dir.Parameters[0].ID),
+								Row:    dir.Pos.Row,
+								Col:    dir.Pos.Col,
+							})
+							continue LOOP_RHS
+						}
+						prodPrecsTerm[p.id] = sym
+						prodPrecPoss[p.id] = &dir.Parameters[0].Pos
+					case dir.Parameters[0].OrderedSymbol != "":
+						prodPrecsOrdSym[p.id] = dir.Parameters[0].OrderedSymbol
+						prodPrecPoss[p.id] = &dir.Parameters[0].Pos
 					}
-					if !sym.isTerminal() {
-						b.errs = append(b.errs, &verr.SpecError{
-							Cause:  semErrDirInvalidParam,
-							Detail: fmt.Sprintf("the symbol must be a terminal: %v", dir.Parameters[0].ID),
-							Row:    dir.Pos.Row,
-							Col:    dir.Pos.Col,
-						})
-						continue LOOP_RHS
-					}
-					prodPrecs[p.id] = sym
-					prodPrecPoss[p.id] = &dir.Parameters[0].Pos
 				case "recover":
 					if len(dir.Parameters) > 0 {
 						b.errs = append(b.errs, &verr.SpecError{
@@ -973,18 +981,20 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	}
 
 	return &productionsAndActions{
-		prods:        prods,
-		augStartSym:  augStartSym,
-		astActs:      astActs,
-		prodPrecs:    prodPrecs,
-		prodPrecPoss: prodPrecPoss,
-		recoverProds: recoverProds,
+		prods:           prods,
+		augStartSym:     augStartSym,
+		astActs:         astActs,
+		prodPrecsTerm:   prodPrecsTerm,
+		prodPrecsOrdSym: prodPrecsOrdSym,
+		prodPrecPoss:    prodPrecPoss,
+		recoverProds:    recoverProds,
 	}, nil
 }
 
-func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionSet, prodPrecs map[productionID]symbol, prodPrecPoss map[productionID]*spec.Position) (*precAndAssoc, error) {
+func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prodsAndActs *productionsAndActions) (*precAndAssoc, error) {
 	termPrec := map[symbolNum]int{}
 	termAssoc := map[symbolNum]assocType{}
+	ordSymPrec := map[string]int{}
 	{
 		var precGroup []*spec.DirectiveNode
 		for _, dir := range b.AST.Directives {
@@ -1004,9 +1014,10 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 
 			if dir.Name != "name" && dir.Name != "prec" {
 				b.errs = append(b.errs, &verr.SpecError{
-					Cause: semErrDirInvalidName,
-					Row:   dir.Pos.Row,
-					Col:   dir.Pos.Col,
+					Cause:  semErrDirInvalidName,
+					Detail: dir.Name,
+					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
 				})
 				continue
 			}
@@ -1024,9 +1035,10 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 				assocTy = assocTypeNil
 			default:
 				b.errs = append(b.errs, &verr.SpecError{
-					Cause: semErrDirInvalidName,
-					Row:   dir.Pos.Row,
-					Col:   dir.Pos.Col,
+					Cause:  semErrDirInvalidName,
+					Detail: dir.Name,
+					Row:    dir.Pos.Row,
+					Col:    dir.Pos.Col,
 				})
 				return nil, nil
 			}
@@ -1042,63 +1054,85 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 			}
 		ASSOC_PARAM_LOOP:
 			for _, p := range dir.Parameters {
-				if p.ID == "" {
-					b.errs = append(b.errs, &verr.SpecError{
-						Cause:  semErrDirInvalidParam,
-						Detail: "a parameter must be an ID",
-						Row:    p.Pos.Row,
-						Col:    p.Pos.Col,
-					})
-					return nil, nil
-				}
-
-				sym, ok := symTab.toSymbol(p.ID)
-				if !ok {
-					b.errs = append(b.errs, &verr.SpecError{
-						Cause:  semErrDirInvalidParam,
-						Detail: fmt.Sprintf("'%v' is undefined", p.ID),
-						Row:    p.Pos.Row,
-						Col:    p.Pos.Col,
-					})
-					return nil, nil
-				}
-				if !sym.isTerminal() {
-					b.errs = append(b.errs, &verr.SpecError{
-						Cause:  semErrDirInvalidParam,
-						Detail: fmt.Sprintf("associativity can take only terminal symbol ('%v' is a non-terminal)", p.ID),
-						Row:    p.Pos.Row,
-						Col:    p.Pos.Col,
-					})
-					return nil, nil
-				}
-				if prec, alreadySet := termPrec[sym.num()]; alreadySet {
-					if prec == precN {
+				switch {
+				case p.ID != "":
+					sym, ok := symTab.toSymbol(p.ID)
+					if !ok {
 						b.errs = append(b.errs, &verr.SpecError{
-							Cause:  semErrDuplicateAssoc,
-							Detail: fmt.Sprintf("'%v' already has the same associativity and precedence", p.ID),
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("'%v' is undefined", p.ID),
 							Row:    p.Pos.Row,
 							Col:    p.Pos.Col,
 						})
-					} else if assoc := termAssoc[sym.num()]; assoc == assocTy {
-						b.errs = append(b.errs, &verr.SpecError{
-							Cause:  semErrDuplicateAssoc,
-							Detail: fmt.Sprintf("'%v' already has different precedence", p.ID),
-							Row:    p.Pos.Row,
-							Col:    p.Pos.Col,
-						})
-					} else {
-						b.errs = append(b.errs, &verr.SpecError{
-							Cause:  semErrDuplicateAssoc,
-							Detail: fmt.Sprintf("'%v' already has different associativity and precedence", p.ID),
-							Row:    p.Pos.Row,
-							Col:    p.Pos.Col,
-						})
+						return nil, nil
 					}
-					break ASSOC_PARAM_LOOP
-				}
+					if !sym.isTerminal() {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("associativity can take only terminal symbol ('%v' is a non-terminal)", p.ID),
+							Row:    p.Pos.Row,
+							Col:    p.Pos.Col,
+						})
+						return nil, nil
+					}
+					if prec, alreadySet := termPrec[sym.num()]; alreadySet {
+						if prec == precN {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDuplicateAssoc,
+								Detail: fmt.Sprintf("'%v' already has the same associativity and precedence", p.ID),
+								Row:    p.Pos.Row,
+								Col:    p.Pos.Col,
+							})
+						} else if assoc := termAssoc[sym.num()]; assoc == assocTy {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDuplicateAssoc,
+								Detail: fmt.Sprintf("'%v' already has different precedence", p.ID),
+								Row:    p.Pos.Row,
+								Col:    p.Pos.Col,
+							})
+						} else {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDuplicateAssoc,
+								Detail: fmt.Sprintf("'%v' already has different associativity and precedence", p.ID),
+								Row:    p.Pos.Row,
+								Col:    p.Pos.Col,
+							})
+						}
+						break ASSOC_PARAM_LOOP
+					}
 
-				termPrec[sym.num()] = precN
-				termAssoc[sym.num()] = assocTy
+					termPrec[sym.num()] = precN
+					termAssoc[sym.num()] = assocTy
+				case p.OrderedSymbol != "":
+					if prec, alreadySet := ordSymPrec[p.OrderedSymbol]; alreadySet {
+						if prec == precN {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDuplicateAssoc,
+								Detail: fmt.Sprintf("'$%v' already has the same precedence", p.OrderedSymbol),
+								Row:    p.Pos.Row,
+								Col:    p.Pos.Col,
+							})
+						} else {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDuplicateAssoc,
+								Detail: fmt.Sprintf("'$%v' already has different precedence", p.OrderedSymbol),
+								Row:    p.Pos.Row,
+								Col:    p.Pos.Col,
+							})
+						}
+						break ASSOC_PARAM_LOOP
+					}
+
+					ordSymPrec[p.OrderedSymbol] = precN
+				default:
+					b.errs = append(b.errs, &verr.SpecError{
+						Cause:  semErrDirInvalidParam,
+						Detail: "a parameter must be an ID or an ordered symbol",
+						Row:    p.Pos.Row,
+						Col:    p.Pos.Col,
+					})
+					return nil, nil
+				}
 			}
 
 			precN++
@@ -1110,35 +1144,45 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prods *productionS
 
 	prodPrec := map[productionNum]int{}
 	prodAssoc := map[productionNum]assocType{}
-	for _, prod := range prods.getAllProductions() {
-		mostrightTerm := symbolNil
-		for _, sym := range prod.rhs {
-			if !sym.isTerminal() {
-				continue
-			}
-			mostrightTerm = sym
-		}
-		if !mostrightTerm.isNil() {
-			if prec, ok := termPrec[mostrightTerm.num()]; ok {
-				prodPrec[prod.num] = prec
-			}
-			if assoc, ok := termAssoc[mostrightTerm.num()]; ok {
-				prodAssoc[prod.num] = assoc
-			}
-		}
-
-		// #prec directive changes only precedence, not associativity.
-		if term, ok := prodPrecs[prod.id]; ok {
+	for _, prod := range prodsAndActs.prods.getAllProductions() {
+		// A #prec directive changes only precedence, not associativity.
+		if term, ok := prodsAndActs.prodPrecsTerm[prod.id]; ok {
 			if prec, ok := termPrec[term.num()]; ok {
 				prodPrec[prod.num] = prec
+				prodAssoc[prod.num] = assocTypeNil
 			} else {
 				text, _ := symTab.toText(term)
 				b.errs = append(b.errs, &verr.SpecError{
 					Cause:  semErrUndefinedPrec,
 					Detail: text,
-					Row:    prodPrecPoss[prod.id].Row,
-					Col:    prodPrecPoss[prod.id].Col,
+					Row:    prodsAndActs.prodPrecPoss[prod.id].Row,
+					Col:    prodsAndActs.prodPrecPoss[prod.id].Col,
 				})
+			}
+		} else if ordSym, ok := prodsAndActs.prodPrecsOrdSym[prod.id]; ok {
+			if prec, ok := ordSymPrec[ordSym]; ok {
+				prodPrec[prod.num] = prec
+				prodAssoc[prod.num] = assocTypeNil
+			} else {
+				b.errs = append(b.errs, &verr.SpecError{
+					Cause:  semErrUndefinedOrdSym,
+					Detail: fmt.Sprintf("$%v", ordSym),
+					Row:    prodsAndActs.prodPrecPoss[prod.id].Row,
+					Col:    prodsAndActs.prodPrecPoss[prod.id].Col,
+				})
+			}
+		} else {
+			// A production inherits precedence and associativity from the right-most terminal symbol.
+			mostrightTerm := symbolNil
+			for _, sym := range prod.rhs {
+				if !sym.isTerminal() {
+					continue
+				}
+				mostrightTerm = sym
+			}
+			if !mostrightTerm.isNil() {
+				prodPrec[prod.num] = termPrec[mostrightTerm.num()]
+				prodAssoc[prod.num] = termAssoc[mostrightTerm.num()]
 			}
 		}
 	}

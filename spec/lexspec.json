@@ -118,6 +118,10 @@
 			"pattern": "#"
 		},
 		{
+			"kind": "ordered_symbol_marker",
+			"pattern": "$"
+		},
+		{
 			"kind": "l_paren",
 			"pattern": "\\("
 		},

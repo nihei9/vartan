@@ -464,6 +464,189 @@ bar
 			},
 		},
 		{
+			caption: "even if a non-terminal symbol apears to a terminal symbol, a production inherits precedence and associativity from the right-most terminal symbol, not from the non-terminal symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #left foo
+    #right bar
+);
+
+s
+    : foo a // This alternative has the same precedence and associativity as the right-most terminal symbol 'foo', not 'a'.
+    ;
+a
+    : bar
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var aPrec int
+				var aAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("a")
+					ps, _ := g.productionSet.findByLHS(s)
+					aPrec = g.precAndAssoc.productionPredence(ps[0].num)
+					aAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+				}
+				var sPrec int
+				var sAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
+					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+				}
+				if fooPrec != 1 || fooAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, fooPrec, fooAssoc)
+				}
+				if barPrec != 2 || barAssoc != assocTypeRight {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, barPrec, barAssoc)
+				}
+				if aPrec != barPrec || aAssoc != barAssoc {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", barPrec, barAssoc, aPrec, aAssoc)
+				}
+				if sPrec != fooPrec || sAssoc != fooAssoc {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", fooPrec, fooAssoc, sPrec, sAssoc)
+				}
+			},
+		},
+		{
+			caption: "each alternative in the same production can have its own precedence and associativity",
+			specSrc: `
+#name test;
+
+#prec (
+    #left foo
+    #right bar
+    #assign baz
+);
+
+s
+    : foo
+    | bar
+    | baz
+    | bra
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+baz
+    : 'baz';
+bra
+    : 'bra';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var alt1Prec int
+				var alt1Assoc assocType
+				var alt2Prec int
+				var alt2Assoc assocType
+				var alt3Prec int
+				var alt3Assoc assocType
+				var alt4Prec int
+				var alt4Assoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
+					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+					alt2Prec = g.precAndAssoc.productionPredence(ps[1].num)
+					alt2Assoc = g.precAndAssoc.productionAssociativity(ps[1].num)
+					alt3Prec = g.precAndAssoc.productionPredence(ps[2].num)
+					alt3Assoc = g.precAndAssoc.productionAssociativity(ps[2].num)
+					alt4Prec = g.precAndAssoc.productionPredence(ps[3].num)
+					alt4Assoc = g.precAndAssoc.productionAssociativity(ps[3].num)
+				}
+				if alt1Prec != 1 || alt1Assoc != assocTypeLeft {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, alt1Prec, alt1Assoc)
+				}
+				if alt2Prec != 2 || alt2Assoc != assocTypeRight {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, alt2Prec, alt2Assoc)
+				}
+				if alt3Prec != 3 || alt3Assoc != assocTypeNil {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 3, assocTypeNil, alt3Prec, alt3Assoc)
+				}
+				if alt4Prec != precNil || alt4Assoc != assocTypeNil {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, alt4Prec, alt4Assoc)
+				}
+			},
+		},
+		{
+			caption: "when a production contains no terminal symbols, the production will not have precedence and associativiry",
+			specSrc: `
+#name test;
+
+#prec (
+    #left foo
+);
+
+s
+    : a
+    ;
+a
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var aPrec int
+				var aAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("a")
+					ps, _ := g.productionSet.findByLHS(s)
+					aPrec = g.precAndAssoc.productionPredence(ps[0].num)
+					aAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+				}
+				var sPrec int
+				var sAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
+					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+				}
+				if fooPrec != 1 || fooAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, fooPrec, fooAssoc)
+				}
+				if aPrec != fooPrec || aAssoc != fooAssoc {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", fooPrec, fooAssoc, aPrec, aAssoc)
+				}
+				if sPrec != precNil || sAssoc != assocTypeNil {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, sPrec, sAssoc)
+				}
+			},
+		},
+		{
 			caption: "the `#prec` directive applied to an alternative changes only precedence, not associativity",
 			specSrc: `
 #name test;
@@ -553,8 +736,310 @@ bar
 				if barPrec != 2 || barAssoc != assocTypeRight {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, barPrec, barAssoc)
 				}
-				if sPrec != fooPrec || sAssoc != barAssoc {
-					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", fooPrec, barAssoc, sPrec, sAssoc)
+				if sPrec != fooPrec || sAssoc != assocTypeNil {
+					t.Fatalf("unexpected production precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", fooPrec, assocTypeNil, sPrec, sAssoc)
+				}
+			},
+		},
+		{
+			caption: "an ordered symbol can appear in a `#left` directive",
+			specSrc: `
+#name test;
+
+#prec (
+    #left $high
+    #right foo bar
+    #left $low
+);
+
+s
+    : foo #prec $high
+    | bar #prec $low
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if fooPrec != 2 || fooAssoc != assocTypeRight {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, fooPrec, fooAssoc)
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if barPrec != 2 || barAssoc != assocTypeRight {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, barPrec, barAssoc)
+				}
+				var alt1Prec int
+				var alt1Assoc assocType
+				var alt2Prec int
+				var alt2Assoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
+					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+					alt2Prec = g.precAndAssoc.productionPredence(ps[1].num)
+					alt2Assoc = g.precAndAssoc.productionAssociativity(ps[1].num)
+				}
+				if alt1Prec != 1 || alt1Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeNil, alt1Prec, alt1Assoc)
+				}
+				if alt2Prec != 3 || alt2Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 3, assocTypeNil, alt2Prec, alt2Assoc)
+				}
+			},
+		},
+		{
+			caption: "an ordered symbol can appear in a `#right` directive",
+			specSrc: `
+#name test;
+
+#prec (
+    #right $high
+    #left foo bar
+    #right $low
+);
+
+s
+    : foo #prec $high
+    | bar #prec $low
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if fooPrec != 2 || fooAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeLeft, fooPrec, fooAssoc)
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if barPrec != 2 || barAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeLeft, barPrec, barAssoc)
+				}
+				var alt1Prec int
+				var alt1Assoc assocType
+				var alt2Prec int
+				var alt2Assoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
+					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+					alt2Prec = g.precAndAssoc.productionPredence(ps[1].num)
+					alt2Assoc = g.precAndAssoc.productionAssociativity(ps[1].num)
+				}
+				if alt1Prec != 1 || alt1Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeNil, alt1Prec, alt1Assoc)
+				}
+				if alt2Prec != 3 || alt2Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 3, assocTypeNil, alt2Prec, alt2Assoc)
+				}
+			},
+		},
+		{
+			caption: "an ordered symbol can appear in a `#assign` directive",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $high
+    #left foo
+    #right bar
+    #assign $low
+);
+
+s
+    : foo #prec $high
+    | bar #prec $low
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if fooPrec != 2 || fooAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeLeft, fooPrec, fooAssoc)
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if barPrec != 3 || barAssoc != assocTypeRight {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 3, assocTypeRight, barPrec, barAssoc)
+				}
+				var alt1Prec int
+				var alt1Assoc assocType
+				var alt2Prec int
+				var alt2Assoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
+					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+					alt2Prec = g.precAndAssoc.productionPredence(ps[1].num)
+					alt2Assoc = g.precAndAssoc.productionAssociativity(ps[1].num)
+				}
+				if alt1Prec != 1 || alt1Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeNil, alt1Prec, alt1Assoc)
+				}
+				if alt2Prec != 4 || alt2Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 4, assocTypeNil, alt2Prec, alt2Assoc)
+				}
+			},
+		},
+		{
+			caption: "names of an ordered symbol and a terminal symbol can duplicate",
+			specSrc: `
+#name test;
+
+#prec (
+    #left foo bar
+    #right $foo
+);
+
+s
+    : foo
+    | bar #prec $foo
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var fooPrec int
+				var fooAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if fooPrec != 1 || fooAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, fooPrec, fooAssoc)
+				}
+				if barPrec != 1 || barAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, barPrec, barAssoc)
+				}
+				var alt1Prec int
+				var alt1Assoc assocType
+				var alt2Prec int
+				var alt2Assoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
+					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+					alt2Prec = g.precAndAssoc.productionPredence(ps[1].num)
+					alt2Assoc = g.precAndAssoc.productionAssociativity(ps[1].num)
+				}
+				if alt1Prec != fooPrec || alt1Assoc != fooAssoc {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", fooPrec, fooAssoc, alt1Prec, alt1Assoc)
+				}
+				if alt2Prec != 2 || alt2Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeNil, alt2Prec, alt2Assoc)
+				}
+			},
+		},
+		{
+			caption: "names of an ordered symbol and a non-terminal symbol can duplicate",
+			specSrc: `
+#name test;
+
+#prec (
+    #left foo bar
+    #right $a
+);
+
+s
+    : a
+    | bar #prec $a
+    ;
+a
+    : foo
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			validate: func(t *testing.T, g *Grammar) {
+				var barPrec int
+				var barAssoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+				}
+				if barPrec != 1 || barAssoc != assocTypeLeft {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, barPrec, barAssoc)
+				}
+				var alt1Prec int
+				var alt1Assoc assocType
+				var alt2Prec int
+				var alt2Assoc assocType
+				{
+					s, _ := g.symbolTable.toSymbol("s")
+					ps, _ := g.productionSet.findByLHS(s)
+					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
+					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
+					alt2Prec = g.precAndAssoc.productionPredence(ps[1].num)
+					alt2Assoc = g.precAndAssoc.productionAssociativity(ps[1].num)
+				}
+				if alt1Prec != precNil || alt1Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, alt1Prec, alt1Assoc)
+				}
+				if alt2Prec != 2 || alt2Assoc != assocTypeNil {
+					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeNil, alt2Prec, alt2Assoc)
 				}
 			},
 		},
@@ -1001,6 +1486,22 @@ foo
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "the `#prec` directive cannot take an ordered symbol parameter",
+			specSrc: `
+#name test;
+
+#prec $x;
+
+s
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "the `#prec` directive cannot take a pattern parameter",
 			specSrc: `
 #name test;
@@ -1160,7 +1661,7 @@ foo
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `#left` dirctive cannot be specified multiple times for a symbol",
+			caption: "the `#left` dirctive cannot be specified multiple times for a terminal symbol",
 			specSrc: `
 #name test;
 
@@ -1178,7 +1679,25 @@ foo
 			errs: []*SemanticError{semErrDuplicateAssoc},
 		},
 		{
-			caption: "a symbol cannot have different precedence",
+			caption: "the `#left` dirctive cannot be specified multiple times for an ordered symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #left $x $x
+);
+
+s
+    : foo #prec $x
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a terminal symbol cannot have different precedence",
 			specSrc: `
 #name test;
 
@@ -1197,7 +1716,26 @@ foo
 			errs: []*SemanticError{semErrDuplicateAssoc},
 		},
 		{
-			caption: "a symbol cannot have different associativity",
+			caption: "an ordered symbol cannot have different precedence",
+			specSrc: `
+#name test;
+
+#prec (
+    #left $x
+    #left $x
+);
+
+s
+    : foo #prec $x
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a terminal symbol cannot have different associativity",
 			specSrc: `
 #name test;
 
@@ -1208,6 +1746,25 @@ foo
 
 s
     : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "an ordered symbol cannot have different associativity",
+			specSrc: `
+#name test;
+
+#prec (
+    #right $x
+    #left $x
+);
+
+s
+    : foo #prec $x
     ;
 
 foo
@@ -1327,7 +1884,7 @@ foo
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `#right` directive cannot be specified multiple times for a symbol",
+			caption: "the `#right` directive cannot be specified multiple times for a terminal symbol",
 			specSrc: `
 #name test;
 
@@ -1345,7 +1902,25 @@ foo
 			errs: []*SemanticError{semErrDuplicateAssoc},
 		},
 		{
-			caption: "a symbol cannot have different precedence",
+			caption: "the `#right` directive cannot be specified multiple times for an ordered symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #right $x $x
+);
+
+s
+    : foo #prec $x
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a terminal symbol cannot have different precedence",
 			specSrc: `
 #name test;
 
@@ -1364,7 +1939,26 @@ foo
 			errs: []*SemanticError{semErrDuplicateAssoc},
 		},
 		{
-			caption: "a symbol cannot have different associativity",
+			caption: "an ordered symbol cannot have different precedence",
+			specSrc: `
+#name test;
+
+#prec (
+    #right $x
+    #right $x
+);
+
+s
+    : foo #prec $x
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a terminal symbol cannot have different associativity",
 			specSrc: `
 #name test;
 
@@ -1375,6 +1969,25 @@ foo
 
 s
     : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "an ordered symbol cannot have different associativity",
+			specSrc: `
+#name test;
+
+#prec (
+    #left $x
+    #right $x
+);
+
+s
+    : foo #prec $x
     ;
 
 foo
@@ -1494,7 +2107,7 @@ foo
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
-			caption: "the `#assign` dirctive cannot be specified multiple times for a symbol",
+			caption: "the `#assign` dirctive cannot be specified multiple times for a terminal symbol",
 			specSrc: `
 #name test;
 
@@ -1512,7 +2125,25 @@ foo
 			errs: []*SemanticError{semErrDuplicateAssoc},
 		},
 		{
-			caption: "a symbol cannot have different precedence",
+			caption: "the `#assign` dirctive cannot be specified multiple times for an ordered symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x $x
+);
+
+s
+    : foo #prec $x
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a terminal symbol cannot have different precedence",
 			specSrc: `
 #name test;
 
@@ -1531,7 +2162,26 @@ foo
 			errs: []*SemanticError{semErrDuplicateAssoc},
 		},
 		{
-			caption: "a symbol cannot have different associativity",
+			caption: "an ordered symbol cannot have different precedence",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x
+    #assign $x
+);
+
+s
+    : foo #prec $x
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "a terminal symbol cannot have different associativity",
 			specSrc: `
 #name test;
 
@@ -1542,6 +2192,25 @@ foo
 
 s
     : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDuplicateAssoc},
+		},
+		{
+			caption: "an ordered symbol cannot have different associativity",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x
+    #left $x
+);
+
+s
+    : foo #prec $x
     ;
 
 foo
@@ -1610,6 +2279,24 @@ error #skip
 
 s
     : foo #ast
+    ;
+
+foo
+    : "foo";
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#ast` directive cannot take an ordered symbol parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x
+);
+
+s
+    : foo #ast $x
     ;
 
 foo
@@ -1825,7 +2512,7 @@ foo
 
 	altPrecDirTests := []*specErrTest{
 		{
-			caption: "the `#prec` directive needs an ID parameter",
+			caption: "the `#prec` directive needs an ID parameter or an ordered symbol parameter",
 			specSrc: `
 #name test;
 
@@ -1874,6 +2561,20 @@ bar
     : 'bar';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#prec` directive cannot take an undefined ordered symbol parameter",
+			specSrc: `
+#name test;
+
+s
+    : foo #prec $x
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrUndefinedOrdSym},
 		},
 		{
 			caption: "the `#prec` directive cannot take a pattern parameter",
@@ -1943,6 +2644,24 @@ bar
 
 s
     : foo #recover foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#recover` directive cannot take an ordered symbol parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x
+);
+
+s
+    : foo #recover $x
     ;
 
 foo
@@ -2120,6 +2839,26 @@ bar #mode
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "the `#mode` directive cannot take an ordered symbol parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x
+);
+
+s
+    : foo bar
+    ;
+
+foo
+    : 'foo';
+bar #mode $x
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "the `#mode` directive cannot take a pattern parameter",
 			specSrc: `
 #name test;
@@ -2203,6 +2942,26 @@ bar #mode mode_1
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "the `#push` directive cannot take an ordered symbol parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x
+);
+
+s
+    : foo bar
+    ;
+
+foo #push $x
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "the `#push` directive cannot take a pattern parameter",
 			specSrc: `
 #name test;
@@ -2267,6 +3026,28 @@ foo #push mode_1
 bar #mode mode_1
     : 'bar';
 baz #pop mode_1
+    : 'baz';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#pop` directive cannot take an ordered symbol parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x
+);
+
+s
+    : foo bar baz
+    ;
+
+foo #push mode_1
+    : 'foo';
+bar #mode mode_1
+    : 'bar';
+baz #pop $x
     : 'baz';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
@@ -2338,6 +3119,26 @@ s
     ;
 
 foo #skip bar
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#skip` directive cannot take an ordered symbol parameter",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $x
+);
+
+s
+    : foo bar
+    ;
+
+foo #skip $x
     : 'foo';
 bar
     : 'bar';

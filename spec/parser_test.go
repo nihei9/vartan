@@ -14,14 +14,12 @@ func TestParse(t *testing.T) {
 			Parameters: []*ParameterNode{param},
 		}
 	}
-
 	prec := func(param *ParameterNode) *DirectiveNode {
 		return &DirectiveNode{
 			Name:       "prec",
 			Parameters: []*ParameterNode{param},
 		}
 	}
-
 	leftAssoc := func(params ...*ParameterNode) *DirectiveNode {
 		return &DirectiveNode{
 			Name:       "left",
@@ -80,6 +78,11 @@ func TestParse(t *testing.T) {
 	idParam := func(id string) *ParameterNode {
 		return &ParameterNode{
 			ID: id,
+		}
+	}
+	ordSymParam := func(id string) *ParameterNode {
+		return &ParameterNode{
+			OrderedSymbol: id,
 		}
 	}
 	exp := func(param *ParameterNode) *ParameterNode {
@@ -152,9 +155,9 @@ func TestParse(t *testing.T) {
 #name test;
 
 #prec (
-    #left a b
-    #right c d
-    #assign e f
+    #left a b $x1
+    #right c d $x2
+    #assign e f $x3
 );
 `,
 			ast: &RootNode{
@@ -182,6 +185,10 @@ func TestParse(t *testing.T) {
 												idParam("b"),
 												newPos(5),
 											),
+											withParamPos(
+												ordSymParam("x1"),
+												newPos(5),
+											),
 										),
 										newPos(5),
 									),
@@ -195,6 +202,10 @@ func TestParse(t *testing.T) {
 												idParam("d"),
 												newPos(6),
 											),
+											withParamPos(
+												ordSymParam("x2"),
+												newPos(6),
+											),
 										),
 										newPos(6),
 									),
@@ -206,6 +217,10 @@ func TestParse(t *testing.T) {
 											),
 											withParamPos(
 												idParam("f"),
+												newPos(7),
+											),
+											withParamPos(
+												ordSymParam("x3"),
 												newPos(7),
 											),
 										),
@@ -235,6 +250,15 @@ func TestParse(t *testing.T) {
 ;
 `,
 			synErr: synErrUnclosedDirGroup,
+		},
+		{
+			caption: "an ordered symbol marker '$' must be followed by and ID",
+			src: `
+#prec (
+    #assign $
+);
+`,
+			synErr: synErrNoOrderedSymbolName,
 		},
 		{
 			caption: "single production is a valid grammar",
@@ -297,6 +321,13 @@ c: ;
 					),
 				},
 			},
+		},
+		{
+			caption: "a production cannot contain an ordered symbol",
+			src: `
+a: $x;
+`,
+			synErr: synErrNoSemicolon,
 		},
 		{
 			caption: "`fragment` is a reserved word",

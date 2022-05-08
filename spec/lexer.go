@@ -15,21 +15,22 @@ import (
 type tokenKind string
 
 const (
-	tokenKindKWFragment      = tokenKind("fragment")
-	tokenKindID              = tokenKind("id")
-	tokenKindTerminalPattern = tokenKind("terminal pattern")
-	tokenKindStringLiteral   = tokenKind("string")
-	tokenKindColon           = tokenKind(":")
-	tokenKindOr              = tokenKind("|")
-	tokenKindSemicolon       = tokenKind(";")
-	tokenKindLabelMarker     = tokenKind("@")
-	tokenKindDirectiveMarker = tokenKind("#")
-	tokenKindExpantion       = tokenKind("...")
-	tokenKindLParen          = tokenKind("(")
-	tokenKindRParen          = tokenKind(")")
-	tokenKindNewline         = tokenKind("newline")
-	tokenKindEOF             = tokenKind("eof")
-	tokenKindInvalid         = tokenKind("invalid")
+	tokenKindKWFragment          = tokenKind("fragment")
+	tokenKindID                  = tokenKind("id")
+	tokenKindTerminalPattern     = tokenKind("terminal pattern")
+	tokenKindStringLiteral       = tokenKind("string")
+	tokenKindColon               = tokenKind(":")
+	tokenKindOr                  = tokenKind("|")
+	tokenKindSemicolon           = tokenKind(";")
+	tokenKindLabelMarker         = tokenKind("@")
+	tokenKindDirectiveMarker     = tokenKind("#")
+	tokenKindExpantion           = tokenKind("...")
+	tokenKindOrderedSymbolMarker = tokenKind("$")
+	tokenKindLParen              = tokenKind("(")
+	tokenKindRParen              = tokenKind(")")
+	tokenKindNewline             = tokenKind("newline")
+	tokenKindEOF                 = tokenKind("eof")
+	tokenKindInvalid             = tokenKind("invalid")
 )
 
 type Position struct {
@@ -266,6 +267,8 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 		return newSymbolToken(tokenKindDirectiveMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDExpansion:
 		return newSymbolToken(tokenKindExpantion, newPosition(tok.Row+1, tok.Col+1)), nil
+	case KindIDOrderedSymbolMarker:
+		return newSymbolToken(tokenKindOrderedSymbolMarker, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDLParen:
 		return newSymbolToken(tokenKindLParen, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDRParen:

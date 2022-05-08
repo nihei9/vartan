@@ -55,12 +55,13 @@ type DirectiveNode struct {
 }
 
 type ParameterNode struct {
-	ID        string
-	Pattern   string
-	String    string
-	Group     []*DirectiveNode
-	Expansion bool
-	Pos       Position
+	ID            string
+	Pattern       string
+	String        string
+	OrderedSymbol string
+	Group         []*DirectiveNode
+	Expansion     bool
+	Pos           Position
 }
 
 type FragmentNode struct {
@@ -460,6 +461,14 @@ func (p *parser) parseParameter() *ParameterNode {
 		param = &ParameterNode{
 			String: p.lastTok.text,
 			Pos:    p.lastTok.pos,
+		}
+	case p.consume(tokenKindOrderedSymbolMarker):
+		if !p.consume(tokenKindID) {
+			raiseSyntaxError(p.pos.Row, synErrNoOrderedSymbolName)
+		}
+		param = &ParameterNode{
+			OrderedSymbol: p.lastTok.text,
+			Pos:           p.lastTok.pos,
 		}
 	case p.consume(tokenKindLParen):
 		pos := p.lastTok.pos
