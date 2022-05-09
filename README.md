@@ -67,7 +67,7 @@ div
 	: '/';
 ```
 
-Save the above grammar to a file in UTF-8. In this explanation, the file name is `expr.vr`.
+Save the above grammar to a file in UTF-8. In this explanation, the file name is `expr.vartan`.
 
 ⚠️ The input file must be encoded in UTF-8.
 
@@ -76,7 +76,7 @@ Save the above grammar to a file in UTF-8. In this explanation, the file name is
 Next, generate a parsing table using `vartan compile` command.
 
 ```sh
-$ vartan compile expr.vr -o expr.json
+$ vartan compile expr.vartan -o expr.json
 ```
 
 ### 3. Debug

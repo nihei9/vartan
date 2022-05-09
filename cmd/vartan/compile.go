@@ -24,7 +24,7 @@ func init() {
 	cmd := &cobra.Command{
 		Use:     "compile",
 		Short:   "Compile grammar you defined into a parsing table",
-		Example: `  vartan compile grammar.vr -o grammar.json`,
+		Example: `  vartan compile grammar.vartan -o grammar.json`,
 		Args:    cobra.MaximumNArgs(1),
 		RunE:    runCompile,
 	}
@@ -95,7 +95,7 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 			return err
 		}
 
-		grmPath = filepath.Join(tmpDirPath, "stdin.vr")
+		grmPath = filepath.Join(tmpDirPath, "stdin.vartan")
 		err = ioutil.WriteFile(grmPath, src, 0600)
 		if err != nil {
 			return err
@@ -110,7 +110,7 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 	var reportFileName string
 	{
 		_, grmFileName := filepath.Split(grmPath)
-		reportFileName = fmt.Sprintf("%v-report.json", strings.TrimSuffix(grmFileName, ".vr"))
+		reportFileName = fmt.Sprintf("%v-report.json", strings.TrimSuffix(grmFileName, ".vartan"))
 	}
 
 	opts := []grammar.CompileOption{
