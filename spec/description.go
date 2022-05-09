@@ -65,7 +65,7 @@ type State struct {
 	RRConflict []*RRConflict `json:"rr_conflict"`
 }
 
-type Description struct {
+type Report struct {
 	Class        string         `json:"class"`
 	Terminals    []*Terminal    `json:"terminals"`
 	NonTerminals []*NonTerminal `json:"non_terminals"`

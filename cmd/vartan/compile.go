@@ -107,14 +107,14 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		return err
 	}
 
-	var descFileName string
+	var reportFileName string
 	{
 		_, grmFileName := filepath.Split(grmPath)
-		descFileName = fmt.Sprintf("%v-description.json", strings.TrimSuffix(grmFileName, ".vr"))
+		reportFileName = fmt.Sprintf("%v-report.json", strings.TrimSuffix(grmFileName, ".vr"))
 	}
 
 	opts := []grammar.CompileOption{
-		grammar.EnableDescription(descFileName),
+		grammar.EnableReporting(reportFileName),
 	}
 	switch strings.ToLower(*compileFlags.class) {
 	case "slr":

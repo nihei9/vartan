@@ -312,7 +312,7 @@ func (b *lrTableBuilder) resolveSRConflict(sym symbolNum, prod productionNum) (A
 	return ActionTypeReduce, ResolvedByPrec
 }
 
-func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec.Description, error) {
+func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Report, error) {
 	var terms []*spec.Terminal
 	{
 		termSyms := b.symTab.terminalSymbols()
@@ -552,7 +552,7 @@ func (b *lrTableBuilder) genDescription(tab *ParsingTable, gram *Grammar) (*spec
 		}
 	}
 
-	return &spec.Description{
+	return &spec.Report{
 		Class:        string(b.class),
 		Terminals:    terms,
 		NonTerminals: nonTerms,

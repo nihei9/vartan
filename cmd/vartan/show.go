@@ -18,8 +18,8 @@ import (
 func init() {
 	cmd := &cobra.Command{
 		Use:     "show",
-		Short:   "Print a description file in readable format",
-		Example: `  vartan show grammar-description.json`,
+		Short:   "Print a report in a readable format",
+		Example: `  vartan show grammar-report.json`,
 		Args:    cobra.ExactArgs(1),
 		RunE:    runShow,
 	}
@@ -51,12 +51,12 @@ func runShow(cmd *cobra.Command, args []string) (retErr error) {
 		}
 	}()
 
-	desc, err := readDescription(args[0])
+	report, err := readReport(args[0])
 	if err != nil {
 		return err
 	}
 
-	err = writeDescription(os.Stdout, desc)
+	err = writeReport(os.Stdout, report)
 	if err != nil {
 		return err
 	}
@@ -64,10 +64,10 @@ func runShow(cmd *cobra.Command, args []string) (retErr error) {
 	return nil
 }
 
-func readDescription(path string) (*spec.Description, error) {
+func readReport(path string) (*spec.Report, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot open the description file %s: %w", path, err)
+		return nil, fmt.Errorf("Cannot open the report %s: %w", path, err)
 	}
 	defer f.Close()
 
@@ -76,16 +76,16 @@ func readDescription(path string) (*spec.Description, error) {
 		return nil, err
 	}
 
-	desc := &spec.Description{}
-	err = json.Unmarshal(d, desc)
+	report := &spec.Report{}
+	err = json.Unmarshal(d, report)
 	if err != nil {
 		return nil, err
 	}
 
-	return desc, nil
+	return report, nil
 }
 
-const descTemplate = `# Class
+const reportTemplate = `# Class
 
 {{ .Class }}
 
@@ -127,20 +127,20 @@ const descTemplate = `# Class
 {{ end -}}
 {{ end }}`
 
-func writeDescription(w io.Writer, desc *spec.Description) error {
+func writeReport(w io.Writer, report *spec.Report) error {
 	termName := func(sym int) string {
-		if desc.Terminals[sym].Alias != "" {
-			return desc.Terminals[sym].Alias
+		if report.Terminals[sym].Alias != "" {
+			return report.Terminals[sym].Alias
 		}
-		return desc.Terminals[sym].Name
+		return report.Terminals[sym].Name
 	}
 
 	nonTermName := func(sym int) string {
-		return desc.NonTerminals[sym].Name
+		return report.NonTerminals[sym].Name
 	}
 
 	termAssoc := func(sym int) string {
-		switch desc.Terminals[sym].Associativity {
+		switch report.Terminals[sym].Associativity {
 		case "l":
 			return "left"
 		case "r":
@@ -151,7 +151,7 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 	}
 
 	prodAssoc := func(prod int) string {
-		switch desc.Productions[prod].Associativity {
+		switch report.Productions[prod].Associativity {
 		case "l":
 			return "left"
 		case "r":
@@ -162,10 +162,10 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 	}
 
 	fns := template.FuncMap{
-		"printConflictSummary": func(desc *spec.Description) string {
+		"printConflictSummary": func(report *spec.Report) string {
 			var implicitlyResolvedCount int
 			var explicitlyResolvedCount int
-			for _, s := range desc.States {
+			for _, s := range report.States {
 				for _, c := range s.SRConflict {
 					if c.ResolvedBy == grammar.ResolvedByShift.Int() {
 						implicitlyResolvedCount++
@@ -250,7 +250,7 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 			return fmt.Sprintf("%4v %v %v %v", prod.Number, prec, assoc, b.String())
 		},
 		"printItem": func(item spec.Item) string {
-			prod := desc.Productions[item.Production]
+			prod := report.Productions[item.Production]
 
 			var b strings.Builder
 			fmt.Fprintf(&b, "%v →", nonTermName(prod.LHS))
@@ -327,12 +327,12 @@ func writeDescription(w io.Writer, desc *spec.Description) error {
 		},
 	}
 
-	tmpl, err := template.New("").Funcs(fns).Parse(descTemplate)
+	tmpl, err := template.New("").Funcs(fns).Parse(reportTemplate)
 	if err != nil {
 		return err
 	}
 
-	err = tmpl.Execute(w, desc)
+	err = tmpl.Execute(w, report)
 	if err != nil {
 		return err
 	}

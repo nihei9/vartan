@@ -1206,15 +1206,15 @@ const (
 )
 
 type compileConfig struct {
-	descriptionFileName string
-	class               Class
+	reportFileName string
+	class          Class
 }
 
 type CompileOption func(config *compileConfig)
 
-func EnableDescription(fileName string) CompileOption {
+func EnableReporting(fileName string) CompileOption {
 	return func(config *compileConfig) {
-		config.descriptionFileName = fileName
+		config.reportFileName = fileName
 	}
 }
 
@@ -1342,31 +1342,31 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			return nil, err
 		}
 
-		desc, err := b.genDescription(tab, gram)
+		report, err := b.genReport(tab, gram)
 		if err != nil {
 			return nil, err
 		}
 
-		if config.descriptionFileName != "" {
-			f, err := os.OpenFile(config.descriptionFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if config.reportFileName != "" {
+			f, err := os.OpenFile(config.reportFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
 				return nil, err
 			}
 			defer f.Close()
 
-			d, err := json.Marshal(desc)
+			d, err := json.Marshal(report)
 			if err != nil {
 				return nil, err
 			}
 
 			_, err = f.Write(d)
 			if err != nil {
-				return nil, fmt.Errorf("failed to write a description file: %w", err)
+				return nil, fmt.Errorf("failed to write a report: %w", err)
 			}
 		}
 
 		var implicitlyResolvedCount int
-		for _, s := range desc.States {
+		for _, s := range report.States {
 			for _, c := range s.SRConflict {
 				if c.ResolvedBy == ResolvedByShift.Int() {
 					implicitlyResolvedCount++

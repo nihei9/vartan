@@ -115,10 +115,10 @@ When `vartan parse` command successfully parses the input data, it prints a CST 
 
 #### 3.2. Resolve conflicts
 
-`vartan compile` command also generates a description file having `-description.json` suffix along with a parsing table. This file describes each state in the parsing table in detail. If your grammar contains conflicts, see `Conflicts` and `States` sections of this file. Using `vartan show` command, you can see the description file in a readable format.
+`vartan compile` command also generates a report named `*-report.json`. This file describes each state in the parsing table in detail. If your grammar contains conflicts, see `Conflicts` and `States` sections of this file. Using `vartan show` command, you can see the report in a readable format.
 
 ```sh
-$ vartan show expr-description.json
+$ vartan show expr-report.json
 ```
 
 ### 4. Generate a parser
