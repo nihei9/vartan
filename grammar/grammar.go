@@ -137,6 +137,11 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		}
 	}
 
+	b.checkSpellingInconsistenciesOfUserDefinedIDs(b.AST)
+	if len(b.errs) > 0 {
+		return nil, b.errs
+	}
+
 	symTabAndLexSpec, err := b.genSymbolTableAndLexSpec(b.AST)
 	if err != nil {
 		return nil, err
@@ -314,6 +319,71 @@ func markUsedSymbols(mark map[string]bool, marked map[string]bool, prods map[str
 			markUsedSymbols(mark, marked, prods, p)
 		}
 	}
+}
+
+func (b *GrammarBuilder) checkSpellingInconsistenciesOfUserDefinedIDs(root *spec.RootNode) {
+	var ids []string
+	{
+		for _, prod := range root.Productions {
+			ids = append(ids, prod.LHS)
+			for _, alt := range prod.RHS {
+				for _, elem := range alt.Elements {
+					if elem.Label != nil {
+						ids = append(ids, elem.Label.Name)
+					}
+				}
+			}
+		}
+		for _, prod := range root.LexProductions {
+			ids = append(ids, prod.LHS)
+		}
+		for _, dir := range root.Directives {
+			dirIDs := collectUserDefinedIDsFromDirective(dir)
+			if len(dirIDs) > 0 {
+				ids = append(ids, dirIDs...)
+			}
+		}
+	}
+
+	duplicated := mlspec.FindSpellingInconsistencies(ids)
+	if len(duplicated) == 0 {
+		return
+	}
+
+	for _, dup := range duplicated {
+		var s string
+		{
+			var b strings.Builder
+			fmt.Fprintf(&b, "%+v", dup[0])
+			for _, id := range dup[1:] {
+				fmt.Fprintf(&b, ", %+v", id)
+			}
+			s = b.String()
+		}
+
+		b.errs = append(b.errs, &verr.SpecError{
+			Cause:  semErrSpellingInconsistency,
+			Detail: s,
+		})
+	}
+}
+
+func collectUserDefinedIDsFromDirective(dir *spec.DirectiveNode) []string {
+	var ids []string
+	for _, param := range dir.Parameters {
+		if param.Group != nil {
+			for _, d := range param.Group {
+				dIDs := collectUserDefinedIDsFromDirective(d)
+				if len(dIDs) > 0 {
+					ids = append(ids, dIDs...)
+				}
+			}
+		}
+		if param.OrderedSymbol != "" {
+			ids = append(ids, param.OrderedSymbol)
+		}
+	}
+	return ids
 }
 
 type symbolTableAndLexSpec struct {

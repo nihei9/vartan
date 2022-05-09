@@ -1078,6 +1078,149 @@ func TestGrammarBuilderSpecError(t *testing.T) {
 		errs    []*SemanticError
 	}
 
+	spellingInconsistenciesTests := []*specErrTest{
+		{
+			caption: "a spelling inconsistency appears among non-terminal symbols",
+			specSrc: `
+#name test;
+
+a1
+    : a_1
+    ;
+a_1
+    : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrSpellingInconsistency},
+		},
+		{
+			caption: "a spelling inconsistency appears among terminal symbols",
+			specSrc: `
+#name test;
+
+s
+    : foo1 foo_1
+    ;
+
+foo1
+    : 'foo1';
+foo_1
+    : 'foo_1';
+`,
+			errs: []*SemanticError{semErrSpellingInconsistency},
+		},
+		{
+			caption: "a spelling inconsistency appears among non-terminal and terminal symbols",
+			specSrc: `
+#name test;
+
+a1
+    : a_1
+    ;
+
+a_1
+    : 'a_1';
+`,
+			errs: []*SemanticError{semErrSpellingInconsistency},
+		},
+		{
+			caption: "a spelling inconsistency appears among ordered symbols whose precedence is the same",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $p1 $p_1
+);
+
+s
+    : foo #prec $p1
+    | bar #prec $p_1
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrSpellingInconsistency},
+		},
+		{
+			caption: "a spelling inconsistency appears among ordered symbols whose precedence is not the same",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign $p1
+    #assign $p_1
+);
+
+s
+    : foo #prec $p1
+    | bar #prec $p_1
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrSpellingInconsistency},
+		},
+		{
+			caption: "a spelling inconsistency appears among labels the same alternative contains",
+			specSrc: `
+#name test;
+
+s
+    : foo@l1 foo@l_1
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrSpellingInconsistency},
+		},
+		{
+			caption: "a spelling inconsistency appears among labels the same production contains",
+			specSrc: `
+#name test;
+
+s
+    : foo@l1
+    | bar@l_1
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrSpellingInconsistency},
+		},
+		{
+			caption: "a spelling inconsistency appears among labels different productions contain",
+			specSrc: `
+#name test;
+
+s
+    : foo@l1
+    ;
+a
+    : bar@l_1
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
+`,
+			errs: []*SemanticError{semErrSpellingInconsistency},
+		},
+	}
+
 	prodTests := []*specErrTest{
 		{
 			caption: "a production `b` is unused",
@@ -3212,6 +3355,7 @@ bar
 	}
 
 	var tests []*specErrTest
+	tests = append(tests, spellingInconsistenciesTests...)
 	tests = append(tests, prodTests...)
 	tests = append(tests, nameDirTests...)
 	tests = append(tests, precDirTests...)
