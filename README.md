@@ -292,9 +292,9 @@ Using the `fragment` keyword, you can also define a fragment that represents a p
 
 An identifier is a string that satisfies all of the following rules:
 
-* Contains only lowercase letters (`a`-`z`), numbers (`0`-`9`), and underscores (`_`).
-* The first letter is only a lowercase letter.
-* The last letter is only a lowercase letter or a number.
+* Contains only the lower-case letters (`a`-`z`), the digits (`0`-`9`), and the underscore (`_`).
+* The first letter is only the lower-case letters.
+* The last letter is only the lower-case letters or the digits.
 
 examples:
 

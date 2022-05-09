@@ -120,9 +120,39 @@ bar // This is the fourth comment.
 			},
 		},
 		{
-			caption: "identifiers beginning with an underscore are not allowed because they are used only auto-generated identifiers",
+			caption: "an identifier cannot contain the capital-case letters",
+			src:     `Abc`,
+			err:     synErrIDInvalidChar,
+		},
+		{
+			caption: "an identifier cannot contain the capital-case letters",
+			src:     `Zyx`,
+			err:     synErrIDInvalidChar,
+		},
+		{
+			caption: "the underscore cannot be placed at the beginning of an identifier",
 			src:     `_abc`,
-			err:     synErrAutoGenID,
+			err:     synErrIDInvalidUnderscorePos,
+		},
+		{
+			caption: "the underscore cannot be placed at the end of an identifier",
+			src:     `abc_`,
+			err:     synErrIDInvalidUnderscorePos,
+		},
+		{
+			caption: "the underscore cannot be placed consecutively",
+			src:     `a__b`,
+			err:     synErrIDConsecutiveUnderscores,
+		},
+		{
+			caption: "the digits cannot be placed at the biginning of an identifier",
+			src:     `0abc`,
+			err:     synErrIDInvalidDigitsPos,
+		},
+		{
+			caption: "the digits cannot be placed at the biginning of an identifier",
+			src:     `9abc`,
+			err:     synErrIDInvalidDigitsPos,
 		},
 		{
 			caption: "an unclosed terminal is not a valid token",

@@ -44,7 +44,7 @@
 		},
 		{
 			"kind": "identifier",
-			"pattern": "[A-Za-z_][0-9A-Za-z_]*"
+			"pattern": "[0-9A-Za-z_]+"
 		},
 		{
 			"kind": "terminal_open",

@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	verr "github.com/nihei9/vartan/error"
@@ -31,6 +32,11 @@ const (
 	tokenKindNewline             = tokenKind("newline")
 	tokenKindEOF                 = tokenKind("eof")
 	tokenKindInvalid             = tokenKind("invalid")
+)
+
+var (
+	reIDChar             = regexp.MustCompile(`^[0-9a-z_]+$`)
+	reIDInvalidDigitsPos = regexp.MustCompile(`^[0-9]`)
 )
 
 type Position struct {
@@ -167,9 +173,33 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 	case KindIDKwFragment:
 		return newSymbolToken(tokenKindKWFragment, newPosition(tok.Row+1, tok.Col+1)), nil
 	case KindIDIdentifier:
-		if strings.HasPrefix(string(tok.Lexeme), "_") {
+		if !reIDChar.Match(tok.Lexeme) {
 			return nil, &verr.SpecError{
-				Cause:  synErrAutoGenID,
+				Cause:  synErrIDInvalidChar,
+				Detail: string(tok.Lexeme),
+				Row:    tok.Row + 1,
+				Col:    tok.Col + 1,
+			}
+		}
+		if strings.HasPrefix(string(tok.Lexeme), "_") || strings.HasSuffix(string(tok.Lexeme), "_") {
+			return nil, &verr.SpecError{
+				Cause:  synErrIDInvalidUnderscorePos,
+				Detail: string(tok.Lexeme),
+				Row:    tok.Row + 1,
+				Col:    tok.Col + 1,
+			}
+		}
+		if strings.Contains(string(tok.Lexeme), "__") {
+			return nil, &verr.SpecError{
+				Cause:  synErrIDConsecutiveUnderscores,
+				Detail: string(tok.Lexeme),
+				Row:    tok.Row + 1,
+				Col:    tok.Col + 1,
+			}
+		}
+		if reIDInvalidDigitsPos.Match(tok.Lexeme) {
+			return nil, &verr.SpecError{
+				Cause:  synErrIDInvalidDigitsPos,
 				Detail: string(tok.Lexeme),
 				Row:    tok.Row + 1,
 				Col:    tok.Col + 1,

@@ -236,10 +236,11 @@ foo
     :
     ;
 bar
-    : BAR
+    : b
     |
     ;
-BAR: "bar";
+
+b: "bar";
 `
 
 	var gram *Grammar
@@ -290,7 +291,7 @@ BAR: "bar";
 			genLR0Item("s", 2, "foo", "bar"),
 		},
 		4: {
-			genLR0Item("bar", 1, "BAR"),
+			genLR0Item("bar", 1, "b"),
 		},
 	}
 
@@ -319,7 +320,7 @@ BAR: "bar";
 			kernelItems: expectedKernels[2],
 			nextStates: map[symbol][]*lrItem{
 				genSym("bar"): expectedKernels[3],
-				genSym("BAR"): expectedKernels[4],
+				genSym("b"):   expectedKernels[4],
 			},
 			reducibleProds: []*production{
 				genProd("bar"),
@@ -339,7 +340,7 @@ BAR: "bar";
 			kernelItems: expectedKernels[4],
 			nextStates:  map[symbol][]*lrItem{},
 			reducibleProds: []*production{
-				genProd("bar", "BAR"),
+				genProd("bar", "b"),
 			},
 		},
 	}

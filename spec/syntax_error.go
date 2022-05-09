@@ -16,12 +16,15 @@ func (e *SyntaxError) Error() string {
 
 var (
 	// lexical errors
-	synErrAutoGenID         = newSyntaxError("you cannot define an identifier beginning with an underscore")
-	synErrUnclosedTerminal  = newSyntaxError("unclosed terminal")
-	synErrUnclosedString    = newSyntaxError("unclosed string")
-	synErrIncompletedEscSeq = newSyntaxError("incompleted escape sequence; unexpected EOF following a backslash")
-	synErrEmptyPattern      = newSyntaxError("a pattern must include at least one character")
-	synErrEmptyString       = newSyntaxError("a string must include at least one character")
+	synErrIDInvalidChar            = newSyntaxError("an identifier can contain only the lower-case letter, the digits, and the underscore")
+	synErrIDInvalidUnderscorePos   = newSyntaxError("the underscore cannot be placed at the beginning or end of an identifier")
+	synErrIDConsecutiveUnderscores = newSyntaxError("the underscore cannot be placed consecutively")
+	synErrIDInvalidDigitsPos       = newSyntaxError("the digits cannot be placed at the biginning of an identifier")
+	synErrUnclosedTerminal         = newSyntaxError("unclosed terminal")
+	synErrUnclosedString           = newSyntaxError("unclosed string")
+	synErrIncompletedEscSeq        = newSyntaxError("incompleted escape sequence; unexpected EOF following a backslash")
+	synErrEmptyPattern             = newSyntaxError("a pattern must include at least one character")
+	synErrEmptyString              = newSyntaxError("a string must include at least one character")
 
 	// syntax errors
 	synErrInvalidToken           = newSyntaxError("invalid token")

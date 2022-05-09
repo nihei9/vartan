@@ -12,11 +12,11 @@ func TestParserWithLAC(t *testing.T) {
 	specSrc := `
 #name test;
 
-S
-    : C C
+s
+    : t t
 	;
-C
-    : c C
+t
+    : c t
 	| d
 	;
 
@@ -37,9 +37,9 @@ d: 'd';
 		"shift/c",
 		"shift/c",
 		"shift/d",
-		"reduce/C",
-		"reduce/C",
-		"reduce/C",
+		"reduce/t",
+		"reduce/t",
+		"reduce/t",
 		"miss",
 	}
 

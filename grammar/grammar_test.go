@@ -2786,7 +2786,7 @@ s
     : foo
     ;
 
-foo #alias Foo
+foo #alias bar
     : 'foo';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
