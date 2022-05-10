@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.5.0
+
+* [f7484ef1](https://github.com/nihei9/vartan/commit/f7484ef11af39585989dbbcad701551c561fa67c) - Add `--json` option to `vartan parse` command to print a syntax tree in JSON format.
+* [0eb44f04](https://github.com/nihei9/vartan/commit/0eb44f044b6a4f051126e2e46fd8840dcb105ae9) - Make `#prec` directive change only precedence and not associativity.
+* [3eb0e88f](https://github.com/nihei9/vartan/commit/3eb0e88f911386a4e6eca991c1471070596c5554) - Change syntax for top-level directives. `%name`, `%left`, and `%right` changed to `#name`, `#left`, and `#right`, respectively.
+* [2438fa44](https://github.com/nihei9/vartan/commit/2438fa4435d6393168412574a3ef94396a4debe5) - Add `#assign` directive to change only precedence.
+* [dd5fd337](https://github.com/nihei9/vartan/commit/dd5fd3372cdb53e7a3a36b5ef61b0b0c35023798) - Add the ordered symbol notation `$<Identifier>`.
+* [0ff00d27](https://github.com/nihei9/vartan/commit/0ff00d27b2fd524c76fcfac1836b7aad8fe03069) - Change the suffix of a description file from `-description.json` to `-report.json`.
+* [0b858d66](https://github.com/nihei9/vartan/commit/0b858d664433d0b11e1d46dbd774e19da5b5a750) - Change the default suffix of a grammar file from `.vr` to `.vartan`.
+* [054307b6](https://github.com/nihei9/vartan/commit/054307b6c99ab962cfa9bcb4c4d50f3aea5406ea) - Make the identifier format strict.
+* [3e1620a7](https://github.com/nihei9/vartan/commit/3e1620a781fe0eb097a9624cffb408bfb32bd5c8) - Add spelling inconsistencies check.
+* [abf78681](https://github.com/nihei9/vartan/commit/abf78681e21afb3da1aad23060d3336dd8a7ee9f) - Follow golangci-lint.
+
+[Changes](https://github.com/nihei9/vartan/compare/v0.4.1...v0.5.0)
+
 ## v0.4.1
 
 * [18a3317](https://github.com/nihei9/vartan/commit/18a3317ac9c79651e5c74a2afc6b14fd9a3f9d4a), [97d3696](https://github.com/nihei9/vartan/commit/97d36965cbb30108340727a982539e67dafea92d), [8340b9f](https://github.com/nihei9/vartan/commit/8340b9f1dc1339d88762f361e284ea4ad6c079d7), [533c454](https://github.com/nihei9/vartan/commit/533c4545213b01d12a800c1c9d4ce2c85a12ae48) - Enhance tests.
