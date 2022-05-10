@@ -394,9 +394,7 @@ type stateStack struct {
 
 func (s *stateStack) enableExploratoryMode() {
 	s.itemsExp = make([]int, len(s.items))
-	for i, v := range s.items {
-		s.itemsExp[i] = v
-	}
+	copy(s.itemsExp, s.items)
 }
 
 func (s *stateStack) disableExploratoryMode() {
