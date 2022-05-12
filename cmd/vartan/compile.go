@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 
 	verr "github.com/nihei9/vartan/error"
@@ -47,20 +46,6 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		grmPath = args[0]
 	}
 	defer func() {
-		panicked := false
-		v := recover()
-		if v != nil {
-			err, ok := v.(error)
-			if !ok {
-				retErr = fmt.Errorf("an unexpected error occurred: %v", v)
-				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
-				return
-			}
-
-			retErr = err
-			panicked = true
-		}
-
 		if retErr != nil {
 			specErrs, ok := retErr.(verr.SpecErrors)
 			if ok {
@@ -73,12 +58,6 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 						err.SourceName = "stdin"
 					}
 				}
-			}
-
-			if panicked {
-				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
-			} else {
-				fmt.Fprintf(os.Stderr, "%v\n", retErr)
 			}
 		}
 	}()

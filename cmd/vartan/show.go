@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"runtime/debug"
 	"strings"
 	"text/template"
 
@@ -26,31 +25,7 @@ func init() {
 	rootCmd.AddCommand(cmd)
 }
 
-func runShow(cmd *cobra.Command, args []string) (retErr error) {
-	defer func() {
-		panicked := false
-		v := recover()
-		if v != nil {
-			err, ok := v.(error)
-			if !ok {
-				retErr = fmt.Errorf("an unexpected error occurred: %v", v)
-				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
-				return
-			}
-
-			retErr = err
-			panicked = true
-		}
-
-		if retErr != nil {
-			if panicked {
-				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
-			} else {
-				fmt.Fprintf(os.Stderr, "%v\n", retErr)
-			}
-		}
-	}()
-
+func runShow(cmd *cobra.Command, args []string) error {
 	report, err := readReport(args[0])
 	if err != nil {
 		return err

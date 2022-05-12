@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime/debug"
+	"strings"
 
 	"github.com/nihei9/vartan/driver"
 	"github.com/nihei9/vartan/spec"
@@ -36,31 +36,7 @@ func init() {
 	rootCmd.AddCommand(cmd)
 }
 
-func runParse(cmd *cobra.Command, args []string) (retErr error) {
-	defer func() {
-		panicked := false
-		v := recover()
-		if v != nil {
-			err, ok := v.(error)
-			if !ok {
-				retErr = fmt.Errorf("an unexpected error occurred: %v", v)
-				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
-				return
-			}
-
-			retErr = err
-			panicked = true
-		}
-
-		if retErr != nil {
-			if panicked {
-				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
-			} else {
-				fmt.Fprintf(os.Stderr, "%v\n", retErr)
-			}
-		}
-	}()
-
+func runParse(cmd *cobra.Command, args []string) error {
 	if *parseFlags.onlyParse && *parseFlags.cst {
 		return fmt.Errorf("You cannot enable --only-parse and --cst at the same time")
 	}
@@ -121,31 +97,6 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 		return err
 	}
 
-	synErrs := p.SyntaxErrors()
-	for _, synErr := range synErrs {
-		tok := synErr.Token
-
-		var msg string
-		switch {
-		case tok.EOF():
-			msg = "<eof>"
-		case tok.Invalid():
-			msg = fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme()))
-		default:
-			t := cg.ParsingTable.Terminals[tok.TerminalID()]
-			msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), t)
-		}
-
-		fmt.Fprintf(os.Stderr, "%v:%v: %v: %v", synErr.Row+1, synErr.Col+1, synErr.Message, msg)
-		if len(synErrs) > 0 {
-			fmt.Fprintf(os.Stderr, "; expected: %v", synErr.ExpectedTerminals[0])
-			for _, t := range synErr.ExpectedTerminals[1:] {
-				fmt.Fprintf(os.Stderr, ", %v", t)
-			}
-		}
-		fmt.Fprintf(os.Stderr, "\n")
-	}
-
 	if !*parseFlags.onlyParse {
 		// A parser can construct a parse tree even if syntax errors occur.
 		// When therer is a parse tree, print it.
@@ -157,10 +108,6 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			tree = tb.Tree()
 		}
 		if tree != nil {
-			if len(synErrs) > 0 {
-				fmt.Println("")
-			}
-
 			if *parseFlags.json {
 				b, err := json.Marshal(tree)
 				if err != nil {
@@ -170,6 +117,19 @@ func runParse(cmd *cobra.Command, args []string) (retErr error) {
 			} else {
 				driver.PrintTree(os.Stdout, tree)
 			}
+		}
+	}
+
+	if len(p.SyntaxErrors()) > 0 {
+		var b strings.Builder
+		synErrs := p.SyntaxErrors()
+		writeSyntaxErrorMessage(&b, cg, synErrs[0])
+		for _, synErr := range synErrs[1:] {
+			fmt.Fprintf(&b, "\n")
+			writeSyntaxErrorMessage(&b, cg, synErr)
+		}
+		if b.Len() > 0 {
+			return fmt.Errorf(b.String())
 		}
 	}
 
@@ -191,4 +151,23 @@ func readCompiledGrammar(path string) (*spec.CompiledGrammar, error) {
 		return nil, err
 	}
 	return cg, nil
+}
+
+func writeSyntaxErrorMessage(b *strings.Builder, cgram *spec.CompiledGrammar, synErr *driver.SyntaxError) {
+	fmt.Fprintf(b, "%v:%v: %v: ", synErr.Row+1, synErr.Col+1, synErr.Message)
+
+	tok := synErr.Token
+	switch {
+	case tok.EOF():
+		fmt.Fprintf(b, "<eof>")
+	case tok.Invalid():
+		fmt.Fprintf(b, "'%v' (<invalid>)", string(tok.Lexeme()))
+	default:
+		fmt.Fprintf(b, "'%v' (%v)", string(tok.Lexeme()), cgram.ParsingTable.Terminals[tok.TerminalID()])
+	}
+
+	fmt.Fprintf(b, "; expected: %v", synErr.ExpectedTerminals[0])
+	for _, t := range synErr.ExpectedTerminals[1:] {
+		fmt.Fprintf(b, ", %v", t)
+	}
 }

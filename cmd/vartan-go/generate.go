@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime/debug"
 
 	mldriver "github.com/nihei9/maleeni/driver"
 	"github.com/nihei9/vartan/driver"
@@ -14,13 +13,7 @@ import (
 )
 
 func Execute() error {
-	err := generateCmd.Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		return err
-	}
-
-	return nil
+	return generateCmd.Execute()
 }
 
 var generateFlags = struct {
@@ -42,31 +35,7 @@ func init() {
 	generateFlags.pkgName = generateCmd.Flags().StringP("package", "p", "main", "package name")
 }
 
-func runGenerate(cmd *cobra.Command, args []string) (retErr error) {
-	defer func() {
-		panicked := false
-		v := recover()
-		if v != nil {
-			err, ok := v.(error)
-			if !ok {
-				retErr = fmt.Errorf("an unexpected error occurred: %v", v)
-				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
-				return
-			}
-
-			retErr = err
-			panicked = true
-		}
-
-		if retErr != nil {
-			if panicked {
-				fmt.Fprintf(os.Stderr, "%v:\n%v", retErr, string(debug.Stack()))
-			} else {
-				fmt.Fprintf(os.Stderr, "%v\n", retErr)
-			}
-		}
-	}()
-
+func runGenerate(cmd *cobra.Command, args []string) error {
 	cgram, err := readCompiledGrammar(args[0])
 	if err != nil {
 		return fmt.Errorf("Cannot read a compiled grammar: %w", err)
