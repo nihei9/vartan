@@ -114,6 +114,30 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 				),
 			),
 		},
+		// Fragments (\f{}), code point expressions (\u{}), and character property expressions (\p{}) are
+		// not allowed in string literals.
+		{
+			specSrc: `
+#name test;
+
+s
+    : a b c
+    ;
+
+a
+    : '\f{foo}';
+b
+    : '\u{0000}';
+c
+    : '\p{gc=Letter}';
+`,
+			src: `\f{foo}\u{0000}\p{gc=Letter}`,
+			cst: nonTermNode("s",
+				termNode("a", `\f{foo}`),
+				termNode("b", `\u{0000}`),
+				termNode("c", `\p{gc=Letter}`),
+			),
+		},
 		// The driver can reduce productions that have the empty alternative and can generate a CST (and AST) node.
 		{
 			specSrc: `

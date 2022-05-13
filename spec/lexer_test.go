@@ -70,10 +70,10 @@ func TestLexer_Run(t *testing.T) {
 			},
 		},
 		{
-			caption: "the lexer can recognize character sequences and escape sequences in a string literal",
-			src:     `'.*+?|()[\'\\'`,
+			caption: "backslashes are recognized as they are because escape sequences are not allowed in strings",
+			src:     `'\\\'`,
 			tokens: []*token{
-				strTok(`.*+?|()['\`),
+				strTok(`\\\`),
 				newEOFToken(),
 			},
 		},
@@ -160,7 +160,7 @@ bar // This is the fourth comment.
 			err:     synErrUnclosedTerminal,
 		},
 		{
-			caption: "an incompleted terminal in a pattern is not a valid token",
+			caption: "an incompleted escape sequence in a pattern is not a valid token",
 			src:     `"\`,
 			err:     synErrIncompletedEscSeq,
 		},
@@ -168,11 +168,6 @@ bar // This is the fourth comment.
 			caption: "an unclosed string is not a valid token",
 			src:     `'abc`,
 			err:     synErrUnclosedString,
-		},
-		{
-			caption: "an incompleted terminal in a string is not a valid token",
-			src:     `'\`,
-			err:     synErrIncompletedEscSeq,
 		},
 		{
 			caption: "the lexer can recognize valid tokens following an invalid token",

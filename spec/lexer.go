@@ -261,18 +261,6 @@ func (l *lexer) lexAndSkipWSs() (*token, error) {
 			switch tok.KindID {
 			case KindIDCharSeq:
 				fmt.Fprint(&b, string(tok.Lexeme))
-			case KindIDEscapedQuot:
-				// Remove '\' character.
-				fmt.Fprint(&b, `'`)
-			case KindIDEscapedBackSlash:
-				// Remove '\' character.
-				fmt.Fprint(&b, `\`)
-			case KindIDEscapeSymbol:
-				return nil, &verr.SpecError{
-					Cause: synErrIncompletedEscSeq,
-					Row:   tok.Row + 1,
-					Col:   tok.Col + 1,
-				}
 			case KindIDStringLiteralClose:
 				str := b.String()
 				if str == "" {
