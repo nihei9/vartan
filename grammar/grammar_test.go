@@ -1714,6 +1714,25 @@ foo
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "the `#left` directive cannot be applied to an error symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #left error
+);
+
+s
+    : foo ';'
+    | error ';'
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "the `#left` directive cannot take an undefined symbol",
 			specSrc: `
 #name test;
@@ -1937,6 +1956,25 @@ foo
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
 		{
+			caption: "the `#right` directive cannot be applied to an error symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #right error
+);
+
+s
+    : foo ';'
+    | error ';'
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
 			caption: "the `#right` directive cannot take an undefined symbol",
 			specSrc: `
 #name test;
@@ -2152,6 +2190,25 @@ foo
 
 s
     : foo
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#assign` directive cannot be applied to an error symbol",
+			specSrc: `
+#name test;
+
+#prec (
+    #assign error
+);
+
+s
+    : foo ';'
+    | error ';'
     ;
 
 foo
@@ -2661,6 +2718,20 @@ foo
 
 s
     : foo #prec
+    ;
+
+foo
+    : 'foo';
+`,
+			errs: []*SemanticError{semErrDirInvalidParam},
+		},
+		{
+			caption: "the `#prec` directive cannot be applied to an error symbol",
+			specSrc: `
+#name test;
+
+s
+    : foo #prec error
     ;
 
 foo

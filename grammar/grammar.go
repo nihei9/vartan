@@ -155,7 +155,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
-	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, prodsAndActs)
+	pa, err := b.genPrecAndAssoc(symTabAndLexSpec.symTab, symTabAndLexSpec.errSym, prodsAndActs)
 	if err != nil {
 		return nil, err
 	}
@@ -999,32 +999,41 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						})
 						continue LOOP_RHS
 					}
+					param := dir.Parameters[0]
 					switch {
-					case dir.Parameters[0].ID != "":
-						sym, ok := symTab.toSymbol(dir.Parameters[0].ID)
+					case param.ID != "":
+						sym, ok := symTab.toSymbol(param.ID)
 						if !ok {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDirInvalidParam,
-								Detail: fmt.Sprintf("unknown terminal symbol: %v", dir.Parameters[0].ID),
-								Row:    dir.Pos.Row,
-								Col:    dir.Pos.Col,
+								Detail: fmt.Sprintf("unknown terminal symbol: %v", param.ID),
+								Row:    param.Pos.Row,
+								Col:    param.Pos.Col,
 							})
 							continue LOOP_RHS
+						}
+						if sym == errSym {
+							b.errs = append(b.errs, &verr.SpecError{
+								Cause:  semErrDirInvalidParam,
+								Detail: fmt.Sprintf("'%v' directive cannot be applied to an error symbol", dir.Name),
+								Row:    param.Pos.Row,
+								Col:    param.Pos.Col,
+							})
 						}
 						if !sym.isTerminal() {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDirInvalidParam,
-								Detail: fmt.Sprintf("the symbol must be a terminal: %v", dir.Parameters[0].ID),
-								Row:    dir.Pos.Row,
-								Col:    dir.Pos.Col,
+								Detail: fmt.Sprintf("the symbol must be a terminal: %v", param.ID),
+								Row:    param.Pos.Row,
+								Col:    param.Pos.Col,
 							})
 							continue LOOP_RHS
 						}
 						prodPrecsTerm[p.id] = sym
-						prodPrecPoss[p.id] = &dir.Parameters[0].Pos
-					case dir.Parameters[0].OrderedSymbol != "":
-						prodPrecsOrdSym[p.id] = dir.Parameters[0].OrderedSymbol
-						prodPrecPoss[p.id] = &dir.Parameters[0].Pos
+						prodPrecPoss[p.id] = &param.Pos
+					case param.OrderedSymbol != "":
+						prodPrecsOrdSym[p.id] = param.OrderedSymbol
+						prodPrecPoss[p.id] = &param.Pos
 					}
 				case "recover":
 					if len(dir.Parameters) > 0 {
@@ -1061,7 +1070,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 	}, nil
 }
 
-func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prodsAndActs *productionsAndActions) (*precAndAssoc, error) {
+func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, errSym symbol, prodsAndActs *productionsAndActions) (*precAndAssoc, error) {
 	termPrec := map[symbolNum]int{}
 	termAssoc := map[symbolNum]assocType{}
 	ordSymPrec := map[string]int{}
@@ -1131,6 +1140,15 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, prodsAndActs *prod
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
 							Detail: fmt.Sprintf("'%v' is undefined", p.ID),
+							Row:    p.Pos.Row,
+							Col:    p.Pos.Col,
+						})
+						return nil, nil
+					}
+					if sym == errSym {
+						b.errs = append(b.errs, &verr.SpecError{
+							Cause:  semErrDirInvalidParam,
+							Detail: fmt.Sprintf("'%v' directive cannot be applied to an error symbol", dir.Name),
 							Row:    p.Pos.Row,
 							Col:    p.Pos.Col,
 						})
