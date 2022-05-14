@@ -494,10 +494,14 @@ func (p *parser) parseParameter() *ParameterNode {
 			Group: g,
 			Pos:   pos,
 		}
-	default:
-		return nil
 	}
 	if p.consume(tokenKindExpantion) {
+		switch {
+		case param == nil:
+			raiseSyntaxError(p.pos.Row, synErrStrayExpOp)
+		case param.ID == "":
+			raiseSyntaxError(p.pos.Row, synErrInvalidExpOperand)
+		}
 		param.Expansion = true
 	}
 	return param

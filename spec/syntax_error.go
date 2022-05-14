@@ -37,6 +37,8 @@ var (
 	synErrNoDirectiveName        = newSyntaxError("a directive needs a name")
 	synErrNoOrderedSymbolName    = newSyntaxError("an ordered symbol name is missing")
 	synErrUnclosedDirGroup       = newSyntaxError("a directive group must be closed by )")
+	synErrStrayExpOp             = newSyntaxError("an expansion operator ... must be preceded by an identifier")
+	synErrInvalidExpOperand      = newSyntaxError("an expansion operator ... can be applied to only an identifier")
 	synErrSemicolonNoNewline     = newSyntaxError("a semicolon must be followed by a newline")
 	synErrFragmentNoPattern      = newSyntaxError("a fragment needs one pattern element")
 )

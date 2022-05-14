@@ -599,6 +599,60 @@ bar: "bar";
 			},
 		},
 		{
+			caption: "an expansion operator must be preceded by an identifier",
+			src: `
+s
+    : foo #ast ...
+    ;
+`,
+			synErr: synErrStrayExpOp,
+		},
+		{
+			caption: "an expansion operator must be preceded by an identifier",
+			src: `
+a
+    : foo #ast ... foo
+    ;
+`,
+			synErr: synErrStrayExpOp,
+		},
+		{
+			caption: "an expansion operator cannot be applied to a pattern",
+			src: `
+a
+    : "foo" #ast "foo"...
+    ;
+`,
+			synErr: synErrInvalidExpOperand,
+		},
+		{
+			caption: "an expansion operator cannot be applied to a string",
+			src: `
+a
+    : 'foo' #ast 'foo'...
+    ;
+`,
+			synErr: synErrInvalidExpOperand,
+		},
+		{
+			caption: "an expansion operator cannot be applied to an ordered symbol",
+			src: `
+a
+    : foo #ast $foo...
+    ;
+`,
+			synErr: synErrInvalidExpOperand,
+		},
+		{
+			caption: "an expansion operator cannot be applied to a directive group",
+			src: `
+a
+    : foo #ast ()...
+    ;
+`,
+			synErr: synErrInvalidExpOperand,
+		},
+		{
 			caption: "an AST has node positions",
 			src: `
 exp
