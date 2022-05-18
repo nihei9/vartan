@@ -1,0 +1,25 @@
+#name tree;
+
+#prec (
+	#assign l_paren
+	#assign $empty_tree
+);
+
+tree
+	: l_paren identifier tree_list r_paren #ast identifier tree_list...
+	| l_paren error r_paren                #recover #ast error
+	;
+tree_list
+	: tree_list tree #ast tree_list... tree
+	| tree
+	|                #prec $empty_tree
+	;
+
+ws #skip
+	: "[\u{0009}\u{000A}\u{000D}\u{0020}]+";
+l_paren
+	: '(';
+r_paren
+	: ')';
+identifier
+	: "[0-9A-Za-z_]+";

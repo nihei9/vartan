@@ -121,7 +121,36 @@ When `vartan parse` command successfully parses the input data, it prints a CST 
 $ vartan show expr-report.json
 ```
 
-### 4. Generate a parser
+### 4. Test
+
+`vartan-test` command allows you to test whether your grammar recognizes an input text as a syntax tree with an expected structure. To do so, you need to define a test case as follows.
+
+```
+This is an example.
+---
+a / b * 100
+---
+(expr
+	(expr
+		(expr (id))
+		(div)
+		(expr (id)))
+	(mul)
+	(expr (int)))
+```
+
+The test case consists of a description, an input text, and a syntax tree you expect. Each part is separated by the delimiter `---`. The syntax tree is represented by the syntax like an [S-expression](https://en.wikipedia.org/wiki/S-expression).
+
+Save the above test case to `test.txt` file and run the following command.
+
+```sh
+$ vartan-test expr.vartan test.txt
+Passed test.txt
+```
+
+When you specify a directory as the 2nd argument of `vartan-test` command, it will run all test cases in the directory.
+
+### 5. Generate a parser
 
 Using `vartan-go` command, you can generate a source code of a parser to recognize your grammar.
 
