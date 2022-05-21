@@ -60,11 +60,7 @@ func readReport(path string) (*spec.Report, error) {
 	return report, nil
 }
 
-const reportTemplate = `# Class
-
-{{ .Class }}
-
-# Conflicts
+const reportTemplate = `# Conflicts
 
 {{ printConflictSummary . }}
 

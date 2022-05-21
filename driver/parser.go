@@ -5,9 +5,6 @@ import (
 )
 
 type Grammar interface {
-	// Class returns a class of grammar.
-	Class() string
-
 	// InitialState returns the initial state of a parser.
 	InitialState() int
 
@@ -88,7 +85,7 @@ type SyntaxError struct {
 
 type ParserOption func(p *Parser) error
 
-// DisableLAC disables LAC (lookahead correction). When the grammar has the LALR class, LAC is enabled by default.
+// DisableLAC disables LAC (lookahead correction). LAC is enabled by default.
 func DisableLAC() ParserOption {
 	return func(p *Parser) error {
 		p.disableLAC = true
@@ -119,10 +116,6 @@ func NewParser(toks TokenStream, gram Grammar, opts ...ParserOption) (*Parser, e
 		toks:       toks,
 		gram:       gram,
 		stateStack: &stateStack{},
-	}
-
-	if p.gram.Class() != "lalr" {
-		p.disableLAC = true
 	}
 
 	for _, opt := range opts {

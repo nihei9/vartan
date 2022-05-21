@@ -49,7 +49,6 @@ func GenParser(cgram *spec.CompiledGrammar, pkgName string) ([]byte, error) {
 
 		var b strings.Builder
 		err = t.Execute(&b, map[string]interface{}{
-			"class":            cgram.ParsingTable.Class,
 			"initialState":     cgram.ParsingTable.InitialState,
 			"startProduction":  cgram.ParsingTable.StartProduction,
 			"terminalCount":    cgram.ParsingTable.TerminalCount,
@@ -165,10 +164,6 @@ func NewGrammar() *grammarImpl {
 		terminalAliases:         {{ genTerminalAliases }},
 		astActions:              {{ genASTActions }},
 	}
-}
-
-func (g *grammarImpl) Class() string {
-	return "{{ .class }}"
 }
 
 func (g *grammarImpl) InitialState() int {

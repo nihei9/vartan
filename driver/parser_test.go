@@ -725,70 +725,63 @@ bar: 'bar';
 		},
 	}
 
-	classes := []grammar.Class{
-		grammar.ClassSLR,
-		grammar.ClassLALR,
-	}
-
 	for i, tt := range tests {
-		for _, class := range classes {
-			t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
-				ast, err := spec.Parse(strings.NewReader(tt.specSrc))
-				if err != nil {
-					t.Fatal(err)
-				}
+		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
+			ast, err := spec.Parse(strings.NewReader(tt.specSrc))
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				b := grammar.GrammarBuilder{
-					AST: ast,
-				}
-				g, err := b.Build()
-				if err != nil {
-					t.Fatal(err)
-				}
+			b := grammar.GrammarBuilder{
+				AST: ast,
+			}
+			g, err := b.Build()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				cg, err := grammar.Compile(g, grammar.SpecifyClass(class))
-				if err != nil {
-					t.Fatal(err)
-				}
+			cg, err := grammar.Compile(g)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				toks, err := NewTokenStream(cg, strings.NewReader(tt.src))
-				if err != nil {
-					t.Fatal(err)
-				}
+			toks, err := NewTokenStream(cg, strings.NewReader(tt.src))
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				gram := NewGrammar(cg)
-				tb := NewDefaultSyntaxTreeBuilder()
-				var opt []ParserOption
-				switch {
-				case tt.ast != nil:
-					opt = append(opt, SemanticAction(NewASTActionSet(gram, tb)))
-				case tt.cst != nil:
-					opt = append(opt, SemanticAction(NewCSTActionSet(gram, tb)))
-				}
-				p, err := NewParser(toks, gram, opt...)
-				if err != nil {
-					t.Fatal(err)
-				}
+			gram := NewGrammar(cg)
+			tb := NewDefaultSyntaxTreeBuilder()
+			var opt []ParserOption
+			switch {
+			case tt.ast != nil:
+				opt = append(opt, SemanticAction(NewASTActionSet(gram, tb)))
+			case tt.cst != nil:
+				opt = append(opt, SemanticAction(NewCSTActionSet(gram, tb)))
+			}
+			p, err := NewParser(toks, gram, opt...)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				err = p.Parse()
-				if err != nil {
-					t.Fatal(err)
-				}
+			err = p.Parse()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				if !tt.synErr && len(p.SyntaxErrors()) > 0 {
-					for _, synErr := range p.SyntaxErrors() {
-						t.Fatalf("unexpected syntax errors occurred: %v", synErr)
-					}
+			if !tt.synErr && len(p.SyntaxErrors()) > 0 {
+				for _, synErr := range p.SyntaxErrors() {
+					t.Fatalf("unexpected syntax errors occurred: %v", synErr)
 				}
+			}
 
-				switch {
-				case tt.ast != nil:
-					testTree(t, tb.Tree(), tt.ast)
-				case tt.cst != nil:
-					testTree(t, tb.Tree(), tt.cst)
-				}
-			})
-		}
+			switch {
+			case tt.ast != nil:
+				testTree(t, tb.Tree(), tt.ast)
+			case tt.cst != nil:
+				testTree(t, tb.Tree(), tt.cst)
+			}
+		})
 	}
 }
 

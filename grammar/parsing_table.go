@@ -147,7 +147,6 @@ func (t *ParsingTable) writeGoTo(state stateNum, sym symbol, nextState stateNum)
 }
 
 type lrTableBuilder struct {
-	class        Class
 	automaton    *lr0Automaton
 	prods        *productionSet
 	termCount    int
@@ -553,7 +552,6 @@ func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Repo
 	}
 
 	return &spec.Report{
-		Class:        string(b.class),
 		Terminals:    terms,
 		NonTerminals: nonTerms,
 		Productions:  prods,

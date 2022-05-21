@@ -12,10 +12,6 @@ func NewGrammar(g *spec.CompiledGrammar) *grammarImpl {
 	}
 }
 
-func (g *grammarImpl) Class() string {
-	return g.g.ParsingTable.Class
-}
-
 func (g *grammarImpl) InitialState() int {
 	return g.g.ParsingTable.InitialState
 }

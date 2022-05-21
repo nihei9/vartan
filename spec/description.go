@@ -66,7 +66,6 @@ type State struct {
 }
 
 type Report struct {
-	Class        string         `json:"class"`
 	Terminals    []*Terminal    `json:"terminals"`
 	NonTerminals []*NonTerminal `json:"non_terminals"`
 	Productions  []*Production  `json:"productions"`

@@ -16,7 +16,6 @@ import (
 
 var compileFlags = struct {
 	output *string
-	class  *string
 }{}
 
 func init() {
@@ -28,7 +27,6 @@ func init() {
 		RunE:    runCompile,
 	}
 	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
-	compileFlags.class = cmd.Flags().StringP("class", "", "lalr", "LALR or SLR")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -92,19 +90,7 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		reportFileName = fmt.Sprintf("%v-report.json", strings.TrimSuffix(grmFileName, ".vartan"))
 	}
 
-	opts := []grammar.CompileOption{
-		grammar.EnableReporting(reportFileName),
-	}
-	switch strings.ToLower(*compileFlags.class) {
-	case "slr":
-		opts = append(opts, grammar.SpecifyClass(grammar.ClassSLR))
-	case "lalr":
-		opts = append(opts, grammar.SpecifyClass(grammar.ClassLALR))
-	default:
-		return fmt.Errorf("invalid class: %v", *compileFlags.class)
-	}
-
-	cgram, err := grammar.Compile(gram, opts...)
+	cgram, err := grammar.Compile(gram, grammar.EnableReporting(reportFileName))
 	if err != nil {
 		return err
 	}

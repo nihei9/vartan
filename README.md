@@ -1,6 +1,6 @@
 # vartan
 
-vartan is a parser generator for golang and supports LALR(1) and SLR(1). vartan also provides a command to perform syntax analysis to allow easy debugging of your grammar.
+vartan is an LALR(1) parser generator for golang. vartan also provides a command to perform syntax analysis to allow easy debugging of your grammar.
 
 [![Test](https://github.com/nihei9/vartan/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nihei9/vartan/actions/workflows/test.yml)
 

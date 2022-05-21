@@ -499,7 +499,7 @@ assign: '=';
 				t.Fatal(err)
 			}
 
-			cg, err := grammar.Compile(g, grammar.SpecifyClass(grammar.ClassSLR))
+			cg, err := grammar.Compile(g)
 			if err != nil {
 				t.Fatal(err)
 			}

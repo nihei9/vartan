@@ -1286,16 +1286,8 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, errSym symbol, pro
 	}, nil
 }
 
-type Class string
-
-const (
-	ClassSLR  Class = "SLR(1)"
-	ClassLALR Class = "LALR(1)"
-)
-
 type compileConfig struct {
 	reportFileName string
-	class          Class
 }
 
 type CompileOption func(config *compileConfig)
@@ -1306,16 +1298,8 @@ func EnableReporting(fileName string) CompileOption {
 	}
 }
 
-func SpecifyClass(class Class) CompileOption {
-	return func(config *compileConfig) {
-		config.class = class
-	}
-}
-
 func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error) {
-	config := &compileConfig{
-		class: ClassLALR,
-	}
+	config := &compileConfig{}
 	for _, opt := range opts {
 		opt(config)
 	}
@@ -1385,39 +1369,15 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 		return nil, err
 	}
 
-	var class string
-	var automaton *lr0Automaton
-	switch config.class {
-	case ClassSLR:
-		class = "slr"
-
-		followSet, err := genFollowSet(gram.productionSet, firstSet)
-		if err != nil {
-			return nil, err
-		}
-
-		slr1, err := genSLR1Automaton(lr0, gram.productionSet, followSet)
-		if err != nil {
-			return nil, err
-		}
-
-		automaton = slr1.lr0Automaton
-	case ClassLALR:
-		class = "lalr"
-
+	var tab *ParsingTable
+	{
 		lalr1, err := genLALR1Automaton(lr0, gram.productionSet, firstSet)
 		if err != nil {
 			return nil, err
 		}
 
-		automaton = lalr1.lr0Automaton
-	}
-
-	var tab *ParsingTable
-	{
 		b := &lrTableBuilder{
-			class:        config.class,
-			automaton:    automaton,
+			automaton:    lalr1.lr0Automaton,
 			prods:        gram.productionSet,
 			termCount:    len(terms),
 			nonTermCount: len(nonTerms),
@@ -1520,7 +1480,6 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 			},
 		},
 		ParsingTable: &spec.ParsingTable{
-			Class:                   class,
 			Action:                  action,
 			GoTo:                    goTo,
 			StateCount:              tab.stateCount,

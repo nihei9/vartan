@@ -194,7 +194,7 @@ char
 				t.Fatal(err)
 			}
 
-			gram, err := grammar.Compile(g, grammar.SpecifyClass(grammar.ClassLALR))
+			gram, err := grammar.Compile(g)
 			if err != nil {
 				t.Fatal(err)
 			}
