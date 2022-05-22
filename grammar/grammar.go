@@ -1,10 +1,8 @@
 package grammar
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	mlcompiler "github.com/nihei9/maleeni/compiler"
@@ -1287,18 +1285,18 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTable, errSym symbol, pro
 }
 
 type compileConfig struct {
-	reportFileName string
+	isReportingEnabled bool
 }
 
 type CompileOption func(config *compileConfig)
 
-func EnableReporting(fileName string) CompileOption {
+func EnableReporting() CompileOption {
 	return func(config *compileConfig) {
-		config.reportFileName = fileName
+		config.isReportingEnabled = true
 	}
 }
 
-func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error) {
+func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec.Report, error) {
 	config := &compileConfig{}
 	for _, opt := range opts {
 		opt(config)
@@ -1313,9 +1311,9 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 				fmt.Fprintf(&b, "\n")
 				writeCompileError(&b, cerr)
 			}
-			return nil, fmt.Errorf(b.String())
+			return nil, nil, fmt.Errorf(b.String())
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	kind2Term := make([]int, len(lexSpec.KindNames))
@@ -1330,7 +1328,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 
 		sym, ok := gram.symbolTable.toSymbol(k.String())
 		if !ok {
-			return nil, fmt.Errorf("terminal symbol '%v' was not found in a symbol table", k)
+			return nil, nil, fmt.Errorf("terminal symbol '%v' was not found in a symbol table", k)
 		}
 		kind2Term[i] = sym.num().Int()
 		term2Kind[sym.num()] = i
@@ -1346,7 +1344,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 
 	terms, err := gram.symbolTable.terminalTexts()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	kindAliases := make([]string, gram.symbolTable.termNum.Int())
@@ -1356,24 +1354,25 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 
 	nonTerms, err := gram.symbolTable.nonTerminalTexts()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	firstSet, err := genFirstSet(gram.productionSet)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	lr0, err := genLR0Automaton(gram.productionSet, gram.augmentedStartSymbol, gram.errorSymbol)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var tab *ParsingTable
+	var report *spec.Report
 	{
 		lalr1, err := genLALR1Automaton(lr0, gram.productionSet, firstSet)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		b := &lrTableBuilder{
@@ -1387,47 +1386,14 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 		}
 		tab, err = b.build()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		report, err := b.genReport(tab, gram)
-		if err != nil {
-			return nil, err
-		}
-
-		if config.reportFileName != "" {
-			f, err := os.OpenFile(config.reportFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if config.isReportingEnabled {
+			report, err = b.genReport(tab, gram)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			defer f.Close()
-
-			d, err := json.Marshal(report)
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = f.Write(d)
-			if err != nil {
-				return nil, fmt.Errorf("failed to write a report: %w", err)
-			}
-		}
-
-		var implicitlyResolvedCount int
-		for _, s := range report.States {
-			for _, c := range s.SRConflict {
-				if c.ResolvedBy == ResolvedByShift.Int() {
-					implicitlyResolvedCount++
-				}
-			}
-			for _, c := range s.RRConflict {
-				if c.ResolvedBy == ResolvedByProdOrder.Int() {
-					implicitlyResolvedCount++
-				}
-			}
-		}
-		if implicitlyResolvedCount > 0 {
-			fmt.Fprintf(os.Stderr, "%v conflicts\n", implicitlyResolvedCount)
 		}
 	}
 
@@ -1499,7 +1465,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, error
 		ASTAction: &spec.ASTAction{
 			Entries: astActEnties,
 		},
-	}, nil
+	}, report, nil
 }
 
 func writeCompileError(w io.Writer, cErr *mlcompiler.CompileError) {

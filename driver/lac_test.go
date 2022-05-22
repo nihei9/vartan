@@ -56,7 +56,7 @@ d: 'd';
 		t.Fatal(err)
 	}
 
-	gram, err := grammar.Compile(g)
+	gram, _, err := grammar.Compile(g)
 	if err != nil {
 		t.Fatal(err)
 	}
