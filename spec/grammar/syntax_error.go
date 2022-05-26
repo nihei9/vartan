@@ -1,4 +1,4 @@
-package spec
+package grammar
 
 type SyntaxError struct {
 	message string

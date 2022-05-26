@@ -1,4 +1,4 @@
-package spec
+package grammar
 
 import mlspec "github.com/nihei9/maleeni/spec"
 

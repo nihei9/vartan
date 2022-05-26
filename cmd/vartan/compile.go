@@ -10,7 +10,7 @@ import (
 
 	verr "github.com/nihei9/vartan/error"
 	"github.com/nihei9/vartan/grammar"
-	"github.com/nihei9/vartan/spec"
+	spec "github.com/nihei9/vartan/spec/grammar"
 	"github.com/spf13/cobra"
 )
 

@@ -1,6 +1,6 @@
 package driver
 
-import "github.com/nihei9/vartan/spec"
+import spec "github.com/nihei9/vartan/spec/grammar"
 
 type grammarImpl struct {
 	g *spec.CompiledGrammar

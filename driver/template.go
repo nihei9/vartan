@@ -13,7 +13,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/nihei9/vartan/spec"
+	spec "github.com/nihei9/vartan/spec/grammar"
 )
 
 //go:embed parser.go

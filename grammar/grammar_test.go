@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	verr "github.com/nihei9/vartan/error"
-	"github.com/nihei9/vartan/spec"
+	spec "github.com/nihei9/vartan/spec/grammar"
 )
 
 func TestGrammarBuilderOK(t *testing.T) {

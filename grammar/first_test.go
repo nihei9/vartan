@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nihei9/vartan/spec"
+	spec "github.com/nihei9/vartan/spec/grammar"
 )
 
 type first struct {

@@ -1,4 +1,4 @@
-package spec
+package grammar
 
 type Terminal struct {
 	Number        int    `json:"number"`

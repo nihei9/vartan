@@ -8,7 +8,7 @@ import (
 	mlcompiler "github.com/nihei9/maleeni/compiler"
 	mlspec "github.com/nihei9/maleeni/spec"
 	verr "github.com/nihei9/vartan/error"
-	"github.com/nihei9/vartan/spec"
+	spec "github.com/nihei9/vartan/spec/grammar"
 )
 
 type astActionEntry struct {

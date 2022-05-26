@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/nihei9/vartan/driver"
-	"github.com/nihei9/vartan/spec"
+	spec "github.com/nihei9/vartan/spec/grammar"
 	"github.com/spf13/cobra"
 )
 

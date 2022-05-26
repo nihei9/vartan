@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/nihei9/vartan/grammar"
-	"github.com/nihei9/vartan/spec"
+	spec "github.com/nihei9/vartan/spec/grammar"
 )
 
 func TestParserWithSyntaxErrors(t *testing.T) {

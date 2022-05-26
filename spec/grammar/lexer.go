@@ -1,7 +1,7 @@
 //go:generate maleeni compile lexspec.json -o clexspec.json
-//go:generate maleeni-go clexspec.json --package spec
+//go:generate maleeni-go clexspec.json --package grammar
 
-package spec
+package grammar
 
 import (
 	_ "embed"

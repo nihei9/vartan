@@ -4,7 +4,7 @@ import (
 	"io"
 
 	mldriver "github.com/nihei9/maleeni/driver"
-	"github.com/nihei9/vartan/spec"
+	spec "github.com/nihei9/vartan/spec/grammar"
 )
 
 type vToken struct {
