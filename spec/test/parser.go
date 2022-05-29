@@ -57,6 +57,30 @@ func (t *Tree) path() string {
 	return fmt.Sprintf("%v.[%v]%v", t.Parent.path(), t.Offset, t.Kind)
 }
 
+func (t *Tree) Format() []byte {
+	var b bytes.Buffer
+	t.format(&b, 0)
+	return b.Bytes()
+}
+
+func (t *Tree) format(buf *bytes.Buffer, depth int) {
+	for i := 0; i < depth; i++ {
+		buf.WriteString("    ")
+	}
+	buf.WriteString("(")
+	buf.WriteString(t.Kind)
+	if len(t.Children) > 0 {
+		buf.WriteString("\n")
+		for i, c := range t.Children {
+			c.format(buf, depth+1)
+			if i < len(t.Children)-1 {
+				buf.WriteString("\n")
+			}
+		}
+	}
+	buf.WriteString(")")
+}
+
 func DiffTree(expected, actual *Tree) []*TreeDiff {
 	if expected == nil && actual == nil {
 		return nil

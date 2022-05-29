@@ -7,6 +7,25 @@ import (
 	"testing"
 )
 
+func TestTree_Format(t *testing.T) {
+	expected := `(a
+    (b
+        (c))
+    (d)
+    (e))`
+	tree := NewTree("a",
+		NewTree("b",
+			NewTree("c"),
+		),
+		NewTree("d"),
+		NewTree("e"),
+	)
+	actual := string(tree.Format())
+	if actual != expected {
+		t.Fatalf("unexpected format:\n%v", actual)
+	}
+}
+
 func TestDiffTree(t *testing.T) {
 	tests := []struct {
 		t1        *Tree

@@ -9,6 +9,7 @@ import (
 
 	"github.com/nihei9/vartan/driver"
 	spec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/tester"
 	"github.com/spf13/cobra"
 )
 
@@ -17,8 +18,14 @@ var parseFlags = struct {
 	onlyParse  *bool
 	cst        *bool
 	disableLAC *bool
-	json       *bool
+	format     *string
 }{}
+
+const (
+	outputFormatText = "text"
+	outputFormatTree = "tree"
+	outputFormatJSON = "json"
+)
 
 func init() {
 	cmd := &cobra.Command{
@@ -32,13 +39,18 @@ func init() {
 	parseFlags.onlyParse = cmd.Flags().Bool("only-parse", false, "when this option is enabled, the parser performs only parse and doesn't semantic actions")
 	parseFlags.cst = cmd.Flags().Bool("cst", false, "when this option is enabled, the parser generates a CST")
 	parseFlags.disableLAC = cmd.Flags().Bool("disable-lac", false, "disable LAC (lookahead correction)")
-	parseFlags.json = cmd.Flags().Bool("json", false, "enable JSON output")
+	parseFlags.format = cmd.Flags().StringP("format", "f", "text", "output format: one of text|tree|json")
 	rootCmd.AddCommand(cmd)
 }
 
 func runParse(cmd *cobra.Command, args []string) error {
 	if *parseFlags.onlyParse && *parseFlags.cst {
 		return fmt.Errorf("You cannot enable --only-parse and --cst at the same time")
+	}
+	if *parseFlags.format != outputFormatText &&
+		*parseFlags.format != outputFormatTree &&
+		*parseFlags.format != outputFormatJSON {
+		return fmt.Errorf("invalid output format: %v", *parseFlags.format)
 	}
 
 	cg, err := readCompiledGrammar(args[0])
@@ -108,13 +120,17 @@ func runParse(cmd *cobra.Command, args []string) error {
 			tree = tb.Tree()
 		}
 		if tree != nil {
-			if *parseFlags.json {
+			switch *parseFlags.format {
+			case "tree":
+				b := tester.ConvertSyntaxTreeToTestableTree(tree).Format()
+				fmt.Fprintln(os.Stdout, string(b))
+			case "json":
 				b, err := json.Marshal(tree)
 				if err != nil {
 					return err
 				}
 				fmt.Fprintln(os.Stdout, string(b))
-			} else {
+			default:
 				driver.PrintTree(os.Stdout, tree)
 			}
 		}

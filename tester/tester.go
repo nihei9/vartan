@@ -152,7 +152,7 @@ func runTest(g *gspec.CompiledGrammar, c *TestCaseWithMetadata) *TestResult {
 	}
 
 	// When a parse tree exists, the test continues regardless of whether or not syntax errors occurred.
-	diffs := tspec.DiffTree(genTree(tb.Tree()).Fill(), c.TestCase.Output)
+	diffs := tspec.DiffTree(ConvertSyntaxTreeToTestableTree(tb.Tree()).Fill(), c.TestCase.Output)
 	if len(diffs) > 0 {
 		return &TestResult{
 			TestCasePath: c.FilePath,
@@ -165,12 +165,12 @@ func runTest(g *gspec.CompiledGrammar, c *TestCaseWithMetadata) *TestResult {
 	}
 }
 
-func genTree(dTree *driver.Node) *tspec.Tree {
+func ConvertSyntaxTreeToTestableTree(dTree *driver.Node) *tspec.Tree {
 	var children []*tspec.Tree
 	if len(dTree.Children) > 0 {
 		children = make([]*tspec.Tree, len(dTree.Children))
 		for i, c := range dTree.Children {
-			children[i] = genTree(c)
+			children[i] = ConvertSyntaxTreeToTestableTree(c)
 		}
 	}
 	return tspec.NewTree(dTree.KindName, children...)
