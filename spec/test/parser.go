@@ -68,7 +68,11 @@ func (t *Tree) format(buf *bytes.Buffer, depth int) {
 		buf.WriteString("    ")
 	}
 	buf.WriteString("(")
-	buf.WriteString(t.Kind)
+	if t.Kind == "" {
+		buf.WriteString("<anonymous>")
+	} else {
+		buf.WriteString(t.Kind)
+	}
 	if len(t.Children) > 0 {
 		buf.WriteString("\n")
 		for i, c := range t.Children {
@@ -228,9 +232,17 @@ func formatSyntaxError(synErr *SyntaxError, gram Grammar) []byte {
 	case tok.Invalid():
 		b.WriteString(fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme())))
 	default:
-		b.WriteString(fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), gram.Terminal(tok.TerminalID())))
+		if term := gram.Terminal(tok.TerminalID()); term != "" {
+			if alias := gram.TerminalAlias(tok.TerminalID()); alias != "" {
+				b.WriteString(fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), alias))
+			} else {
+				b.WriteString(fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), term))
+			}
+		} else {
+			b.WriteString(fmt.Sprintf("'%v'", string(tok.Lexeme())))
+		}
 	}
-	b.WriteString(fmt.Sprintf("; expected: %v", synErr.ExpectedTerminals[0]))
+	b.WriteString(fmt.Sprintf(": expected: %v", synErr.ExpectedTerminals[0]))
 	for _, t := range synErr.ExpectedTerminals[1:] {
 		b.WriteString(fmt.Sprintf(", %v", t))
 	}

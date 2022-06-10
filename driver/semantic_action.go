@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 )
 
 // SemanticActionSet is a set of semantic actions a parser calls.
@@ -270,6 +271,19 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 			KindName: n.KindName,
 		})
 	case NodeTypeTerminal:
+		if n.KindName == "" {
+			return json.Marshal(struct {
+				Type NodeType `json:"type"`
+				Text string   `json:"text"`
+				Row  int      `json:"row"`
+				Col  int      `json:"col"`
+			}{
+				Type: n.Type,
+				Text: n.Text,
+				Row:  n.Row,
+				Col:  n.Col,
+			})
+		}
 		return json.Marshal(struct {
 			Type     NodeType `json:"type"`
 			KindName string   `json:"kind_name"`
@@ -324,9 +338,13 @@ func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix s
 
 	switch node.Type {
 	case NodeTypeError:
-		fmt.Fprintf(w, "%v!%v\n", ruledLine, node.KindName)
+		fmt.Fprintf(w, "%v%v\n", ruledLine, node.KindName)
 	case NodeTypeTerminal:
-		fmt.Fprintf(w, "%v%v %#v\n", ruledLine, node.KindName, node.Text)
+		if node.KindName == "" {
+			fmt.Fprintf(w, "%v<anonymous> %v\n", ruledLine, strconv.Quote(node.Text))
+		} else {
+			fmt.Fprintf(w, "%v%v %v\n", ruledLine, node.KindName, strconv.Quote(node.Text))
+		}
 	case NodeTypeNonTerminal:
 		fmt.Fprintf(w, "%v%v\n", ruledLine, node.KindName)
 

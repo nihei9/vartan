@@ -18,6 +18,10 @@ func termNode(kind string, text string, children ...*Node) *Node {
 	}
 }
 
+func anonTermNode(text string, children ...*Node) *Node {
+	return termNode("", text, children...)
+}
+
 func errorNode() *Node {
 	return &Node{
 		Type:     NodeTypeError,
@@ -65,7 +69,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 					nonTermNode("term",
 						nonTermNode("term",
 							nonTermNode("factor",
-								termNode("x_3", "("),
+								anonTermNode("("),
 								nonTermNode("expr",
 									nonTermNode("expr",
 										nonTermNode("term",
@@ -74,10 +78,10 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 											),
 										),
 									),
-									termNode("x_1", "+"),
+									anonTermNode("+"),
 									nonTermNode("term",
 										nonTermNode("factor",
-											termNode("x_3", "("),
+											anonTermNode("("),
 											nonTermNode("expr",
 												nonTermNode("expr",
 													nonTermNode("term",
@@ -86,27 +90,27 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 														),
 													),
 												),
-												termNode("x_1", "+"),
+												anonTermNode("+"),
 												nonTermNode("term",
 													nonTermNode("factor",
 														termNode("id", "c"),
 													),
 												),
 											),
-											termNode("x_4", ")"),
+											anonTermNode(")"),
 										),
 									),
 								),
-								termNode("x_4", ")"),
+								anonTermNode(")"),
 							),
 						),
-						termNode("x_2", "*"),
+						anonTermNode("*"),
 						nonTermNode("factor",
 							termNode("id", "d"),
 						),
 					),
 				),
-				termNode("x_1", "+"),
+				anonTermNode("+"),
 				nonTermNode("term",
 					nonTermNode("factor",
 						termNode("id", "e"),

@@ -1317,12 +1317,10 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 	}
 
 	kind2Term := make([]int, len(lexSpec.KindNames))
-	term2Kind := make([]int, gram.symbolTable.termNum.Int())
 	skip := make([]int, len(lexSpec.KindNames))
 	for i, k := range lexSpec.KindNames {
 		if k == mlspec.LexKindNameNil {
 			kind2Term[mlspec.LexKindIDNil] = symbolNil.num().Int()
-			term2Kind[symbolNil.num()] = mlspec.LexKindIDNil.Int()
 			continue
 		}
 
@@ -1331,7 +1329,6 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 			return nil, nil, fmt.Errorf("terminal symbol '%v' was not found in a symbol table", k)
 		}
 		kind2Term[i] = sym.num().Int()
-		term2Kind[sym.num()] = i
 
 		for _, sk := range gram.skipLexKinds {
 			if k != sk {
@@ -1342,9 +1339,15 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 		}
 	}
 
-	terms, err := gram.symbolTable.terminalTexts()
+	termTexts, err := gram.symbolTable.terminalTexts()
 	if err != nil {
 		return nil, nil, err
+	}
+	terms := make([]string, len(termTexts))
+	for i, t := range termTexts {
+		if !strings.HasPrefix(t, "x_") {
+			terms[i] = t
+		}
 	}
 
 	kindAliases := make([]string, gram.symbolTable.termNum.Int())
@@ -1440,7 +1443,6 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 			Maleeni: &spec.Maleeni{
 				Spec:           lexSpec,
 				KindToTerminal: kind2Term,
-				TerminalToKind: term2Kind,
 				Skip:           skip,
 				KindAliases:    kindAliases,
 			},

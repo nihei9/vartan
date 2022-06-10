@@ -112,14 +112,7 @@ func runParse(cmd *cobra.Command, args []string) error {
 	if !*parseFlags.onlyParse {
 		// A parser can construct a parse tree even if syntax errors occur.
 		// When therer is a parse tree, print it.
-
-		var tree *driver.Node
-		if *parseFlags.cst {
-			tree = tb.Tree()
-		} else {
-			tree = tb.Tree()
-		}
-		if tree != nil {
+		if tree := tb.Tree(); tree != nil {
 			switch *parseFlags.format {
 			case "tree":
 				b := tester.ConvertSyntaxTreeToTestableTree(tree).Format()
@@ -179,10 +172,14 @@ func writeSyntaxErrorMessage(b *strings.Builder, cgram *spec.CompiledGrammar, sy
 	case tok.Invalid():
 		fmt.Fprintf(b, "'%v' (<invalid>)", string(tok.Lexeme()))
 	default:
-		fmt.Fprintf(b, "'%v' (%v)", string(tok.Lexeme()), cgram.ParsingTable.Terminals[tok.TerminalID()])
+		if kind := cgram.ParsingTable.Terminals[tok.TerminalID()]; kind != "" {
+			fmt.Fprintf(b, "'%v' (%v)", string(tok.Lexeme()), kind)
+		} else {
+			fmt.Fprintf(b, "'%v'", string(tok.Lexeme()))
+		}
 	}
 
-	fmt.Fprintf(b, "; expected: %v", synErr.ExpectedTerminals[0])
+	fmt.Fprintf(b, ": expected: %v", synErr.ExpectedTerminals[0])
 	for _, t := range synErr.ExpectedTerminals[1:] {
 		fmt.Fprintf(b, ", %v", t)
 	}

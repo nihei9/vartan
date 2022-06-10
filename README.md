@@ -123,7 +123,7 @@ $ vartan show expr-report.json
 
 ### 4. Test
 
-`vartan-test` command allows you to test whether your grammar recognizes an input text as a syntax tree with an expected structure. To do so, you need to define a test case as follows.
+`vartan test` command allows you to test whether your grammar recognizes an input text as a syntax tree with an expected structure. To do so, you need to define a test case as follows.
 
 ```
 This is an example.
@@ -144,11 +144,11 @@ The test case consists of a description, an input text, and a syntax tree you ex
 Save the above test case to `test.txt` file and run the following command.
 
 ```sh
-$ vartan-test expr.vartan test.txt
+$ vartan test expr.vartan test.txt
 Passed test.txt
 ```
 
-When you specify a directory as the 2nd argument of `vartan-test` command, it will run all test cases in the directory.
+When you specify a directory as the 2nd argument of `vartan test` command, it will run all test cases in the directory.
 
 ### 5. Generate a parser
 
@@ -213,16 +213,20 @@ func printSyntaxError(w io.Writer, synErr *SyntaxError, gram Grammar) {
 	case tok.Invalid():
 		msg = fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme()))
 	default:
-		if alias := gram.TerminalAlias(tok.TerminalID()); alias != "" {
-			msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), alias)
+		if term := gram.Terminal(tok.TerminalID()); term != "" {
+			if alias := gram.TerminalAlias(tok.TerminalID()); alias != "" {
+				msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), alias)
+			} else {
+				msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), term)
+			}
 		} else {
-			msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), gram.Terminal(tok.TerminalID()))
+			msg = fmt.Sprintf("'%v'", string(tok.Lexeme()))
 		}
 	}
 	fmt.Fprintf(w, "%v:%v: %v: %v", synErr.Row+1, synErr.Col+1, synErr.Message, msg)
 
 	if len(synErr.ExpectedTerminals) > 0 {
-		fmt.Fprintf(w, "; expected: %v", synErr.ExpectedTerminals[0])
+		fmt.Fprintf(w, ": expected: %v", synErr.ExpectedTerminals[0])
 		for _, t := range synErr.ExpectedTerminals[1:] {
 			fmt.Fprintf(w, ", %v", t)
 		}
@@ -257,7 +261,7 @@ expr
 
 ```sh
 $ echo -n 'foo+99?' | go run .
-1:7: unexpected token: '?' (<invalid>); expected: <eof>, +, -, *, /
+1:7: unexpected token: '?' (<invalid>): expected: <eof>, +, -, *, /
 exit status 1
 ```
 
@@ -714,16 +718,16 @@ In the following example, you can see the parser print syntax error messages and
 
 ```
 $ echo -n 'x; x =; x = 1;' | vartan parse example.json
-1:2: unexpected token: ';' (x_2); expected: =
-1:7: unexpected token: ';' (x_2); expected: int
+1:2: unexpected token: ';': expected: =
+1:7: unexpected token: ';': expected: int
 
 statements
 ├─ statement
-│  ├─ !error
-│  └─ x_2 ";"
+│  ├─ error
+│  └─ <anonymous> ";"
 ├─ statement
-│  ├─ !error
-│  └─ x_2 ";"
+│  ├─ error
+│  └─ <anonymous> ";"
 └─ statement
    ├─ name "x"
    └─ int "1"
