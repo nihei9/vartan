@@ -50,18 +50,20 @@ func TestParser_Parse(t *testing.T) {
 #name test;
 
 expr
-    : expr "\+" term
+    : expr '+' term
     | term
     ;
 term
-    : term "\*" factor
+    : term '*' factor
     | factor
     ;
 factor
-    : "\(" expr "\)"
+    : '(' expr ')'
     | id
     ;
-id: "[A-Za-z_][0-9A-Za-z_]*";
+
+id
+    : "[A-Za-z_][0-9A-Za-z_]*";
 `,
 			src: `(a+(b+c))*d+e`,
 			cst: nonTermNode("expr",
@@ -404,10 +406,10 @@ fragment words: "[A-Za-z\u{0020}]+";
 #name test;
 
 list
-    : "\[" elems "]" #ast elems...
+    : '[' elems ']' #ast elems...
     ;
 elems
-    : elems "," id #ast elems... id
+    : elems ',' id #ast elems... id
     | id
     ;
 

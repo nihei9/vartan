@@ -37,6 +37,7 @@ var (
 	synErrNoDirectiveName        = newSyntaxError("a directive needs a name")
 	synErrNoOrderedSymbolName    = newSyntaxError("an ordered symbol name is missing")
 	synErrUnclosedDirGroup       = newSyntaxError("a directive group must be closed by )")
+	synErrPatternInAlt           = newSyntaxError("a pattern literal cannot appear directly in an alternative. instead, please define a terminal symbol with the pattern literal")
 	synErrStrayExpOp             = newSyntaxError("an expansion operator ... must be preceded by an identifier")
 	synErrInvalidExpOperand      = newSyntaxError("an expansion operator ... can be applied to only an identifier")
 	synErrSemicolonNoNewline     = newSyntaxError("a semicolon must be followed by a newline")

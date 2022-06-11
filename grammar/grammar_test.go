@@ -2686,7 +2686,7 @@ foo
 #name test;
 
 s
-    : foo "bar"@b #ast foo b...
+    : foo 'bar'@b #ast foo b...
     ;
 
 foo

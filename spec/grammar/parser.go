@@ -338,12 +338,27 @@ func (p *parser) parseProduction() *ProductionNode {
 		}
 	}
 
-	return &ProductionNode{
+	prod := &ProductionNode{
 		Directives: dirs,
 		LHS:        lhs,
 		RHS:        rhs,
 		Pos:        lhsPos,
 	}
+
+	// Vartan's driver must provide a user with the names of expected tokens when a syntax error occurs.
+	// However, if a pattern appears directly in an alternative, Vartan's compiler cannot assign an appropriate
+	// name to the pattern. Therefore, this code prohibits alternatives from containing patterns.
+	if !prod.isLexical() {
+		for _, alt := range prod.RHS {
+			for _, elem := range alt.Elements {
+				if elem.Pattern != "" && !elem.Literally {
+					raiseSyntaxError(elem.Pos.Row, synErrPatternInAlt)
+				}
+			}
+		}
+	}
+
+	return prod
 }
 
 func (p *parser) parseAlternative() *AlternativeNode {

@@ -302,7 +302,7 @@ Alternative:
 <element-1> <element-2> ... <element-N>
 ```
 
-An element an alternative contains is a terminal symbol, a non-terminal symbol, a pattern, or a string literal.
+An element an alternative contains is a terminal symbol, a non-terminal symbol, or a string literal. Unlike string literals, patterns cannot be contained in alternatives.
 
 You can define terminal symbols in the same grammar as non-terminal symbols.
 

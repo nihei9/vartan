@@ -272,23 +272,25 @@ func TestParse(t *testing.T) {
 		{
 			caption: "multiple productions are a valid grammar",
 			src: `
-e: e "\+|-" t | t;
-t: t "\*|/" f | f;
-f: "\(" e ")" | id;
+e: e '+' t | e '-' t | t;
+t: t '*' f | t '/' f | f;
+f: '(' e ')' | id;
 id: "[A-Za-z_][0-9A-Za-z_]*";
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
 					prod("e",
-						alt(id("e"), pat(`\+|-`), id("t")),
+						alt(id("e"), pat(`+`), id("t")),
+						alt(id("e"), pat(`-`), id("t")),
 						alt(id("t")),
 					),
 					prod("t",
-						alt(id("t"), pat(`\*|/`), id("f")),
+						alt(id("t"), pat(`*`), id("f")),
+						alt(id("t"), pat(`/`), id("f")),
 						alt(id("f")),
 					),
 					prod("f",
-						alt(pat(`\(`), id("e"), pat(`)`)),
+						alt(pat(`(`), id("e"), pat(`)`)),
 						alt(id("id")),
 					),
 				},
@@ -302,8 +304,8 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		{
 			caption: "productions can contain the empty alternative",
 			src: `
-a: "foo" | ;
-b: | "bar";
+a: 'foo' | ;
+b: | 'bar';
 c: ;
 `,
 			ast: &RootNode{
@@ -328,6 +330,69 @@ c: ;
 a: $x;
 `,
 			synErr: synErrNoSemicolon,
+		},
+		{
+			caption: "an alternative can contain a string literal without a terminal symbol",
+			src: `
+s
+    : 'foo' bar
+    ;
+
+bar
+    : 'bar';
+`,
+			ast: &RootNode{
+				Productions: []*ProductionNode{
+					prod("s",
+						alt(pat(`foo`), id("bar")),
+					),
+				},
+				LexProductions: []*ProductionNode{
+					prod("bar",
+						alt(pat(`bar`)),
+					),
+				},
+			},
+		},
+		{
+			caption: "an alternative cannot contain a pattern directly",
+			src: `
+s
+    : "foo" bar
+    ;
+
+bar
+    : "bar";
+`,
+			synErr: synErrPatternInAlt,
+		},
+		{
+			caption: "a terminal symbol can be defined using a string literal",
+			src: `
+foo
+    : 'foo';
+`,
+			ast: &RootNode{
+				LexProductions: []*ProductionNode{
+					prod("foo",
+						alt(pat(`foo`)),
+					),
+				},
+			},
+		},
+		{
+			caption: "a terminal symbol can be defined using a pattern",
+			src: `
+foo
+    : "foo";
+`,
+			ast: &RootNode{
+				LexProductions: []*ProductionNode{
+					prod("foo",
+						alt(pat(`foo`)),
+					),
+				},
+			},
 		},
 		{
 			caption: "`fragment` is a reserved word",
@@ -656,7 +721,7 @@ a
 			caption: "an AST has node positions",
 			src: `
 exp
-    : exp "\+" id #ast exp id
+    : exp '+' id #ast exp id
     | id
     ;
 
@@ -678,7 +743,7 @@ fragment number
 								withAltDir(
 									alt(
 										withElemPos(id("exp"), newPos(3)),
-										withElemPos(pat(`\+`), newPos(3)),
+										withElemPos(pat(`+`), newPos(3)),
 										withElemPos(id("id"), newPos(3)),
 									),
 									withDirPos(
