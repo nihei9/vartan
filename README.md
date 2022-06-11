@@ -150,6 +150,8 @@ Passed test.txt
 
 When you specify a directory as the 2nd argument of `vartan test` command, it will run all test cases in the directory.
 
+The underscore `_` allows you to match any symbols. Thus `(expr (expr (id)) (_) (expr (id)))` matches `a + b`, `a - b`, and so on.
+
 ### 5. Generate a parser
 
 Using `vartan-go` command, you can generate a source code of a parser to recognize your grammar.

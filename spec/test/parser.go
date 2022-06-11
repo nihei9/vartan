@@ -89,7 +89,8 @@ func DiffTree(expected, actual *Tree) []*TreeDiff {
 	if expected == nil && actual == nil {
 		return nil
 	}
-	if actual.Kind != expected.Kind {
+	// _ matches any symbols.
+	if expected.Kind != "_" && actual.Kind != expected.Kind {
 		msg := fmt.Sprintf("unexpected kind: expected '%v' but got '%v'", expected.Kind, actual.Kind)
 		return []*TreeDiff{
 			newTreeDiff(expected, actual, msg),
@@ -103,7 +104,7 @@ func DiffTree(expected, actual *Tree) []*TreeDiff {
 	}
 	var diffs []*TreeDiff
 	for i, exp := range expected.Children {
-		if ds := DiffTree(actual.Children[i], exp); len(ds) > 0 {
+		if ds := DiffTree(exp, actual.Children[i]); len(ds) > 0 {
 			diffs = append(diffs, ds...)
 		}
 	}
