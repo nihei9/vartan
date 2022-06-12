@@ -7,9 +7,6 @@ import (
 )
 
 type Grammar interface {
-	// Class returns a class of grammar.
-	Class() string
-
 	// InitialState returns the initial state of a parser.
 	InitialState() int
 
@@ -90,7 +87,7 @@ type SyntaxError struct {
 
 type ParserOption func(p *Parser) error
 
-// DisableLAC disables LAC (lookahead correction). When the grammar has the LALR class, LAC is enabled by default.
+// DisableLAC disables LAC (lookahead correction). LAC is enabled by default.
 func DisableLAC() ParserOption {
 	return func(p *Parser) error {
 		p.disableLAC = true
@@ -121,10 +118,6 @@ func NewParser(toks TokenStream, gram Grammar, opts ...ParserOption) (*Parser, e
 		toks:       toks,
 		gram:       gram,
 		stateStack: &stateStack{},
-	}
-
-	if p.gram.Class() != "lalr" {
-		p.disableLAC = true
 	}
 
 	for _, opt := range opts {
@@ -443,32 +436,97 @@ type grammarImpl struct {
 func NewGrammar() *grammarImpl {
 	return &grammarImpl{
 		recoverProductions: []int{
-			0, 0, 0, 1, 0, 0, 0,
+			0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 		action: []int{
-			0, 0, 0, 0, -2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, -3, 0, 0, 0,
-			-4, 0, 0, 0, 0, 0, -5, 0, 0, 6, 0, 0, -2, 6, 0, 0, 3, 0, 0, 3,
-			3, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, -2, -9, 0, 0, 0, 0, 0,
-			4, 4, 0, 0, 2, 0, 0, 2, 2, 0,
+			0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			-3, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0,
+			-2, 7, 0, -11, 0, 0, -12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 4,
+			4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2, -14, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 12, 12, 0, 0, -17, 12, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 16, -22, 0, 16, 16, 0, 0, 0, 0, 0, -23,
+			-24, -25, -26, -27, -28, -29, 16, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -30, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			-31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -23, -24, -25, -26, -27, -28, -29, 15,
+			0, 18, 0, 0, 18, 18, 0, 0, 0, 0, 0, 18, 18, 18, 18, 18, 18, 18, 18, 0,
+			25, 0, 0, 25, 25, 0, 0, 0, 0, 0, 25, 25, 25, 25, 25, 25, 25, 25, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -33, 0, 19, 0,
+			0, 19, 19, 0, 0, 0, 0, 0, 19, 19, 19, 19, 19, 19, 19, 19, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, -34, 0, 0, 0, 0, 0, 0, 20, 0, 0, 20,
+			20, 0, 0, 0, 0, 0, 20, 20, 20, 20, 20, 20, 20, 20, 0, 21, 0, 0, 21, 21,
+			0, 0, 0, 0, 0, 21, 21, 21, 21, 21, 21, 21, 21, 0, 22, 0, 0, 22, 22, 0,
+			0, 0, 0, 0, 22, 22, 22, 22, 22, 22, 22, 22, 0, 23, 0, 0, 23, 23, 0, 0,
+			0, 0, 0, 23, 23, 23, 23, 23, 23, 23, 23, 0, 24, 0, 0, 24, 24, 0, 0, 0,
+			0, 0, 24, 24, 24, 24, 24, 24, 24, 24, 0, 10, 0, 0, 10, 10, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 13, 13, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 17, 17, 0, 0, 0, 0, 0, 17,
+			17, 17, 17, 17, 17, 17, 17, 0, 14, 0, 0, 14, 14, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, -35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -36,
+			0, 0, 0, 0, 0, 26, 0, 0, 26, 26, 0, 0, 0, 0, 0, 26, 26, 26, 26, 26,
+			26, 26, 26,
 		},
 		goTo: []int{
-			0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 7,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 7, 8, 9, 0, 10, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 19, 20, 21, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 21,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0,
 		},
 		alternativeSymbolCounts: []int{
-			0, 1, 4, 3, 2, 1, 0,
+			0, 1, 4, 4, 3, 2, 1, 0, 1, 1, 3, 1, 0, 3, 3, 1, 0, 2, 1, 1,
+			1, 1, 1, 1, 1, 1, 4,
 		},
 		errorTrapperStates: []int{
-			0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		},
 		nonTerminals: []string{
 			"",
 			"tree'",
 			"tree",
 			"tree_list",
+			"string",
+			"raw_string",
+			"opt_raw_string_body",
+			"interpreted_string",
+			"opt_interpreted_string_body",
+			"interpreted_string_body",
+			"interpreted_string_elem",
+			"codepoint_expr",
 		},
 		lhsSymbols: []int{
-			0, 1, 2, 2, 3, 3, 3,
+			0, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10,
+			10, 10, 10, 10, 10, 10, 11,
 		},
 		terminals: []string{
 			"",
@@ -478,6 +536,18 @@ func NewGrammar() *grammarImpl {
 			"l_paren",
 			"r_paren",
 			"identifier",
+			"raw_string_open",
+			"raw_string_body",
+			"raw_string_close",
+			"interpreted_string_open",
+			"interpreted_seq",
+			"codepoint_prefix",
+			"l_brace",
+			"r_brace",
+			"hex_digits",
+			"escaped_seq",
+			"escape_char",
+			"interpreted_string_close",
 		},
 		terminalAliases: []string{
 			"",
@@ -487,12 +557,27 @@ func NewGrammar() *grammarImpl {
 			"(",
 			")",
 			"",
+			"",
+			"",
+			"",
+			"\"",
+			"",
+			"\\u",
+			"{",
+			"}",
+			"",
+			"",
+			"\\",
+			"\"",
 		},
 		astActions: [][]int{
 			nil,
 			nil,
 			{
 				2, -3,
+			},
+			{
+				2, 3,
 			},
 			{
 				2,
@@ -502,12 +587,41 @@ func NewGrammar() *grammarImpl {
 			},
 			nil,
 			nil,
+			nil,
+			nil,
+			{
+				-2,
+			},
+			nil,
+			nil,
+			{
+				-2,
+			},
+			{
+				2,
+			},
+			{
+				-1,
+			},
+			nil,
+			{
+				-1, -2,
+			},
+			{
+				-1,
+			},
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			{
+				3,
+			},
 		},
 	}
-}
-
-func (g *grammarImpl) Class() string {
-	return "lalr"
 }
 
 func (g *grammarImpl) InitialState() int {
@@ -523,11 +637,11 @@ func (g *grammarImpl) RecoverProduction(prod int) bool {
 }
 
 func (g *grammarImpl) Action(state int, terminal int) int {
-	return g.action[state*7+terminal]
+	return g.action[state*19+terminal]
 }
 
 func (g *grammarImpl) GoTo(state int, lhs int) int {
-	return g.goTo[state*4+lhs]
+	return g.goTo[state*12+lhs]
 }
 
 func (g *grammarImpl) AlternativeSymbolCount(prod int) int {
@@ -535,7 +649,7 @@ func (g *grammarImpl) AlternativeSymbolCount(prod int) int {
 }
 
 func (g *grammarImpl) TerminalCount() int {
-	return 7
+	return 19
 }
 
 func (g *grammarImpl) ErrorTrapperState(state int) bool {
@@ -601,11 +715,11 @@ func (t *vToken) Position() (int, int) {
 }
 
 var kindToTerminal = []int{
-	0, 3, 4, 5, 6,
+	0, 3, 4, 5, 6, 7, 10, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18,
 }
 
 var skip = []int{
-	0, 1, 0, 0, 0,
+	0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 }
 
 type tokenStream struct {

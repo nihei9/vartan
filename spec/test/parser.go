@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 type TreeDiff struct {
@@ -32,12 +34,20 @@ type Tree struct {
 	Offset   int
 	Kind     string
 	Children []*Tree
+	Lexeme   string
 }
 
-func NewTree(kind string, children ...*Tree) *Tree {
+func NewNonTerminalTree(kind string, children ...*Tree) *Tree {
 	return &Tree{
 		Kind:     kind,
 		Children: children,
+	}
+}
+
+func NewTerminalNode(kind string, lexeme string) *Tree {
+	return &Tree{
+		Kind:   kind,
+		Lexeme: lexeme,
 	}
 }
 
@@ -92,6 +102,12 @@ func DiffTree(expected, actual *Tree) []*TreeDiff {
 	// _ matches any symbols.
 	if expected.Kind != "_" && actual.Kind != expected.Kind {
 		msg := fmt.Sprintf("unexpected kind: expected '%v' but got '%v'", expected.Kind, actual.Kind)
+		return []*TreeDiff{
+			newTreeDiff(expected, actual, msg),
+		}
+	}
+	if expected.Lexeme != actual.Lexeme {
+		msg := fmt.Sprintf("unexpected lexeme: expected '%v' but got '%v'", expected.Lexeme, actual.Lexeme)
 		return []*TreeDiff{
 			newTreeDiff(expected, actual, msg),
 		}
@@ -218,7 +234,11 @@ func parseTree(src io.Reader) (*Tree, error) {
 		}
 		return nil, errors.New(b.String())
 	}
-	return genTree(tb.Tree()).Fill(), nil
+	t, err := genTree(tb.Tree())
+	if err != nil {
+		return nil, err
+	}
+	return t.Fill(), nil
 }
 
 func formatSyntaxError(synErr *SyntaxError, gram Grammar) []byte {
@@ -251,13 +271,49 @@ func formatSyntaxError(synErr *SyntaxError, gram Grammar) []byte {
 	return b.Bytes()
 }
 
-func genTree(node *Node) *Tree {
+func genTree(node *Node) (*Tree, error) {
+	if len(node.Children) == 2 && node.Children[1].KindName == "string" {
+		var lexeme string
+		str := node.Children[1].Children[0]
+		switch str.KindName {
+		case "raw_string":
+			lexeme = str.Children[0].Text
+		case "interpreted_string":
+			var b strings.Builder
+			for _, c := range str.Children {
+				switch c.KindName {
+				case "escaped_seq":
+					b.WriteString(strings.TrimPrefix(`\`, c.Text))
+				case "escape_char":
+					return nil, fmt.Errorf("incomplete escape sequence")
+				case "codepoint_expr":
+					n, err := strconv.ParseInt(c.Children[0].Text, 16, 64)
+					if err != nil {
+						return nil, err
+					}
+					if !utf8.ValidRune(rune(n)) {
+						return nil, fmt.Errorf("invalid code point: %v", c.Children[0].Text)
+					}
+					b.WriteRune(rune(n))
+				default:
+					b.WriteString(c.Text)
+				}
+			}
+			lexeme = b.String()
+		}
+		return NewTerminalNode(node.Children[0].Text, lexeme), nil
+	}
+
 	var children []*Tree
 	if len(node.Children) > 1 {
 		children = make([]*Tree, len(node.Children)-1)
 		for i, c := range node.Children[1:] {
-			children[i] = genTree(c)
+			var err error
+			children[i], err = genTree(c)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
-	return NewTree(node.Children[0].Text, children...)
+	return NewNonTerminalTree(node.Children[0].Text, children...), nil
 }

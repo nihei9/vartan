@@ -1,6 +1,7 @@
 package tester
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -58,7 +59,7 @@ Test
 foo bar baz
 ---
 (s
-    (foo) (bar) (baz))
+    (foo 'foo') (bar 'bar') (baz 'baz'))
 `,
 		},
 		{
@@ -69,7 +70,7 @@ Test
 foo ? baz
 ---
 (s
-    (foo) (error) (baz))
+    (foo 'foo') (error) (baz 'baz'))
 `,
 		},
 		{
@@ -116,55 +117,57 @@ foo foo foo
 ---
 (s
     (foos
-        (foo) (foo) (foo)))
+        (foo 'foo') (foo 'foo') (foo 'foo')))
 `,
 		},
 	}
-	for _, tt := range tests {
-		ast, err := gspec.Parse(strings.NewReader(tt.grammarSrc))
-		if err != nil {
-			t.Fatal(err)
-		}
-		b := grammar.GrammarBuilder{
-			AST: ast,
-		}
-		g, err := b.Build()
-		if err != nil {
-			t.Fatal(err)
-		}
-		cg, _, err := grammar.Compile(g)
-		if err != nil {
-			t.Fatal(err)
-		}
-		c, err := tspec.ParseTestCase(strings.NewReader(tt.testSrc))
-		if err != nil {
-			t.Fatal(err)
-		}
-		tester := &Tester{
-			Grammar: cg,
-			Cases: []*TestCaseWithMetadata{
-				{
-					TestCase: c,
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
+			ast, err := gspec.Parse(strings.NewReader(tt.grammarSrc))
+			if err != nil {
+				t.Fatal(err)
+			}
+			b := grammar.GrammarBuilder{
+				AST: ast,
+			}
+			g, err := b.Build()
+			if err != nil {
+				t.Fatal(err)
+			}
+			cg, _, err := grammar.Compile(g)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c, err := tspec.ParseTestCase(strings.NewReader(tt.testSrc))
+			if err != nil {
+				t.Fatal(err)
+			}
+			tester := &Tester{
+				Grammar: cg,
+				Cases: []*TestCaseWithMetadata{
+					{
+						TestCase: c,
+					},
 				},
-			},
-		}
-		rs := tester.Run()
-		if tt.error {
-			errOccurred := false
-			for _, r := range rs {
-				if r.Error != nil {
-					errOccurred = true
+			}
+			rs := tester.Run()
+			if tt.error {
+				errOccurred := false
+				for _, r := range rs {
+					if r.Error != nil {
+						errOccurred = true
+					}
+				}
+				if !errOccurred {
+					t.Fatal("this test must fail, but it passed")
+				}
+			} else {
+				for _, r := range rs {
+					if r.Error != nil {
+						t.Fatalf("unexpected error occurred: %v", r.Error)
+					}
 				}
 			}
-			if !errOccurred {
-				t.Fatal("this test must fail, but it passed")
-			}
-		} else {
-			for _, r := range rs {
-				if r.Error != nil {
-					t.Fatalf("unexpected error occurred: %v", r.Error)
-				}
-			}
-		}
+		})
 	}
 }

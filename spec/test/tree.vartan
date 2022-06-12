@@ -7,12 +7,48 @@
 
 tree
 	: l_paren identifier tree_list r_paren #ast identifier tree_list...
+	| l_paren identifier string r_paren    #ast identifier string
 	| l_paren error r_paren                #recover #ast error
 	;
 tree_list
 	: tree_list tree #ast tree_list... tree
 	| tree
 	|                #prec $empty_tree
+	;
+string
+	: raw_string
+	| interpreted_string
+	;
+raw_string
+	: raw_string_open opt_raw_string_body raw_string_close #ast opt_raw_string_body...
+	;
+opt_raw_string_body
+	: raw_string_body
+	|
+	;
+interpreted_string
+	: interpreted_string_open opt_interpreted_string_body interpreted_string_close #ast opt_interpreted_string_body...
+	| interpreted_string_open error interpreted_string_close #recover #ast error
+	;
+opt_interpreted_string_body
+	: interpreted_string_body #ast interpreted_string_body...
+	|
+	;
+interpreted_string_body
+	: interpreted_string_body interpreted_string_elem #ast interpreted_string_body... interpreted_string_elem...
+	| interpreted_string_elem                         #ast interpreted_string_elem...
+	;
+interpreted_string_elem
+	: interpreted_seq
+	| l_brace
+	| r_brace
+	| hex_digits
+	| escaped_seq
+	| escape_char
+	| codepoint_expr
+	;
+codepoint_expr
+	: codepoint_prefix l_brace hex_digits r_brace #ast hex_digits
 	;
 
 ws #skip
@@ -23,3 +59,29 @@ r_paren
 	: ')';
 identifier
 	: "[0-9A-Za-z_]+";
+
+raw_string_open #push raw_string
+	: "'";
+raw_string_body #mode raw_string
+	: "[^']+";
+raw_string_close #mode raw_string #pop
+	: "'";
+
+interpreted_string_open #push interpreted_string
+	: '"';
+interpreted_seq #mode interpreted_string
+	: "[^\"\\{}0-9A-Fa-f]+";
+codepoint_prefix #mode interpreted_string
+	: '\u';
+l_brace #mode interpreted_string
+	: '{';
+r_brace #mode interpreted_string
+	: '}';
+hex_digits #mode interpreted_string
+	: "[0-9A-Fa-f]+";
+escaped_seq #mode interpreted_string
+	: "\\[\"\\]";
+escape_char #mode interpreted_string
+	: '\';
+interpreted_string_close #mode interpreted_string #pop
+	: '"';

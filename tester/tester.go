@@ -166,6 +166,10 @@ func runTest(g *gspec.CompiledGrammar, c *TestCaseWithMetadata) *TestResult {
 }
 
 func ConvertSyntaxTreeToTestableTree(dTree *driver.Node) *tspec.Tree {
+	if dTree.Text != "" {
+		return tspec.NewTerminalNode(dTree.KindName, dTree.Text)
+	}
+
 	var children []*tspec.Tree
 	if len(dTree.Children) > 0 {
 		children = make([]*tspec.Tree, len(dTree.Children))
@@ -173,5 +177,5 @@ func ConvertSyntaxTreeToTestableTree(dTree *driver.Node) *tspec.Tree {
 			children[i] = ConvertSyntaxTreeToTestableTree(c)
 		}
 	}
-	return tspec.NewTree(dTree.KindName, children...)
+	return tspec.NewNonTerminalTree(dTree.KindName, children...)
 }
