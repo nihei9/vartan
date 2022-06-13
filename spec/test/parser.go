@@ -134,38 +134,49 @@ type TestCase struct {
 }
 
 func ParseTestCase(r io.Reader) (*TestCase, error) {
-	bufs, err := splitIntoParts(r)
+	parts, err := splitIntoParts(r)
 	if err != nil {
 		return nil, err
 	}
-	if len(bufs) != 3 {
-		return nil, fmt.Errorf("too many or too few part delimiters: a test case consists of just tree parts: %v parts found", len(bufs))
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("too many or too few part delimiters: a test case consists of just tree parts: %v parts found", len(parts))
 	}
 
-	tree, err := parseTree(bytes.NewReader(bufs[2]))
+	tp := &treeParser{
+		lineOffset: parts[0].lineCount + parts[1].lineCount + 2,
+	}
+	tree, err := tp.parseTree(bytes.NewReader(parts[2].buf))
 	if err != nil {
 		return nil, err
 	}
 
 	return &TestCase{
-		Description: string(bufs[0]),
-		Source:      bufs[1],
+		Description: string(parts[0].buf),
+		Source:      parts[1].buf,
 		Output:      tree,
 	}, nil
 }
 
-func splitIntoParts(r io.Reader) ([][]byte, error) {
-	var bufs [][]byte
+type testCasePart struct {
+	buf       []byte
+	lineCount int
+}
+
+func splitIntoParts(r io.Reader) ([]*testCasePart, error) {
+	var bufs []*testCasePart
 	s := bufio.NewScanner(r)
 	for {
-		buf, err := readPart(s)
+		buf, lineCount, err := readPart(s)
 		if err != nil {
 			return nil, err
 		}
 		if buf == nil {
 			break
 		}
-		bufs = append(bufs, buf)
+		bufs = append(bufs, &testCasePart{
+			buf:       buf,
+			lineCount: lineCount,
+		})
 	}
 	if err := s.Err(); err != nil {
 		return nil, err
@@ -175,41 +186,47 @@ func splitIntoParts(r io.Reader) ([][]byte, error) {
 
 var reDelim = regexp.MustCompile(`^\s*---+\s*$`)
 
-func readPart(s *bufio.Scanner) ([]byte, error) {
+func readPart(s *bufio.Scanner) ([]byte, int, error) {
 	if !s.Scan() {
-		return nil, s.Err()
+		return nil, 0, s.Err()
 	}
 	buf := &bytes.Buffer{}
 	line := s.Bytes()
 	if reDelim.Match(line) {
 		// Return an empty slice because (*bytes.Buffer).Bytes() returns nil if we have never written data.
-		return []byte{}, nil
+		return []byte{}, 0, nil
 	}
 	_, err := buf.Write(line)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
+	lineCount := 1
 	for s.Scan() {
 		line := s.Bytes()
 		if reDelim.Match(line) {
-			return buf.Bytes(), nil
+			return buf.Bytes(), lineCount, nil
 		}
 		_, err := buf.Write([]byte("\n"))
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		_, err = buf.Write(line)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
+		lineCount++
 	}
 	if err := s.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return buf.Bytes(), nil
+	return buf.Bytes(), lineCount, nil
 }
 
-func parseTree(src io.Reader) (*Tree, error) {
+type treeParser struct {
+	lineOffset int
+}
+
+func (tp *treeParser) parseTree(src io.Reader) (*Tree, error) {
 	toks, err := NewTokenStream(src)
 	if err != nil {
 		return nil, err
@@ -227,24 +244,24 @@ func parseTree(src io.Reader) (*Tree, error) {
 	synErrs := p.SyntaxErrors()
 	if len(synErrs) > 0 {
 		var b strings.Builder
-		b.WriteString("syntax error:")
-		for _, synErr := range synErrs {
+		b.Write(formatSyntaxError(synErrs[0], gram, tp.lineOffset))
+		for _, synErr := range synErrs[1:] {
 			b.WriteRune('\n')
-			b.Write(formatSyntaxError(synErr, gram))
+			b.Write(formatSyntaxError(synErr, gram, tp.lineOffset))
 		}
 		return nil, errors.New(b.String())
 	}
-	t, err := genTree(tb.Tree())
+	t, err := tp.genTree(tb.Tree())
 	if err != nil {
 		return nil, err
 	}
 	return t.Fill(), nil
 }
 
-func formatSyntaxError(synErr *SyntaxError, gram Grammar) []byte {
+func formatSyntaxError(synErr *SyntaxError, gram Grammar, lineOffset int) []byte {
 	var b bytes.Buffer
 
-	b.WriteString(fmt.Sprintf("%v:%v: %v: ", synErr.Row+1, synErr.Col+1, synErr.Message))
+	b.WriteString(fmt.Sprintf("%v:%v: %v: ", lineOffset+synErr.Row+1, synErr.Col+1, synErr.Message))
 
 	tok := synErr.Token
 	switch {
@@ -271,13 +288,13 @@ func formatSyntaxError(synErr *SyntaxError, gram Grammar) []byte {
 	return b.Bytes()
 }
 
-func genTree(node *Node) (*Tree, error) {
+func (tp *treeParser) genTree(node *Node) (*Tree, error) {
 	if len(node.Children) == 2 && node.Children[1].KindName == "string" {
-		var lexeme string
+		var text string
 		str := node.Children[1].Children[0]
 		switch str.KindName {
 		case "raw_string":
-			lexeme = str.Children[0].Text
+			text = str.Children[0].Text
 		case "interpreted_string":
 			var b strings.Builder
 			for _, c := range str.Children {
@@ -285,23 +302,24 @@ func genTree(node *Node) (*Tree, error) {
 				case "escaped_seq":
 					b.WriteString(strings.TrimPrefix(`\`, c.Text))
 				case "escape_char":
-					return nil, fmt.Errorf("incomplete escape sequence")
+					return nil, fmt.Errorf("%v:%v: incomplete escape sequence", tp.lineOffset+c.Row+1, c.Col+1)
 				case "codepoint_expr":
-					n, err := strconv.ParseInt(c.Children[0].Text, 16, 64)
+					cp := c.Children[0]
+					n, err := strconv.ParseInt(cp.Text, 16, 64)
 					if err != nil {
-						return nil, err
+						return nil, fmt.Errorf("%v:%v: %v", tp.lineOffset+cp.Row+1, cp.Col+1, err)
 					}
 					if !utf8.ValidRune(rune(n)) {
-						return nil, fmt.Errorf("invalid code point: %v", c.Children[0].Text)
+						return nil, fmt.Errorf("%v:%v: invalid code point: %v", tp.lineOffset+cp.Row+1, cp.Col+1, cp.Text)
 					}
 					b.WriteRune(rune(n))
 				default:
 					b.WriteString(c.Text)
 				}
 			}
-			lexeme = b.String()
+			text = b.String()
 		}
-		return NewTerminalNode(node.Children[0].Text, lexeme), nil
+		return NewTerminalNode(node.Children[0].Text, text), nil
 	}
 
 	var children []*Tree
@@ -309,7 +327,7 @@ func genTree(node *Node) (*Tree, error) {
 		children = make([]*Tree, len(node.Children)-1)
 		for i, c := range node.Children[1:] {
 			var err error
-			children[i], err = genTree(c)
+			children[i], err = tp.genTree(c)
 			if err != nil {
 				return nil, err
 			}
