@@ -330,6 +330,83 @@ foo
 `,
 			parseErr: true,
 		},
+		// A node may have just one string node.
+		{
+			src: `test
+----
+foo bar
+----
+(foo (bar 'bar'))
+`,
+			tc: &TestCase{
+				Description: "test",
+				Source:      []byte("foo bar"),
+				Output: NewNonTerminalTree("foo",
+					NewTerminalNode("bar", "bar"),
+				).Fill(),
+			},
+		},
+		// A node may have just one pattern node.
+		{
+			src: `test
+----
+foo bar
+----
+(foo (bar "bar"))
+`,
+			tc: &TestCase{
+				Description: "test",
+				Source:      []byte("foo bar"),
+				Output: NewNonTerminalTree("foo",
+					NewTerminalNode("bar", "bar"),
+				).Fill(),
+			},
+		},
+		// A node may be the error node.
+		{
+			src: `test
+----
+foo x
+----
+(foo (error))
+`,
+			tc: &TestCase{
+				Description: "test",
+				Source:      []byte("foo x"),
+				Output: NewNonTerminalTree("foo",
+					NewTerminalNode("error", ""),
+				).Fill(),
+			},
+		},
+		// The error node cannot have a string node.
+		{
+			src: `test
+----
+foo x
+----
+(foo (error 'x'))
+`,
+			parseErr: true,
+		},
+		// The error node cannot have a pattern node.
+		{
+			src: `test
+----
+foo x
+----
+(foo (error "x"))
+`,
+			parseErr: true,
+		},
+		{
+			src: `test
+----
+foo x
+----
+(foo (error (_ (x 'x'))))
+`,
+			parseErr: true,
+		},
 		{
 			src: `test
 ---

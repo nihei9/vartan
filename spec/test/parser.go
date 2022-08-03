@@ -289,6 +289,14 @@ func formatSyntaxError(synErr *SyntaxError, gram Grammar, lineOffset int) []byte
 }
 
 func (tp *treeParser) genTree(node *Node) (*Tree, error) {
+	// A node labeled 'error' cannot have children. It always must be (error).
+	if sym := node.Children[0]; sym.Text == "error" {
+		if len(node.Children) > 1 {
+			return nil, fmt.Errorf("%v:%v: error node cannot take children", tp.lineOffset+sym.Row+1, sym.Col+1)
+		}
+		return NewTerminalNode(sym.Text, ""), nil
+	}
+
 	if len(node.Children) == 2 && node.Children[1].KindName == "string" {
 		var text string
 		str := node.Children[1].Children[0]
