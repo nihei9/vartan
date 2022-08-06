@@ -99,8 +99,7 @@ func DiffTree(expected, actual *Tree) []*TreeDiff {
 	if expected == nil && actual == nil {
 		return nil
 	}
-	// _ matches any symbols.
-	if expected.Kind != "_" && actual.Kind != expected.Kind {
+	if actual.Kind != expected.Kind {
 		msg := fmt.Sprintf("unexpected kind: expected '%v' but got '%v'", expected.Kind, actual.Kind)
 		return []*TreeDiff{
 			newTreeDiff(expected, actual, msg),

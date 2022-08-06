@@ -132,11 +132,11 @@ a / b * 100
 ---
 (expr
 	(expr
-		(expr (id))
-		(div)
-		(expr (id)))
-	(mul)
-	(expr (int)))
+		(expr (id 'a'))
+		(div '/')
+		(expr (id 'b')))
+	(mul '*')
+	(expr (int '100')))
 ```
 
 The test case consists of a description, an input text, and a syntax tree you expect. Each part is separated by the delimiter `---`. The syntax tree is represented by the syntax like an [S-expression](https://en.wikipedia.org/wiki/S-expression).
@@ -149,8 +149,6 @@ Passed test.txt
 ```
 
 When you specify a directory as the 2nd argument of `vartan test` command, it will run all test cases in the directory.
-
-The underscore `_` allows you to match any symbols. Thus `(expr (expr (id)) (_) (expr (id)))` matches `a + b`, `a - b`, and so on.
 
 ### 5. Generate a parser
 

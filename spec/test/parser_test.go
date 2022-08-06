@@ -75,26 +75,6 @@ func TestDiffTree(t *testing.T) {
 			),
 		},
 		{
-			t1: NewNonTerminalTree("_"),
-			t2: NewNonTerminalTree("a"),
-		},
-		{
-			t1: NewNonTerminalTree("a",
-				NewNonTerminalTree("_"),
-			),
-			t2: NewNonTerminalTree("a",
-				NewNonTerminalTree("b"),
-			),
-		},
-		{
-			t1: NewNonTerminalTree("_",
-				NewNonTerminalTree("b"),
-			),
-			t2: NewNonTerminalTree("a",
-				NewNonTerminalTree("b"),
-			),
-		},
-		{
 			t1:        NewNonTerminalTree("a"),
 			t2:        NewNonTerminalTree("b"),
 			different: true,
@@ -155,35 +135,6 @@ func TestDiffTree(t *testing.T) {
 			t2: NewNonTerminalTree("a",
 				NewNonTerminalTree("b",
 					NewNonTerminalTree("d"),
-				),
-			),
-			different: true,
-		},
-		{
-			t1: NewNonTerminalTree("a",
-				NewNonTerminalTree("_"),
-				NewNonTerminalTree("c"),
-			),
-			t2: NewNonTerminalTree("a",
-				NewNonTerminalTree("b"),
-				NewNonTerminalTree("x"),
-			),
-			different: true,
-		},
-		{
-			t1: NewNonTerminalTree("_"),
-			t2: NewNonTerminalTree("a",
-				NewNonTerminalTree("b"),
-			),
-			different: true,
-		},
-		{
-			t1: NewNonTerminalTree("a",
-				NewNonTerminalTree("_"),
-			),
-			t2: NewNonTerminalTree("a",
-				NewNonTerminalTree("b",
-					NewNonTerminalTree("c"),
 				),
 			),
 			different: true,
@@ -398,12 +349,13 @@ foo x
 `,
 			parseErr: true,
 		},
+		// The error node cannot have another node.
 		{
 			src: `test
 ----
 foo x
 ----
-(foo (error (_ (x 'x'))))
+(foo (error (a)))
 `,
 			parseErr: true,
 		},
