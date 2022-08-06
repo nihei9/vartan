@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -67,13 +66,13 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 			return err
 		}
 
-		src, err := ioutil.ReadAll(os.Stdin)
+		src, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
 
 		grmPath = filepath.Join(tmpDirPath, "stdin.vartan")
-		err = ioutil.WriteFile(grmPath, src, 0600)
+		err = os.WriteFile(grmPath, src, 0600)
 		if err != nil {
 			return err
 		}
@@ -135,14 +134,14 @@ func readGrammar(path string) (grm *grammar.Grammar, retErr error) {
 // writeCompiledGrammarAndReport writes a compiled grammar and a report to a files located at a specified path.
 // This function selects one of the following output methods depending on how the path is specified.
 //
-// 1. When the path is a directory path, this function writes the compiled grammar and the report to
-//    <path>/<grammar-name>.json and <path>/<grammar-name>-report.json files, respectively.
-//    <grammar-name>-report.json as the output files.
-// 2. When the path is a file path or a non-exitent path, this function asumes that the path represents a file
-//    path for the compiled grammar. Then it also writes the report in the same directory as the compiled grammar.
-//    The report file is named <grammar-name>.json.
-// 3. When the path is an empty string, this function writes the compiled grammar to the stdout and writes
-//    the report to a file named <current-directory>/<grammar-name>-report.json.
+//  1. When the path is a directory path, this function writes the compiled grammar and the report to
+//     <path>/<grammar-name>.json and <path>/<grammar-name>-report.json files, respectively.
+//     <grammar-name>-report.json as the output files.
+//  2. When the path is a file path or a non-exitent path, this function asumes that the path represents a file
+//     path for the compiled grammar. Then it also writes the report in the same directory as the compiled grammar.
+//     The report file is named <grammar-name>.json.
+//  3. When the path is an empty string, this function writes the compiled grammar to the stdout and writes
+//     the report to a file named <current-directory>/<grammar-name>-report.json.
 func writeCompiledGrammarAndReport(cgram *spec.CompiledGrammar, report *spec.Report, path string) error {
 	cgramPath, reportPath, err := makeOutputFilePaths(cgram.Name, path)
 	if err != nil {

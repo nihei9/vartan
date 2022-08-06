@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"text/template"
@@ -46,7 +45,7 @@ func readReport(path string) (*spec.Report, error) {
 	}
 	defer f.Close()
 
-	d, err := ioutil.ReadAll(f)
+	d, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
