@@ -33,6 +33,20 @@ func TestDiffTree(t *testing.T) {
 		different bool
 	}{
 		{
+			t1: NewTerminalNode("a", "a"),
+			t2: NewTerminalNode("a", "a"),
+		},
+		{
+			t1:        NewTerminalNode("a", "a"),
+			t2:        NewTerminalNode("a", "A"),
+			different: true,
+		},
+		{
+			t1:        NewTerminalNode("a", "a"),
+			t2:        NewTerminalNode("A", "a"),
+			different: true,
+		},
+		{
 			t1: NewNonTerminalTree("a"),
 			t2: NewNonTerminalTree("a"),
 		},
