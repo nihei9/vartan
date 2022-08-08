@@ -141,6 +141,8 @@ a / b * 100
 
 The test case consists of a description, an input text, and a syntax tree you expect. Each part is separated by the delimiter `---`. The syntax tree is represented by the syntax like an [S-expression](https://en.wikipedia.org/wiki/S-expression).
 
+A text of a token is represented by a string enclosed in `'` or `"`. Within `"..."`, characters can alose be represented by Unicode code points (for instance, `\u{000A}` is LF).
+
 Save the above test case to `test.txt` file and run the following command.
 
 ```sh
