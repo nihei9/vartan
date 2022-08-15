@@ -1057,6 +1057,28 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 		}
 	}
 
+	{
+		ps, ok := prods.findByLHS(startSym)
+		if !ok {
+			return nil, fmt.Errorf("start production was not found: %v (%v)", startProd.LHS, startSym)
+		}
+		trapped := false
+		for _, p := range ps {
+			if len(p.rhs) == 1 && p.rhs[0] == errSym {
+				trapped = true
+			}
+		}
+		if !trapped {
+			trapProd, err := newProduction(startSym, []symbol{
+				errSym,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate a trap production: %v", err)
+			}
+			prods.append(trapProd)
+		}
+	}
+
 	return &productionsAndActions{
 		prods:           prods,
 		augStartSym:     augStartSym,
