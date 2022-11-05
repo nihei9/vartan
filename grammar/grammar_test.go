@@ -1723,12 +1723,14 @@ foo
 );
 
 s
-    : foo ';'
-    | error ';'
+    : foo semi_colon
+    | error semi_colon
     ;
 
 foo
     : 'foo';
+semi_colon
+    : ';';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -1965,12 +1967,14 @@ foo
 );
 
 s
-    : foo ';'
-    | error ';'
+    : foo semi_colon
+    | error semi_colon
     ;
 
 foo
     : 'foo';
+semi_colon
+    : ';';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -2207,12 +2211,14 @@ foo
 );
 
 s
-    : foo ';'
-    | error ';'
+    : foo semi_colon
+    | error semi_colon
     ;
 
 foo
     : 'foo';
+semi_colon
+    : ';';
 `,
 			errs: []*SemanticError{semErrDirInvalidParam},
 		},
@@ -2673,34 +2679,6 @@ foo
 
 s
     : foo #ast foo...
-    ;
-
-foo
-    : "foo";
-`,
-			errs: []*SemanticError{semErrDirInvalidParam},
-		},
-		{
-			caption: "the expansion operator cannot be applied to a pattern",
-			specSrc: `
-#name test;
-
-s
-    : foo 'bar'@b #ast foo b...
-    ;
-
-foo
-    : "foo";
-`,
-			errs: []*SemanticError{semErrDirInvalidParam},
-		},
-		{
-			caption: "the expansion operator cannot be applied to a string",
-			specSrc: `
-#name test;
-
-s
-    : foo 'bar'@b #ast foo b...
     ;
 
 foo

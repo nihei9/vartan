@@ -186,7 +186,9 @@ bar
     : bar_text
     |
     ;
-bar_text: "bar";
+
+bar_text
+    : "bar";
 `,
 			src: `bar`,
 			cst: nonTermNode("s",
@@ -399,8 +401,10 @@ white_space #skip
 s
     : tagline
     ;
-tagline: "\f{words} IS OUT THERE.";
-fragment words: "[A-Za-z\u{0020}]+";
+tagline
+    : "\f{words} IS OUT THERE.";
+fragment words
+    : "[A-Za-z\u{0020}]+";
 `,
 			src: `THE TRUTH IS OUT THERE.`,
 		},
@@ -410,15 +414,21 @@ fragment words: "[A-Za-z\u{0020}]+";
 #name test;
 
 list
-    : '[' elems ']' #ast elems...
+    : l_bracket elems r_bracket #ast elems...
     ;
 elems
-    : elems ',' id #ast elems... id
+    : elems comma id #ast elems... id
     | id
     ;
 
 whitespace #skip
     : "\u{0020}+";
+l_bracket
+    : '[';
+r_bracket
+    : ']';
+comma
+    : ',';
 id
     : "[A-Za-z]+";
 `,
@@ -453,10 +463,12 @@ s
     : a #ast a...
     ;
 a
-    : a ',' foo #ast a... foo
+    : a comma foo #ast a... foo
     | foo
     ;
 
+comma
+    : ',';
 foo
     : 'foo';
 `,
@@ -473,12 +485,14 @@ foo
 #name test;
 
 s
-    : a ';' #ast a...
+    : a semi_colon #ast a...
     ;
-
 a
     :
     ;
+
+semi_colon
+    : ';';
 `,
 			src: `;`,
 			ast: nonTermNode("s"),
@@ -497,9 +511,13 @@ expr
     | expr@lhs sub expr@rhs #ast sub lhs rhs
     | num
     ;
-add: '+';
-sub: '-';
-num: "0|[1-9][0-9]*";
+
+add
+    : '+';
+sub
+    : '-';
+num
+    : "0|[1-9][0-9]*";
 `,
 			src: `1+2-3`,
 			ast: nonTermNode("expr",
@@ -524,9 +542,11 @@ num: "0|[1-9][0-9]*";
 #name test;
 
 s
-    : foo@x ';' #ast foo
+    : foo@x semi_colon #ast foo
     ;
 
+semi_colon
+    : ';';
 foo
     : 'foo';
 `,
@@ -648,12 +668,14 @@ div
 #name test;
 
 s
-    : id id id ';'
-    | error ';'
+    : id id id semi_colon
+    | error semi_colon
     ;
 
 ws #skip
     : "[\u{0009}\u{0020}]+";
+semi_colon
+    : ';';
 id
     : "[A-Za-z_]+";
 `,
@@ -665,10 +687,12 @@ id
 #name test;
 
 s
-    : foo ';'
-    | error ';' #ast error
+    : foo semi_colon
+    | error semi_colon #ast error
     ;
 
+semi_colon
+    : ';';
 foo
     : 'foo';
 `,
@@ -684,10 +708,12 @@ foo
 #name test;
 
 s
-    : foo ';'
-    | error@e ';' #ast e
+    : foo semi_colon
+    | error@e semi_colon #ast e
     ;
 
+semi_colon
+    : ';';
 foo
     : 'foo';
 `,
@@ -707,12 +733,14 @@ seq
     | elem
     ;
 elem
-    : id id id ';'
-    | error ';' #recover
+    : id id id semi_colon
+    | error semi_colon #recover
     ;
 
 ws #skip
     : "[\u{0009}\u{0020}]+";
+semi_colon
+    : ';';
 id
     : "[A-Za-z_]+";
 `,

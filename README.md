@@ -304,14 +304,12 @@ Alternative:
 <element-1> <element-2> ... <element-N>
 ```
 
-An element an alternative contains is a terminal symbol, a non-terminal symbol, or a string literal. Unlike string literals, patterns cannot be contained in alternatives.
-
-You can define terminal symbols in the same grammar as non-terminal symbols.
+An element an alternative contains is a terminal symbol or a non-terminal symbol.
 
 If a production rule satisfies all of the following conditions, it is considered to define a terminal symbol.
 
-* A production rule has only one alternative.
-* the alternative has only one pattern or string literal.
+* A rule has only one alternative.
+* The alternative has only one pattern or string literal.
 
 Fragment:
 
@@ -367,15 +365,21 @@ Consider a grammar that accepts comma-separated list of integers. You can avoid 
 #name example;
 
 list
-	: '[' elems ']' #ast elems...
+	: l_bracket elems r_bracket #ast elems...
 	;
 elems
-	: elems ',' int #ast elems... int
+	: elems comma int #ast elems... int
 	| int
 	;
 
 ws #skip
-   : "[\u{0009}\u{0020}]+";
+	: "[\u{0009}\u{0020}]+";
+l_bracket
+	: '[';
+r_bracket
+	: ']';
+comma
+	: ',';
 int
 	: "0|[1-9][0-9]*";
 ```
@@ -398,11 +402,15 @@ Consider a grammar that accepts ternary-if expression (`<condition> ? <value if 
 #name example;
 
 if_expr
-	: id '?' int@true ':' int@false #ast id true false
+	: id q int@true colon int@false #ast id true false
 	;
 
 ws #skip
 	: "[\u{0009}\u{0020}]+";
+q
+	: '?';
+colon
+	: ':';
 id
 	: "[a-z_][0-9a-z_]*";
 int
@@ -677,45 +685,49 @@ By default, a parser will stop syntax analysis on a syntax error. If you want to
 
 When a syntax error occurs, the parser pops states from a state stack. If a state containing the `error` symbol appears, a parser stops popping the states. It then shifts the `error` symbol and resumes syntax analysis.
 
-Consider grammar of simple assignment statements.
+Consider grammar of simple equivalent expressions.
 
 ```
 #name example;
 
-statements
-	: statements statement #ast statements... statement
-	| statement            #ast statement
+eq_exprs
+	: eq_exprs eq_expr #ast eq_exprs... eq_expr
+	| eq_expr
 	;
-statement
-	: name '=' int ';' #ast name int
-	| error ';'        #recover
+eq_expr
+	: name eq int semi_colon #ast name int
+	| error semi_colon       #recover
 	;
 
 ws #skip
 	: "[\u{0009}\u{0020}]";
+eq
+	: '=';
+semi_colon
+	: ';';
 name
 	: "[a-z_][0-9a-z_]*";
 int
 	: "0|[1-9][0-9]*";
 ```
 
-The alternative `error ';'` traps a syntax error and discards symbols until the parser shifts `';'`. When the parser shifts `';'` and reduces `statement`, the parser will recover from an error state immediately by the `#recover` directive.
+The alternative `error semi_colon` traps a syntax error and discards symbols until the parser shifts `';'`. When the parser shifts `';'` and reduces `eq_expr`, the parser will recover from an error state immediately by the `#recover` directive.
 
 In the following example, you can see the parser print syntax error messages and an AST. This result means the parser had continued syntax analysis and semantic actions even if syntax errors occurred.
 
 ```
+$ vartan compile example.vartan -o example.json
 $ echo -n 'x; x =; x = 1;' | vartan parse example.json
-1:2: unexpected token: ';': expected: =
-1:7: unexpected token: ';': expected: int
-
-statements
-├─ statement
+eq_exprs
+├─ eq_expr
 │  ├─ error
-│  └─ <anonymous> ";"
-├─ statement
+│  └─ semi_colon ";"
+├─ eq_expr
 │  ├─ error
-│  └─ <anonymous> ";"
-└─ statement
+│  └─ semi_colon ";"
+└─ eq_expr
    ├─ name "x"
    └─ int "1"
+1:2: unexpected token: ';' (semi_colon): expected: eq
+1:7: unexpected token: ';' (semi_colon): expected: int
 ```

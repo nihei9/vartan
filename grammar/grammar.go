@@ -84,7 +84,6 @@ type Grammar struct {
 	name                 string
 	lexSpec              *mlspec.LexSpec
 	skipLexKinds         []mlspec.LexKindName
-	sym2AnonPat          map[symbol]string
 	productionSet        *productionSet
 	augmentedStartSymbol symbol
 	errorSymbol          symbol
@@ -211,7 +210,6 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		name:                 specName,
 		lexSpec:              symTabAndLexSpec.lexSpec,
 		skipLexKinds:         symTabAndLexSpec.skip,
-		sym2AnonPat:          symTabAndLexSpec.sym2AnonPat,
 		productionSet:        prodsAndActs.prods,
 		augmentedStartSymbol: prodsAndActs.augStartSym,
 		errorSymbol:          symTabAndLexSpec.errSym,
@@ -383,18 +381,14 @@ func collectUserDefinedIDsFromDirective(dir *spec.DirectiveNode) []string {
 }
 
 type symbolTableAndLexSpec struct {
-	symTab      *symbolTable
-	anonPat2Sym map[string]symbol
-	sym2AnonPat map[symbol]string
-	lexSpec     *mlspec.LexSpec
-	errSym      symbol
-	skip        []mlspec.LexKindName
-	skipSyms    []string
+	symTab   *symbolTable
+	lexSpec  *mlspec.LexSpec
+	errSym   symbol
+	skip     []mlspec.LexKindName
+	skipSyms []string
 }
 
 func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, error) {
-	// Anonymous patterns take precedence over explicitly defined lexical specifications (named patterns).
-	// Thus anonymous patterns must be registered to `symTab` and `entries` before named patterns.
 	symTab := newSymbolTable()
 	entries := []*mlspec.LexEntry{}
 
@@ -406,57 +400,6 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 			return nil, err
 		}
 		errSym = sym
-	}
-
-	anonPat2Sym := map[string]symbol{}
-	sym2AnonPat := map[symbol]string{}
-	{
-		knownPats := map[string]struct{}{}
-		anonPats := []string{}
-		literalPats := map[string]struct{}{}
-		for _, prod := range root.Productions {
-			for _, alt := range prod.RHS {
-				for _, elem := range alt.Elements {
-					if elem.Pattern == "" {
-						continue
-					}
-
-					var pattern string
-					if elem.Literally {
-						pattern = mlspec.EscapePattern(elem.Pattern)
-					} else {
-						pattern = elem.Pattern
-					}
-
-					if _, ok := knownPats[pattern]; ok {
-						continue
-					}
-
-					knownPats[pattern] = struct{}{}
-					anonPats = append(anonPats, pattern)
-					if elem.Literally {
-						literalPats[pattern] = struct{}{}
-					}
-				}
-			}
-		}
-
-		for i, p := range anonPats {
-			kind := fmt.Sprintf("x_%v", i+1)
-
-			sym, err := symTab.registerTerminalSymbol(kind)
-			if err != nil {
-				return nil, err
-			}
-
-			anonPat2Sym[p] = sym
-			sym2AnonPat[sym] = p
-
-			entries = append(entries, &mlspec.LexEntry{
-				Kind:    mlspec.LexKindName(kind),
-				Pattern: mlspec.LexPattern(p),
-			})
-		}
 	}
 
 	skipKinds := []mlspec.LexKindName{}
@@ -522,9 +465,7 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	}
 
 	return &symbolTableAndLexSpec{
-		symTab:      symTab,
-		anonPat2Sym: anonPat2Sym,
-		sym2AnonPat: sym2AnonPat,
+		symTab: symTab,
 		lexSpec: &mlspec.LexSpec{
 			Entries: entries,
 		},
@@ -652,7 +593,6 @@ type productionsAndActions struct {
 
 func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAndLexSpec *symbolTableAndLexSpec) (*productionsAndActions, error) {
 	symTab := symTabAndLexSpec.symTab
-	anonPat2Sym := symTabAndLexSpec.anonPat2Sym
 	errSym := symTabAndLexSpec.errSym
 
 	if len(root.Productions) == 0 {
@@ -751,33 +691,15 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 			offsets := map[string]int{}
 			ambiguousIDOffsets := map[string]struct{}{}
 			for i, elem := range alt.Elements {
-				var sym symbol
-				if elem.Pattern != "" {
-					var pattern string
-					if elem.Literally {
-						pattern = mlspec.EscapePattern(elem.Pattern)
-					} else {
-						pattern = elem.Pattern
-					}
-
-					var ok bool
-					sym, ok = anonPat2Sym[pattern]
-					if !ok {
-						// All patterns are assumed to be pre-detected, so it's a bug if we cannot find them here.
-						return nil, fmt.Errorf("pattern '%v' is undefined", pattern)
-					}
-				} else {
-					var ok bool
-					sym, ok = symTab.toSymbol(elem.ID)
-					if !ok {
-						b.errs = append(b.errs, &verr.SpecError{
-							Cause:  semErrUndefinedSym,
-							Detail: elem.ID,
-							Row:    elem.Pos.Row,
-							Col:    elem.Pos.Col,
-						})
-						continue LOOP_RHS
-					}
+				sym, ok := symTab.toSymbol(elem.ID)
+				if !ok {
+					b.errs = append(b.errs, &verr.SpecError{
+						Cause:  semErrUndefinedSym,
+						Detail: elem.ID,
+						Row:    elem.Pos.Row,
+						Col:    elem.Pos.Col,
+					})
+					continue LOOP_RHS
 				}
 				altSyms[i] = sym
 
@@ -933,6 +855,9 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTabAnd
 						if param.Expansion {
 							elem := alt.Elements[offset]
 							if elem.Pattern != "" {
+								// Currently, it is a bug to reach here because it is
+								// forbidden to have anything other than ID appear in
+								// production rules.
 								b.errs = append(b.errs, &verr.SpecError{
 									Cause:  semErrDirInvalidParam,
 									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a pattern (%v: \"%v\")", param.ID, elem.Pattern),
@@ -1319,13 +1244,6 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 	if err != nil {
 		return nil, nil, err
 	}
-	terms := make([]string, len(termTexts))
-	for i, t := range termTexts {
-		// NOTE: For anonymous symbol, `t` is a name with `x_` as a prefix. However,
-		// this name is not intentionally set by a user, so a message containing this
-		// name will result in an unfriendly message.
-		terms[i] = t
-	}
 
 	nonTerms, err := gram.symbolTable.nonTerminalTexts()
 	if err != nil {
@@ -1353,10 +1271,9 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 		b := &lrTableBuilder{
 			automaton:    lalr1.lr0Automaton,
 			prods:        gram.productionSet,
-			termCount:    len(terms),
+			termCount:    len(termTexts),
 			nonTermCount: len(nonTerms),
 			symTab:       gram.symbolTable,
-			sym2AnonPat:  gram.sym2AnonPat,
 			precAndAssoc: gram.precAndAssoc,
 		}
 		tab, err = b.build()
@@ -1426,7 +1343,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 			StartProduction:         productionNumStart.Int(),
 			LHSSymbols:              lhsSyms,
 			AlternativeSymbolCounts: altSymCounts,
-			Terminals:               terms,
+			Terminals:               termTexts,
 			TerminalCount:           tab.terminalCount,
 			NonTerminals:            nonTerms,
 			NonTerminalCount:        tab.nonTerminalCount,

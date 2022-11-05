@@ -78,11 +78,7 @@ func (t *Tree) format(buf *bytes.Buffer, depth int) {
 		buf.WriteString("    ")
 	}
 	buf.WriteString("(")
-	if t.Kind == "" {
-		buf.WriteString("<anonymous>")
-	} else {
-		buf.WriteString(t.Kind)
-	}
+	buf.WriteString(t.Kind)
 	if len(t.Children) > 0 {
 		buf.WriteString("\n")
 		for i, c := range t.Children {

@@ -340,11 +340,7 @@ func printTree(w io.Writer, node *Node, ruledLine string, childRuledLinePrefix s
 	case NodeTypeError:
 		fmt.Fprintf(w, "%v%v\n", ruledLine, node.KindName)
 	case NodeTypeTerminal:
-		if node.KindName == "" {
-			fmt.Fprintf(w, "%v<anonymous> %v\n", ruledLine, strconv.Quote(node.Text))
-		} else {
-			fmt.Fprintf(w, "%v%v %v\n", ruledLine, node.KindName, strconv.Quote(node.Text))
-		}
+		fmt.Fprintf(w, "%v%v %v\n", ruledLine, node.KindName, strconv.Quote(node.Text))
 	case NodeTypeNonTerminal:
 		fmt.Fprintf(w, "%v%v\n", ruledLine, node.KindName)
 

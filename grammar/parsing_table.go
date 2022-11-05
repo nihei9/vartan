@@ -152,7 +152,6 @@ type lrTableBuilder struct {
 	termCount    int
 	nonTermCount int
 	symTab       *symbolTable
-	sym2AnonPat  map[symbol]string
 	precAndAssoc *precAndAssoc
 
 	conflicts []conflict
@@ -326,12 +325,6 @@ func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Repo
 			term := &spec.Terminal{
 				Number: sym.num().Int(),
 				Name:   name,
-			}
-
-			pat, ok := b.sym2AnonPat[sym]
-			if ok {
-				term.Anonymous = true
-				term.Pattern = pat
 			}
 
 			prec := b.precAndAssoc.terminalPrecedence(sym.num())

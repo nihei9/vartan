@@ -272,55 +272,101 @@ func TestParse(t *testing.T) {
 		{
 			caption: "multiple productions are a valid grammar",
 			src: `
-e: e '+' t | e '-' t | t;
-t: t '*' f | t '/' f | f;
-f: '(' e ')' | id;
-id: "[A-Za-z_][0-9A-Za-z_]*";
+e
+    : e add t
+    | e sub t
+    | t
+    ;
+t
+    : t mul f
+    | t div f
+    | f
+    ;
+f
+    : l_paren e r_paren
+    | id
+    ;
+
+add
+    : '+';
+sub
+    : '-';
+mul
+    : '*';
+div
+    : '/';
+l_paren
+    : '(';
+r_paren
+    : ')';
+id
+    : "[A-Za-z_][0-9A-Za-z_]*";
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
 					prod("e",
-						alt(id("e"), pat(`+`), id("t")),
-						alt(id("e"), pat(`-`), id("t")),
+						alt(id("e"), id("add"), id("t")),
+						alt(id("e"), id("sub"), id("t")),
 						alt(id("t")),
 					),
 					prod("t",
-						alt(id("t"), pat(`*`), id("f")),
-						alt(id("t"), pat(`/`), id("f")),
+						alt(id("t"), id("mul"), id("f")),
+						alt(id("t"), id("div"), id("f")),
 						alt(id("f")),
 					),
 					prod("f",
-						alt(pat(`(`), id("e"), pat(`)`)),
+						alt(id("l_paren"), id("e"), id("r_paren")),
 						alt(id("id")),
 					),
 				},
 				LexProductions: []*ProductionNode{
-					prod("id",
-						alt(pat(`[A-Za-z_][0-9A-Za-z_]*`)),
-					),
+					prod("add", alt(pat(`+`))),
+					prod("sub", alt(pat(`-`))),
+					prod("mul", alt(pat(`*`))),
+					prod("div", alt(pat(`/`))),
+					prod("l_paren", alt(pat(`(`))),
+					prod("r_paren", alt(pat(`)`))),
+					prod("id", alt(pat(`[A-Za-z_][0-9A-Za-z_]*`))),
 				},
 			},
 		},
 		{
 			caption: "productions can contain the empty alternative",
 			src: `
-a: 'foo' | ;
-b: | 'bar';
-c: ;
+a
+    : foo
+    |
+    ;
+b
+    :
+    | bar
+    ;
+c
+    :
+    ;
+
+foo
+    : 'foo';
+bar
+    : 'bar';
 `,
 			ast: &RootNode{
 				Productions: []*ProductionNode{
 					prod("a",
-						alt(pat(`foo`)),
+						alt(id("foo")),
 						alt(),
 					),
 					prod("b",
 						alt(),
-						alt(pat(`bar`)),
+						alt(id("bar")),
 					),
 					prod("c",
 						alt(),
 					),
+				},
+				LexProductions: []*ProductionNode{
+					prod("foo", alt(pat(`foo`))),
+					prod("bar", alt(pat(`bar`))),
 				},
 			},
 		},
@@ -332,35 +378,23 @@ a: $x;
 			synErr: synErrNoSemicolon,
 		},
 		{
-			caption: "an alternative can contain a string literal without a terminal symbol",
-			src: `
-s
-    : 'foo' bar
-    ;
-
-bar
-    : 'bar';
-`,
-			ast: &RootNode{
-				Productions: []*ProductionNode{
-					prod("s",
-						alt(pat(`foo`), id("bar")),
-					),
-				},
-				LexProductions: []*ProductionNode{
-					prod("bar",
-						alt(pat(`bar`)),
-					),
-				},
-			},
-		},
-		{
 			caption: "an alternative cannot contain a pattern directly",
 			src: `
 s
     : "foo" bar
     ;
 
+bar
+    : "bar";
+`,
+			synErr: synErrPatternInAlt,
+		},
+		{
+			caption: "an alternative cannot contain a string directly",
+			src: `
+s
+    : 'foo' bar
+    ;
 bar
     : "bar";
 `,
@@ -721,12 +755,14 @@ a
 			caption: "an AST has node positions",
 			src: `
 exp
-    : exp '+' id #ast exp id
+    : exp add id #ast exp id
     | id
     ;
 
 whitespace #skip
     : "\u{0020}+";
+add
+    : '+';
 id
     : "\f{letter}(\f{letter}|\f{number})*";
 fragment letter
@@ -743,7 +779,7 @@ fragment number
 								withAltDir(
 									alt(
 										withElemPos(id("exp"), newPos(3)),
-										withElemPos(pat(`+`), newPos(3)),
+										withElemPos(id("add"), newPos(3)),
 										withElemPos(id("id"), newPos(3)),
 									),
 									withDirPos(
@@ -788,11 +824,11 @@ fragment number
 						newPos(7),
 					),
 					withProdPos(
-						prod("id",
+						prod("add",
 							withAltPos(
 								alt(
 									withElemPos(
-										pat(`\f{letter}(\f{letter}|\f{number})*`),
+										pat(`+`),
 										newPos(10),
 									),
 								),
@@ -801,15 +837,29 @@ fragment number
 						),
 						newPos(9),
 					),
+					withProdPos(
+						prod("id",
+							withAltPos(
+								alt(
+									withElemPos(
+										pat(`\f{letter}(\f{letter}|\f{number})*`),
+										newPos(12),
+									),
+								),
+								newPos(12),
+							),
+						),
+						newPos(11),
+					),
 				},
 				Fragments: []*FragmentNode{
 					withFragmentPos(
 						frag("letter", "[A-Za-z_]"),
-						newPos(11),
+						newPos(13),
 					),
 					withFragmentPos(
 						frag("number", "[0-9]"),
-						newPos(13),
+						newPos(15),
 					),
 				},
 			},

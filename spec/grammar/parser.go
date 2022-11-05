@@ -351,7 +351,7 @@ func (p *parser) parseProduction() *ProductionNode {
 	if !prod.isLexical() {
 		for _, alt := range prod.RHS {
 			for _, elem := range alt.Elements {
-				if elem.Pattern != "" && !elem.Literally {
+				if elem.Pattern != "" {
 					raiseSyntaxError(elem.Pos.Row, synErrPatternInAlt)
 				}
 			}

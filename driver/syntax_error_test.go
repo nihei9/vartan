@@ -26,7 +26,8 @@ s
     : foo
     ;
 
-foo: 'foo';
+foo
+    : 'foo';
 `,
 			src:         `bar`,
 			synErrCount: 1,
@@ -37,9 +38,9 @@ foo: 'foo';
 #name test;
 
 seq
-    : seq elem ';'
-	| elem ';'
-	| error ';' #recover
+    : seq elem semi_colon
+	| elem semi_colon
+	| error semi_colon #recover
 	;
 elem
     : a b c
@@ -47,6 +48,8 @@ elem
 
 ws #skip
     : "[\u{0009}\u{0020}]+";
+semi_colon
+    : ';';
 a
     : 'a';
 b
@@ -63,9 +66,9 @@ c
 #name test;
 
 seq
-    : seq elem ';'
-	| elem ';'
-	| error ';' #recover
+    : seq elem semi_colon
+	| elem semi_colon
+	| error semi_colon #recover
 	;
 elem
     : a b c
@@ -73,6 +76,8 @@ elem
 
 ws #skip
     : "[\u{0009}\u{0020}]+";
+semi_colon
+    : ';';
 a
     : 'a';
 b
@@ -91,9 +96,9 @@ c
 #name test;
 
 seq
-    : seq elem ';'
-	| elem ';'
-	| error '*' '*' ';'
+    : seq elem semi_colon
+	| elem semi_colon
+	| error star star semi_colon
 	;
 elem
     : a b c
@@ -101,6 +106,10 @@ elem
 
 ws #skip
     : "[\u{0009}\u{0020}]+";
+semi_colon
+    : ';';
+star
+    : '*';
 a
     : 'a';
 b
@@ -239,24 +248,6 @@ foo
 			expected: []string{
 				"foo",
 				"<eof>",
-			},
-		},
-		{
-			caption: "when an anonymous symbol is expected, an expected symbol list contains an auto-generated name with the prefix `x_`",
-			specSrc: `
-#name test;
-
-s
-    : foo 'bar'
-    ;
-
-foo
-    : 'foo';
-`,
-			src:   `foobaz`,
-			cause: `baz`,
-			expected: []string{
-				"x_1",
 			},
 		},
 	}
