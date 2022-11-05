@@ -44,9 +44,6 @@ type Grammar interface {
 	// Terminal retuns a string representaion of a terminal symbol.
 	Terminal(terminal int) string
 
-	// TerminalAlias returns an alias for a terminal.
-	TerminalAlias(terminal int) string
-
 	// ASTAction returns an AST action entries.
 	ASTAction(prod int) []int
 }
@@ -370,11 +367,7 @@ func (p *Parser) searchLookahead(state int) []string {
 			continue
 		}
 
-		if alias := p.gram.TerminalAlias(term); alias != "" {
-			kinds = append(kinds, alias)
-		} else {
-			kinds = append(kinds, p.gram.Terminal(term))
-		}
+		kinds = append(kinds, p.gram.Terminal(term))
 	}
 
 	return kinds

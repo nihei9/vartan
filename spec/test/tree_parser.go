@@ -46,9 +46,6 @@ type Grammar interface {
 	// Terminal retuns a string representaion of a terminal symbol.
 	Terminal(terminal int) string
 
-	// TerminalAlias returns an alias for a terminal.
-	TerminalAlias(terminal int) string
-
 	// ASTAction returns an AST action entries.
 	ASTAction(prod int) []int
 }
@@ -372,11 +369,7 @@ func (p *Parser) searchLookahead(state int) []string {
 			continue
 		}
 
-		if alias := p.gram.TerminalAlias(term); alias != "" {
-			kinds = append(kinds, alias)
-		} else {
-			kinds = append(kinds, p.gram.Terminal(term))
-		}
+		kinds = append(kinds, p.gram.Terminal(term))
 	}
 
 	return kinds
@@ -429,7 +422,6 @@ type grammarImpl struct {
 	nonTerminals            []string
 	lhsSymbols              []int
 	terminals               []string
-	terminalAliases         []string
 	astActions              [][]int
 }
 
@@ -549,27 +541,6 @@ func NewGrammar() *grammarImpl {
 			"escape_char",
 			"interpreted_string_close",
 		},
-		terminalAliases: []string{
-			"",
-			"",
-			"",
-			"",
-			"(",
-			")",
-			"",
-			"",
-			"",
-			"",
-			"\"",
-			"",
-			"\\u",
-			"{",
-			"}",
-			"",
-			"",
-			"\\",
-			"\"",
-		},
 		astActions: [][]int{
 			nil,
 			nil,
@@ -674,10 +645,6 @@ func (g *grammarImpl) Error() int {
 
 func (g *grammarImpl) Terminal(terminal int) string {
 	return g.terminals[terminal]
-}
-
-func (g *grammarImpl) TerminalAlias(terminal int) string {
-	return g.terminalAliases[terminal]
 }
 
 func (g *grammarImpl) ASTAction(prod int) []int {

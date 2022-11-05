@@ -84,7 +84,6 @@ type Grammar struct {
 	name                 string
 	lexSpec              *mlspec.LexSpec
 	skipLexKinds         []mlspec.LexKindName
-	kindAliases          map[symbol]string
 	sym2AnonPat          map[symbol]string
 	productionSet        *productionSet
 	augmentedStartSymbol symbol
@@ -212,7 +211,6 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		name:                 specName,
 		lexSpec:              symTabAndLexSpec.lexSpec,
 		skipLexKinds:         symTabAndLexSpec.skip,
-		kindAliases:          symTabAndLexSpec.aliases,
 		sym2AnonPat:          symTabAndLexSpec.sym2AnonPat,
 		productionSet:        prodsAndActs.prods,
 		augmentedStartSymbol: prodsAndActs.augStartSym,
@@ -392,7 +390,6 @@ type symbolTableAndLexSpec struct {
 	errSym      symbol
 	skip        []mlspec.LexKindName
 	skipSyms    []string
-	aliases     map[symbol]string
 }
 
 func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, error) {
@@ -413,7 +410,6 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 
 	anonPat2Sym := map[string]symbol{}
 	sym2AnonPat := map[symbol]string{}
-	aliases := map[symbol]string{}
 	{
 		knownPats := map[string]struct{}{}
 		anonPats := []string{}
@@ -456,10 +452,6 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 			anonPat2Sym[p] = sym
 			sym2AnonPat[sym] = p
 
-			if _, ok := literalPats[p]; ok {
-				aliases[sym] = p
-			}
-
 			entries = append(entries, &mlspec.LexEntry{
 				Kind:    mlspec.LexKindName(kind),
 				Pattern: mlspec.LexPattern(p),
@@ -489,12 +481,12 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 			continue
 		}
 
-		lhsSym, err := symTab.registerTerminalSymbol(prod.LHS)
+		_, err := symTab.registerTerminalSymbol(prod.LHS)
 		if err != nil {
 			return nil, err
 		}
 
-		entry, skip, alias, specErr, err := genLexEntry(prod)
+		entry, skip, specErr, err := genLexEntry(prod)
 		if err != nil {
 			return nil, err
 		}
@@ -505,9 +497,6 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		if skip {
 			skipKinds = append(skipKinds, mlspec.LexKindName(prod.LHS))
 			skipSyms = append(skipSyms, prod.LHS)
-		}
-		if alias != "" {
-			aliases[lhsSym] = alias
 		}
 		entries = append(entries, entry)
 	}
@@ -542,19 +531,16 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		errSym:   errSym,
 		skip:     skipKinds,
 		skipSyms: skipSyms,
-		aliases:  aliases,
 	}, nil
 }
 
-func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *verr.SpecError, error) {
+func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecError, error) {
 	alt := prod.RHS[0]
 	elem := alt.Elements[0]
 
 	var pattern string
-	var alias string
 	if elem.Literally {
 		pattern = mlspec.EscapePattern(elem.Pattern)
-		alias = elem.Pattern
 	} else {
 		pattern = elem.Pattern
 	}
@@ -566,7 +552,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 	dirConsumed := map[string]struct{}{}
 	for _, dir := range prod.Directives {
 		if _, consumed := dirConsumed[dir.Name]; consumed {
-			return nil, false, "", &verr.SpecError{
+			return nil, false, &verr.SpecError{
 				Cause:  semErrDuplicateDir,
 				Detail: dir.Name,
 				Row:    dir.Pos.Row,
@@ -578,7 +564,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 		switch dir.Name {
 		case "mode":
 			if len(dir.Parameters) == 0 {
-				return nil, false, "", &verr.SpecError{
+				return nil, false, &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
 					Detail: "'mode' directive needs an ID parameter",
 					Row:    dir.Pos.Row,
@@ -587,7 +573,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			}
 			for _, param := range dir.Parameters {
 				if param.ID == "" {
-					return nil, false, "", &verr.SpecError{
+					return nil, false, &verr.SpecError{
 						Cause:  semErrDirInvalidParam,
 						Detail: "'mode' directive needs an ID parameter",
 						Row:    param.Pos.Row,
@@ -598,7 +584,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			}
 		case "skip":
 			if len(dir.Parameters) > 0 {
-				return nil, false, "", &verr.SpecError{
+				return nil, false, &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
 					Detail: "'skip' directive needs no parameter",
 					Row:    dir.Pos.Row,
@@ -608,7 +594,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			skip = true
 		case "push":
 			if len(dir.Parameters) != 1 || dir.Parameters[0].ID == "" {
-				return nil, false, "", &verr.SpecError{
+				return nil, false, &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
 					Detail: "'push' directive needs an ID parameter",
 					Row:    dir.Pos.Row,
@@ -618,7 +604,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 			push = mlspec.LexModeName(dir.Parameters[0].ID)
 		case "pop":
 			if len(dir.Parameters) > 0 {
-				return nil, false, "", &verr.SpecError{
+				return nil, false, &verr.SpecError{
 					Cause:  semErrDirInvalidParam,
 					Detail: "'pop' directive needs no parameter",
 					Row:    dir.Pos.Row,
@@ -626,18 +612,8 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 				}, nil
 			}
 			pop = true
-		case "alias":
-			if len(dir.Parameters) != 1 || dir.Parameters[0].String == "" {
-				return nil, false, "", &verr.SpecError{
-					Cause:  semErrDirInvalidParam,
-					Detail: "'alias' directive needs a string parameter",
-					Row:    dir.Pos.Row,
-					Col:    dir.Pos.Col,
-				}, nil
-			}
-			alias = dir.Parameters[0].String
 		default:
-			return nil, false, "", &verr.SpecError{
+			return nil, false, &verr.SpecError{
 				Cause:  semErrDirInvalidName,
 				Detail: dir.Name,
 				Row:    dir.Pos.Row,
@@ -647,7 +623,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 	}
 
 	if len(alt.Directives) > 0 {
-		return nil, false, "", &verr.SpecError{
+		return nil, false, &verr.SpecError{
 			Cause:  semErrInvalidAltDir,
 			Detail: "a lexical production cannot have alternative directives",
 			Row:    alt.Directives[0].Pos.Row,
@@ -661,7 +637,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, string, *ve
 		Pattern: mlspec.LexPattern(pattern),
 		Push:    push,
 		Pop:     pop,
-	}, skip, alias, nil, nil
+	}, skip, nil, nil
 }
 
 type productionsAndActions struct {
@@ -1345,14 +1321,10 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 	}
 	terms := make([]string, len(termTexts))
 	for i, t := range termTexts {
-		if !strings.HasPrefix(t, "x_") {
-			terms[i] = t
-		}
-	}
-
-	kindAliases := make([]string, gram.symbolTable.termNum.Int())
-	for _, sym := range gram.symbolTable.terminalSymbols() {
-		kindAliases[sym.num().Int()] = gram.kindAliases[sym]
+		// NOTE: For anonymous symbol, `t` is a name with `x_` as a prefix. However,
+		// this name is not intentionally set by a user, so a message containing this
+		// name will result in an unfriendly message.
+		terms[i] = t
 	}
 
 	nonTerms, err := gram.symbolTable.nonTerminalTexts()
@@ -1444,7 +1416,6 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 				Spec:           lexSpec,
 				KindToTerminal: kind2Term,
 				Skip:           skip,
-				KindAliases:    kindAliases,
 			},
 		},
 		ParsingTable: &spec.ParsingTable{

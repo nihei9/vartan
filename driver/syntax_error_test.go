@@ -242,7 +242,7 @@ foo
 			},
 		},
 		{
-			caption: "when an anonymous symbol is expected, an expected symbol list contains an alias of the anonymous symbol",
+			caption: "when an anonymous symbol is expected, an expected symbol list contains an auto-generated name with the prefix `x_`",
 			specSrc: `
 #name test;
 
@@ -256,7 +256,7 @@ foo
 			src:   `foobaz`,
 			cause: `baz`,
 			expected: []string{
-				"bar",
+				"x_1",
 			},
 		},
 	}

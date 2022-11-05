@@ -4,7 +4,6 @@ type Terminal struct {
 	Number        int    `json:"number"`
 	Name          string `json:"name"`
 	Anonymous     bool   `json:"anonymous"`
-	Alias         string `json:"alias"`
 	Pattern       string `json:"pattern"`
 	Precedence    int    `json:"prec"`
 	Associativity string `json:"assoc"`

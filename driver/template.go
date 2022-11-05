@@ -147,7 +147,6 @@ type grammarImpl struct {
 	nonTerminals            []string
 	lhsSymbols              []int
 	terminals               []string
-	terminalAliases         []string
 	astActions              [][]int
 }
 
@@ -161,7 +160,6 @@ func NewGrammar() *grammarImpl {
 		nonTerminals:            {{ genNonTerminals }},
 		lhsSymbols:              {{ genLHSSymbols }},
 		terminals:               {{ genTerminals }},
-		terminalAliases:         {{ genTerminalAliases }},
 		astActions:              {{ genASTActions }},
 	}
 }
@@ -216,10 +214,6 @@ func (g *grammarImpl) Error() int {
 
 func (g *grammarImpl) Terminal(terminal int) string {
 	return g.terminals[terminal]
-}
-
-func (g *grammarImpl) TerminalAlias(terminal int) string {
-	return g.terminalAliases[terminal]
 }
 
 func (g *grammarImpl) ASTAction(prod int) []int {
@@ -356,15 +350,6 @@ func genGrammarTemplateFuncs(cgram *spec.CompiledGrammar) template.FuncMap {
 			var b strings.Builder
 			fmt.Fprintf(&b, "[]string{\n")
 			for _, v := range cgram.ParsingTable.Terminals {
-				fmt.Fprintf(&b, "%v,\n", strconv.Quote(v))
-			}
-			fmt.Fprintf(&b, "}")
-			return b.String()
-		},
-		"genTerminalAliases": func() string {
-			var b strings.Builder
-			fmt.Fprintf(&b, "[]string{\n")
-			for _, v := range cgram.LexicalSpecification.Maleeni.KindAliases {
 				fmt.Fprintf(&b, "%v,\n", strconv.Quote(v))
 			}
 			fmt.Fprintf(&b, "}")

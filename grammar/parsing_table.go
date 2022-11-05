@@ -326,7 +326,6 @@ func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Repo
 			term := &spec.Terminal{
 				Number: sym.num().Int(),
 				Name:   name,
-				Alias:  gram.kindAliases[sym],
 			}
 
 			pat, ok := b.sym2AnonPat[sym]

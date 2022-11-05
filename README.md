@@ -40,14 +40,14 @@ expr
 	| func_call
 	| int
 	| id
-	| '(' expr ')' #ast expr
+	| l_paren expr r_paren #ast expr
 	;
 func_call
-	: id '(' args ')' #ast id args
-	| id '(' ')'      #ast id
+	: id l_paren args r_paren #ast id args
+	| id l_paren r_paren      #ast id
 	;
 args
-	: args ',' expr #ast args... expr
+	: args comma expr #ast args... expr
 	| expr
 	;
 
@@ -65,6 +65,12 @@ mul
 	: '*';
 div
 	: '/';
+l_paren
+	: '(';
+r_paren
+	: ')';
+comma
+	: ',';
 ```
 
 Save the above grammar to a file in UTF-8. In this explanation, the file name is `expr.vartan`.
@@ -216,11 +222,7 @@ func printSyntaxError(w io.Writer, synErr *SyntaxError, gram Grammar) {
 		msg = fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme()))
 	default:
 		if term := gram.Terminal(tok.TerminalID()); term != "" {
-			if alias := gram.TerminalAlias(tok.TerminalID()); alias != "" {
-				msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), alias)
-			} else {
-				msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), term)
-			}
+			msg = fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), term)
 		} else {
 			msg = fmt.Sprintf("'%v'", string(tok.Lexeme()))
 		}
@@ -263,7 +265,7 @@ expr
 
 ```sh
 $ echo -n 'foo+99?' | go run .
-1:7: unexpected token: '?' (<invalid>): expected: <eof>, +, -, *, /
+1:7: unexpected token: '?' (<invalid>): expected: <eof>, add, sub, mul, div
 exit status 1
 ```
 
@@ -434,23 +436,6 @@ When the parser reduces a non-terminal symbol having a `#recover` directive, the
 See [Error recovery](#error-recovery) section for more details on the `#recover` directive.
 
 ### Directives for terminal symbols
-
-#### `#alias <alias: String>`
-
-An `#alias` directive aliases for a terminal symbol. You can use the alias in error messages, for example.
-
-example:
-
-```
-#name example;
-
-s
-	: id
-	;
-
-id #alias 'identifier'
-	: "[A-Za-z_][0-9A-Za-z_]*";
-```
 
 #### `#mode {<mode-name: Identifier>}`, `#push <mode-name: Identifier>`, and `#pop`
 

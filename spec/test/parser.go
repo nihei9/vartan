@@ -270,11 +270,7 @@ func formatSyntaxError(synErr *SyntaxError, gram Grammar, lineOffset int) []byte
 		b.WriteString(fmt.Sprintf("'%v' (<invalid>)", string(tok.Lexeme())))
 	default:
 		if term := gram.Terminal(tok.TerminalID()); term != "" {
-			if alias := gram.TerminalAlias(tok.TerminalID()); alias != "" {
-				b.WriteString(fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), alias))
-			} else {
-				b.WriteString(fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), term))
-			}
+			b.WriteString(fmt.Sprintf("'%v' (%v)", string(tok.Lexeme()), term))
 		} else {
 			b.WriteString(fmt.Sprintf("'%v'", string(tok.Lexeme())))
 		}

@@ -64,10 +64,6 @@ func (g *grammarImpl) Terminal(terminal int) string {
 	return g.g.ParsingTable.Terminals[terminal]
 }
 
-func (g *grammarImpl) TerminalAlias(terminal int) string {
-	return g.g.LexicalSpecification.Maleeni.KindAliases[terminal]
-}
-
 func (g *grammarImpl) ASTAction(prod int) []int {
 	return g.g.ASTAction.Entries[prod]
 }

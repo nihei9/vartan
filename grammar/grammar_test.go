@@ -2962,79 +2962,6 @@ fragment f
 		},
 	}
 
-	aliasDirTests := []*specErrTest{
-		{
-			caption: "the `#alias` directive needs a string parameter",
-			specSrc: `
-#name test;
-
-s
-    : foo
-    ;
-
-foo #alias
-    : 'foo';
-`,
-			errs: []*SemanticError{semErrDirInvalidParam},
-		},
-		{
-			caption: "the `#alias` directive takes just one string parameter",
-			specSrc: `
-#name test;
-
-s
-    : foo
-    ;
-
-foo #alias 'Foo' 'FOO'
-    : 'foo';
-`,
-			errs: []*SemanticError{semErrDirInvalidParam},
-		},
-		{
-			caption: "the `#alias` directive cannot take an ID parameter",
-			specSrc: `
-#name test;
-
-s
-    : foo
-    ;
-
-foo #alias bar
-    : 'foo';
-`,
-			errs: []*SemanticError{semErrDirInvalidParam},
-		},
-		{
-			caption: "the `#alias` directive cannot take a pattern parameter",
-			specSrc: `
-#name test;
-
-s
-    : foo
-    ;
-
-foo #alias "Foo"
-    : 'foo';
-`,
-			errs: []*SemanticError{semErrDirInvalidParam},
-		},
-		{
-			caption: "the `#alias` directive cannot take a directive group parameter",
-			specSrc: `
-#name test;
-
-s
-    : foo
-    ;
-
-foo #alias ()
-    : 'foo';
-`,
-			errs: []*SemanticError{semErrDirInvalidParam},
-		},
-	}
-
 	modeDirTests := []*specErrTest{
 		{
 			caption: "the `#mode` directive needs an ID parameter",
@@ -3438,7 +3365,6 @@ bar
 	tests = append(tests, altPrecDirTests...)
 	tests = append(tests, recoverDirTests...)
 	tests = append(tests, fragmentTests...)
-	tests = append(tests, aliasDirTests...)
 	tests = append(tests, modeDirTests...)
 	tests = append(tests, pushDirTests...)
 	tests = append(tests, popDirTests...)

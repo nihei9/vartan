@@ -18,10 +18,6 @@ func termNode(kind string, text string, children ...*Node) *Node {
 	}
 }
 
-func anonTermNode(text string, children ...*Node) *Node {
-	return termNode("", text, children...)
-}
-
 func errorNode() *Node {
 	return &Node{
 		Type:     NodeTypeError,
@@ -50,18 +46,26 @@ func TestParser_Parse(t *testing.T) {
 #name test;
 
 expr
-    : expr '+' term
+    : expr add term
     | term
     ;
 term
-    : term '*' factor
+    : term mul factor
     | factor
     ;
 factor
-    : '(' expr ')'
+    : l_paren expr r_paren
     | id
     ;
 
+add
+    : '+';
+mul
+    : '*';
+l_paren
+    : '(';
+r_paren
+    : ')';
 id
     : "[A-Za-z_][0-9A-Za-z_]*";
 `,
@@ -71,7 +75,7 @@ id
 					nonTermNode("term",
 						nonTermNode("term",
 							nonTermNode("factor",
-								anonTermNode("("),
+								termNode("l_paren", "("),
 								nonTermNode("expr",
 									nonTermNode("expr",
 										nonTermNode("term",
@@ -80,10 +84,10 @@ id
 											),
 										),
 									),
-									anonTermNode("+"),
+									termNode("add", "+"),
 									nonTermNode("term",
 										nonTermNode("factor",
-											anonTermNode("("),
+											termNode("l_paren", "("),
 											nonTermNode("expr",
 												nonTermNode("expr",
 													nonTermNode("term",
@@ -92,27 +96,27 @@ id
 														),
 													),
 												),
-												anonTermNode("+"),
+												termNode("add", "+"),
 												nonTermNode("term",
 													nonTermNode("factor",
 														termNode("id", "c"),
 													),
 												),
 											),
-											anonTermNode(")"),
+											termNode("r_paren", ")"),
 										),
 									),
 								),
-								anonTermNode(")"),
+								termNode("r_paren", ")"),
 							),
 						),
-						anonTermNode("*"),
+						termNode("mul", "*"),
 						nonTermNode("factor",
 							termNode("id", "d"),
 						),
 					),
 				),
-				anonTermNode("+"),
+				termNode("add", "+"),
 				nonTermNode("term",
 					nonTermNode("factor",
 						termNode("id", "e"),

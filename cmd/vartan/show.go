@@ -99,9 +99,6 @@ const reportTemplate = `# Conflicts
 
 func writeReport(w io.Writer, report *spec.Report) error {
 	termName := func(sym int) string {
-		if report.Terminals[sym].Alias != "" {
-			return report.Terminals[sym].Alias
-		}
 		return report.Terminals[sym].Name
 	}
 
@@ -183,9 +180,6 @@ func writeReport(w io.Writer, report *spec.Report) error {
 				assoc = "-"
 			}
 
-			if term.Alias != "" {
-				return fmt.Sprintf("%4v %v %v %v (%v)", term.Number, prec, assoc, term.Name, term.Alias)
-			}
 			return fmt.Sprintf("%4v %v %v %v", term.Number, prec, assoc, term.Name)
 		},
 		"printProduction": func(prod spec.Production) string {
