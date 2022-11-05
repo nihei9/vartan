@@ -37,6 +37,9 @@ type Grammar interface {
 	// TerminalCount returns a terminal symbol count of grammar.
 	TerminalCount() int
 
+	// SkipTerminal returns true when a terminal symbol must be skipped on syntax analysis.
+	SkipTerminal(terminal int) bool
+
 	// EOF returns the EOF symbol.
 	EOF() int
 
@@ -65,9 +68,6 @@ type VToken interface {
 
 	// Position returns (row, column) pair.
 	Position() (int, int)
-
-	// Skip returns true when a token must be skipped on syntax analysis.
-	Skip() bool
 }
 
 type TokenStream interface {
@@ -277,7 +277,7 @@ func (p *Parser) nextToken() (VToken, error) {
 			return nil, err
 		}
 
-		if tok.Skip() {
+		if p.gram.SkipTerminal(tok.TerminalID()) {
 			continue
 		}
 
@@ -422,6 +422,7 @@ type grammarImpl struct {
 	nonTerminals            []string
 	lhsSymbols              []int
 	terminals               []string
+	terminalSkip            []int
 	astActions              [][]int
 }
 
@@ -541,6 +542,9 @@ func NewGrammar() *grammarImpl {
 			"escape_char",
 			"interpreted_string_close",
 		},
+		terminalSkip: []int{
+			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		},
 		astActions: [][]int{
 			nil,
 			nil,
@@ -623,6 +627,10 @@ func (g *grammarImpl) TerminalCount() int {
 	return 19
 }
 
+func (g *grammarImpl) SkipTerminal(terminal int) bool {
+	return g.terminalSkip[terminal] == 1
+}
+
 func (g *grammarImpl) ErrorTrapperState(state int) bool {
 	return g.errorTrapperStates[state] != 0
 }
@@ -653,7 +661,6 @@ func (g *grammarImpl) ASTAction(prod int) []int {
 
 type vToken struct {
 	terminalID int
-	skip       bool
 	tok        *Token
 }
 
@@ -673,10 +680,6 @@ func (t *vToken) Invalid() bool {
 	return t.tok.Invalid
 }
 
-func (t *vToken) Skip() bool {
-	return t.skip
-}
-
 func (t *vToken) Position() (int, int) {
 	return t.tok.Row, t.tok.Col
 }
@@ -685,14 +688,9 @@ var kindToTerminal = []int{
 	0, 3, 4, 5, 6, 7, 10, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18,
 }
 
-var skip = []int{
-	0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-}
-
 type tokenStream struct {
 	lex            *Lexer
 	kindToTerminal []int
-	skip           []int
 }
 
 func NewTokenStream(src io.Reader) (*tokenStream, error) {
@@ -713,7 +711,6 @@ func (t *tokenStream) Next() (VToken, error) {
 	}
 	return &vToken{
 		terminalID: kindToTerminal[tok.KindID],
-		skip:       skip[tok.KindID] > 0,
 		tok:        tok,
 	}, nil
 }

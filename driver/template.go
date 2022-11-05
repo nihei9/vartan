@@ -147,6 +147,7 @@ type grammarImpl struct {
 	nonTerminals            []string
 	lhsSymbols              []int
 	terminals               []string
+	terminalSkip            []int
 	astActions              [][]int
 }
 
@@ -160,6 +161,7 @@ func NewGrammar() *grammarImpl {
 		nonTerminals:            {{ genNonTerminals }},
 		lhsSymbols:              {{ genLHSSymbols }},
 		terminals:               {{ genTerminals }},
+		terminalSkip:            {{ genTerminalSkip }},
 		astActions:              {{ genASTActions }},
 	}
 }
@@ -190,6 +192,10 @@ func (g *grammarImpl) AlternativeSymbolCount(prod int) int {
 
 func (g *grammarImpl) TerminalCount() int {
 	return {{ .terminalCount }}
+}
+
+func (g *grammarImpl) SkipTerminal(terminal int) bool {
+	return g.terminalSkip[terminal] == 1
 }
 
 func (g *grammarImpl) ErrorTrapperState(state int) bool {
@@ -355,6 +361,25 @@ func genGrammarTemplateFuncs(cgram *spec.CompiledGrammar) template.FuncMap {
 			fmt.Fprintf(&b, "}")
 			return b.String()
 		},
+		"genTerminalSkip": func() string {
+			var b strings.Builder
+			fmt.Fprintf(&b, "[]int{\n")
+			c := 1
+			for _, v := range cgram.ParsingTable.TerminalSkip {
+				fmt.Fprintf(&b, "%v, ", v)
+				if c == 20 {
+					fmt.Fprintf(&b, "\n")
+					c = 1
+				} else {
+					c++
+				}
+			}
+			if c > 1 {
+				fmt.Fprintf(&b, "\n")
+			}
+			fmt.Fprintf(&b, "}")
+			return b.String()
+		},
 		"genASTActions": func() string {
 			var b strings.Builder
 			fmt.Fprintf(&b, "[][]int{\n")
@@ -389,7 +414,6 @@ func genGrammarTemplateFuncs(cgram *spec.CompiledGrammar) template.FuncMap {
 const lexerSrcTmplate = `
 type vToken struct {
 	terminalID int
-	skip       bool
 	tok        *Token
 }
 
@@ -409,22 +433,15 @@ func (t *vToken) Invalid() bool {
 	return t.tok.Invalid
 }
 
-func (t *vToken) Skip() bool {
-	return t.skip
-}
-
 func (t *vToken) Position() (int, int) {
 	return t.tok.Row, t.tok.Col
 }
 
 var kindToTerminal = {{ genKindToTerminal }}
 
-var skip = {{ genSkip }}
-
 type tokenStream struct {
 	lex            *Lexer
 	kindToTerminal []int
-	skip           []int
 }
 
 func NewTokenStream(src io.Reader) (*tokenStream, error) {
@@ -445,7 +462,6 @@ func (t *tokenStream) Next() (VToken, error) {
 	}
 	return &vToken{
 		terminalID: kindToTerminal[tok.KindID],
-		skip:       skip[tok.KindID] > 0,
 		tok:        tok,
 	}, nil
 }
@@ -458,25 +474,6 @@ func genLexerTemplateFuncs(cgram *spec.CompiledGrammar) template.FuncMap {
 			fmt.Fprintf(&b, "[]int{\n")
 			c := 1
 			for _, v := range cgram.LexicalSpecification.Maleeni.KindToTerminal {
-				fmt.Fprintf(&b, "%v, ", v)
-				if c == 20 {
-					fmt.Fprintf(&b, "\n")
-					c = 1
-				} else {
-					c++
-				}
-			}
-			if c > 1 {
-				fmt.Fprintf(&b, "\n")
-			}
-			fmt.Fprintf(&b, "}")
-			return b.String()
-		},
-		"genSkip": func() string {
-			var b strings.Builder
-			fmt.Fprintf(&b, "[]int{\n")
-			c := 1
-			for _, v := range cgram.LexicalSpecification.Maleeni.Skip {
 				fmt.Fprintf(&b, "%v, ", v)
 				if c == 20 {
 					fmt.Fprintf(&b, "\n")

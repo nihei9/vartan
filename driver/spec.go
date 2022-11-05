@@ -40,6 +40,10 @@ func (g *grammarImpl) TerminalCount() int {
 	return g.g.ParsingTable.TerminalCount
 }
 
+func (g *grammarImpl) SkipTerminal(terminal int) bool {
+	return g.g.ParsingTable.TerminalSkip[terminal] == 1
+}
+
 func (g *grammarImpl) ErrorTrapperState(state int) bool {
 	return g.g.ParsingTable.ErrorTrapperStates[state] != 0
 }

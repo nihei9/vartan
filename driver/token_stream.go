@@ -9,7 +9,6 @@ import (
 
 type vToken struct {
 	terminalID int
-	skip       bool
 	tok        *mldriver.Token
 }
 
@@ -29,10 +28,6 @@ func (t *vToken) Invalid() bool {
 	return t.tok.Invalid
 }
 
-func (t *vToken) Skip() bool {
-	return t.skip
-}
-
 func (t *vToken) Position() (int, int) {
 	return t.tok.Row, t.tok.Col
 }
@@ -40,7 +35,6 @@ func (t *vToken) Position() (int, int) {
 type tokenStream struct {
 	lex            *mldriver.Lexer
 	kindToTerminal []int
-	skip           []int
 }
 
 func NewTokenStream(g *spec.CompiledGrammar, src io.Reader) (TokenStream, error) {
@@ -52,7 +46,6 @@ func NewTokenStream(g *spec.CompiledGrammar, src io.Reader) (TokenStream, error)
 	return &tokenStream{
 		lex:            lex,
 		kindToTerminal: g.LexicalSpecification.Maleeni.KindToTerminal,
-		skip:           g.LexicalSpecification.Maleeni.Skip,
 	}, nil
 }
 
@@ -63,7 +56,6 @@ func (l *tokenStream) Next() (VToken, error) {
 	}
 	return &vToken{
 		terminalID: l.kindToTerminal[tok.KindID],
-		skip:       l.skip[tok.KindID] > 0,
 		tok:        tok,
 	}, nil
 }

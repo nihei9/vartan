@@ -166,20 +166,20 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 
 	// When a terminal symbol that cannot be reached from the start symbol has the skip directive,
 	// the compiler treats its terminal as a used symbol, not unused.
-	for _, sym := range symTabAndLexSpec.skipSyms {
-		if _, ok := syms.unusedTerminals[sym]; !ok {
-			prod := syms.usedTerminals[sym]
-
+	for _, sym := range symTabAndLexSpec.skip {
+		s := sym.String()
+		if _, ok := syms.unusedTerminals[s]; !ok {
+			prod := syms.usedTerminals[s]
 			b.errs = append(b.errs, &verr.SpecError{
 				Cause:  semErrTermCannotBeSkipped,
-				Detail: sym,
+				Detail: s,
 				Row:    prod.Pos.Row,
 				Col:    prod.Pos.Col,
 			})
 			continue
 		}
 
-		delete(syms.unusedTerminals, sym)
+		delete(syms.unusedTerminals, s)
 	}
 
 	for sym, prod := range syms.unusedProductions {
@@ -381,11 +381,10 @@ func collectUserDefinedIDsFromDirective(dir *spec.DirectiveNode) []string {
 }
 
 type symbolTableAndLexSpec struct {
-	symTab   *symbolTable
-	lexSpec  *mlspec.LexSpec
-	errSym   symbol
-	skip     []mlspec.LexKindName
-	skipSyms []string
+	symTab  *symbolTable
+	lexSpec *mlspec.LexSpec
+	errSym  symbol
+	skip    []mlspec.LexKindName
 }
 
 func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolTableAndLexSpec, error) {
@@ -403,7 +402,6 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 	}
 
 	skipKinds := []mlspec.LexKindName{}
-	skipSyms := []string{}
 	for _, prod := range root.LexProductions {
 		if sym, exist := symTab.toSymbol(prod.LHS); exist {
 			if sym == errSym {
@@ -439,7 +437,6 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		}
 		if skip {
 			skipKinds = append(skipKinds, mlspec.LexKindName(prod.LHS))
-			skipSyms = append(skipSyms, prod.LHS)
 		}
 		entries = append(entries, entry)
 	}
@@ -469,9 +466,8 @@ func (b *GrammarBuilder) genSymbolTableAndLexSpec(root *spec.RootNode) (*symbolT
 		lexSpec: &mlspec.LexSpec{
 			Entries: entries,
 		},
-		errSym:   errSym,
-		skip:     skipKinds,
-		skipSyms: skipSyms,
+		errSym: errSym,
+		skip:   skipKinds,
 	}, nil
 }
 
@@ -1218,7 +1214,6 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 	}
 
 	kind2Term := make([]int, len(lexSpec.KindNames))
-	skip := make([]int, len(lexSpec.KindNames))
 	for i, k := range lexSpec.KindNames {
 		if k == mlspec.LexKindNameNil {
 			kind2Term[mlspec.LexKindIDNil] = symbolNil.num().Int()
@@ -1230,19 +1225,22 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 			return nil, nil, fmt.Errorf("terminal symbol '%v' was not found in a symbol table", k)
 		}
 		kind2Term[i] = sym.num().Int()
-
-		for _, sk := range gram.skipLexKinds {
-			if k != sk {
-				continue
-			}
-			skip[i] = 1
-			break
-		}
 	}
 
 	termTexts, err := gram.symbolTable.terminalTexts()
 	if err != nil {
 		return nil, nil, err
+	}
+
+	termSkip := make([]int, len(termTexts))
+	for i, k := range lexSpec.KindNames {
+		for _, sk := range gram.skipLexKinds {
+			if k != sk {
+				continue
+			}
+			termSkip[kind2Term[i]] = 1
+			break
+		}
 	}
 
 	nonTerms, err := gram.symbolTable.nonTerminalTexts()
@@ -1332,7 +1330,6 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 			Maleeni: &spec.Maleeni{
 				Spec:           lexSpec,
 				KindToTerminal: kind2Term,
-				Skip:           skip,
 			},
 		},
 		ParsingTable: &spec.ParsingTable{
@@ -1345,6 +1342,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 			AlternativeSymbolCounts: altSymCounts,
 			Terminals:               termTexts,
 			TerminalCount:           tab.terminalCount,
+			TerminalSkip:            termSkip,
 			NonTerminals:            nonTerms,
 			NonTerminalCount:        tab.nonTerminalCount,
 			EOFSymbol:               symbolEOF.num().Int(),

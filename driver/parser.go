@@ -35,6 +35,9 @@ type Grammar interface {
 	// TerminalCount returns a terminal symbol count of grammar.
 	TerminalCount() int
 
+	// SkipTerminal returns true when a terminal symbol must be skipped on syntax analysis.
+	SkipTerminal(terminal int) bool
+
 	// EOF returns the EOF symbol.
 	EOF() int
 
@@ -63,9 +66,6 @@ type VToken interface {
 
 	// Position returns (row, column) pair.
 	Position() (int, int)
-
-	// Skip returns true when a token must be skipped on syntax analysis.
-	Skip() bool
 }
 
 type TokenStream interface {
@@ -275,7 +275,7 @@ func (p *Parser) nextToken() (VToken, error) {
 			return nil, err
 		}
 
-		if tok.Skip() {
+		if p.gram.SkipTerminal(tok.TerminalID()) {
 			continue
 		}
 

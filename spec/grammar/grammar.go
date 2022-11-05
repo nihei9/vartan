@@ -17,7 +17,6 @@ type LexicalSpecification struct {
 type Maleeni struct {
 	Spec           *mlspec.CompiledLexSpec `json:"spec"`
 	KindToTerminal []int                   `json:"kind_to_terminal"`
-	Skip           []int                   `json:"skip"`
 }
 
 type ParsingTable struct {
@@ -30,6 +29,7 @@ type ParsingTable struct {
 	AlternativeSymbolCounts []int    `json:"alternative_symbol_counts"`
 	Terminals               []string `json:"terminals"`
 	TerminalCount           int      `json:"terminal_count"`
+	TerminalSkip            []int    `json:"terminal_skip"`
 	NonTerminals            []string `json:"non_terminals"`
 	NonTerminalCount        int      `json:"non_terminal_count"`
 	EOFSymbol               int      `json:"eof_symbol"`
