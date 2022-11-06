@@ -4,7 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	spec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/grammar/symbol"
+	"github.com/nihei9/vartan/spec/grammar/parser"
 )
 
 func TestGenLALR1Automaton(t *testing.T) {
@@ -23,15 +24,14 @@ id: "[A-Za-z0-9_]+";
 	var gram *Grammar
 	var automaton *lalr1Automaton
 	{
-		ast, err := spec.Parse(strings.NewReader(src))
+		ast, err := parser.Parse(strings.NewReader(src))
 		if err != nil {
 			t.Fatal(err)
 		}
 		b := GrammarBuilder{
 			AST: ast,
 		}
-
-		gram, err = b.Build()
+		gram, err = b.build()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -66,42 +66,42 @@ id: "[A-Za-z0-9_]+";
 
 	expectedKernels := map[int][]*lrItem{
 		0: {
-			withLookAhead(genLR0Item("s'", 0, "s"), symbolEOF),
+			withLookAhead(genLR0Item("s'", 0, "s"), symbol.SymbolEOF),
 		},
 		1: {
-			withLookAhead(genLR0Item("s'", 1, "s"), symbolEOF),
+			withLookAhead(genLR0Item("s'", 1, "s"), symbol.SymbolEOF),
 		},
 		2: {
-			withLookAhead(genLR0Item("s", 1, "l", "eq", "r"), symbolEOF),
-			withLookAhead(genLR0Item("r", 1, "l"), symbolEOF),
+			withLookAhead(genLR0Item("s", 1, "l", "eq", "r"), symbol.SymbolEOF),
+			withLookAhead(genLR0Item("r", 1, "l"), symbol.SymbolEOF),
 		},
 		3: {
-			withLookAhead(genLR0Item("s", 1, "r"), symbolEOF),
+			withLookAhead(genLR0Item("s", 1, "r"), symbol.SymbolEOF),
 		},
 		4: {
-			withLookAhead(genLR0Item("l", 1, "ref", "r"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("l", 1, "ref", "r"), genSym("eq"), symbol.SymbolEOF),
 		},
 		5: {
-			withLookAhead(genLR0Item("l", 1, "id"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("l", 1, "id"), genSym("eq"), symbol.SymbolEOF),
 		},
 		6: {
-			withLookAhead(genLR0Item("s", 2, "l", "eq", "r"), symbolEOF),
+			withLookAhead(genLR0Item("s", 2, "l", "eq", "r"), symbol.SymbolEOF),
 		},
 		7: {
-			withLookAhead(genLR0Item("l", 2, "ref", "r"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("l", 2, "ref", "r"), genSym("eq"), symbol.SymbolEOF),
 		},
 		8: {
-			withLookAhead(genLR0Item("r", 1, "l"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("r", 1, "l"), genSym("eq"), symbol.SymbolEOF),
 		},
 		9: {
-			withLookAhead(genLR0Item("s", 3, "l", "eq", "r"), symbolEOF),
+			withLookAhead(genLR0Item("s", 3, "l", "eq", "r"), symbol.SymbolEOF),
 		},
 	}
 
 	expectedStates := []*expectedLRState{
 		{
 			kernelItems: expectedKernels[0],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("s"):   expectedKernels[1],
 				genSym("l"):   expectedKernels[2],
 				genSym("r"):   expectedKernels[3],
@@ -112,14 +112,14 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[1],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("s'", "s"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[2],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("eq"): expectedKernels[6],
 			},
 			reducibleProds: []*production{
@@ -128,14 +128,14 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[3],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("s", "r"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[4],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("r"):   expectedKernels[7],
 				genSym("l"):   expectedKernels[8],
 				genSym("ref"): expectedKernels[4],
@@ -145,14 +145,14 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[5],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("l", "id"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[6],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("r"):   expectedKernels[9],
 				genSym("l"):   expectedKernels[8],
 				genSym("ref"): expectedKernels[4],
@@ -162,21 +162,21 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[7],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("l", "ref", "r"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[8],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("r", "l"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[9],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("s", "l", "eq", "r"),
 			},

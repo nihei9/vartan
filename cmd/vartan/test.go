@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nihei9/vartan/grammar"
 	"github.com/nihei9/vartan/tester"
 	"github.com/spf13/cobra"
 )
@@ -22,13 +21,9 @@ func init() {
 }
 
 func runTest(cmd *cobra.Command, args []string) error {
-	g, err := readGrammar(args[0])
+	gram, _, err := readGrammar(args[0])
 	if err != nil {
 		return fmt.Errorf("Cannot read a grammar: %w", err)
-	}
-	cg, _, err := grammar.Compile(g)
-	if err != nil {
-		return fmt.Errorf("Cannot read a compiled grammar: %w", err)
 	}
 
 	var cs []*tester.TestCaseWithMetadata
@@ -47,7 +42,7 @@ func runTest(cmd *cobra.Command, args []string) error {
 	}
 
 	t := &tester.Tester{
-		Grammar: cg,
+		Grammar: gram,
 		Cases:   cs,
 	}
 	rs := t.Run()

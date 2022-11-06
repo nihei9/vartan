@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/nihei9/vartan/grammar/symbol"
 	spec "github.com/nihei9/vartan/spec/grammar"
 )
 
@@ -82,7 +83,7 @@ type conflict interface {
 
 type shiftReduceConflict struct {
 	state      stateNum
-	sym        symbol
+	sym        symbol.Symbol
 	nextState  stateNum
 	prodNum    productionNum
 	resolvedBy conflictResolutionMethod
@@ -93,7 +94,7 @@ func (c *shiftReduceConflict) conflict() {
 
 type reduceReduceConflict struct {
 	state      stateNum
-	sym        symbol
+	sym        symbol.Symbol
 	prodNum1   productionNum
 	prodNum2   productionNum
 	resolvedBy conflictResolutionMethod
@@ -123,12 +124,12 @@ type ParsingTable struct {
 	InitialState stateNum
 }
 
-func (t *ParsingTable) getAction(state stateNum, sym symbolNum) (ActionType, stateNum, productionNum) {
+func (t *ParsingTable) getAction(state stateNum, sym symbol.SymbolNum) (ActionType, stateNum, productionNum) {
 	pos := state.Int()*t.terminalCount + sym.Int()
 	return t.actionTable[pos].describe()
 }
 
-func (t *ParsingTable) getGoTo(state stateNum, sym symbolNum) (GoToType, stateNum) {
+func (t *ParsingTable) getGoTo(state stateNum, sym symbol.SymbolNum) (GoToType, stateNum) {
 	pos := state.Int()*t.nonTerminalCount + sym.Int()
 	return t.goToTable[pos].describe()
 }
@@ -141,8 +142,8 @@ func (t *ParsingTable) writeAction(row int, col int, act actionEntry) {
 	t.actionTable[row*t.terminalCount+col] = act
 }
 
-func (t *ParsingTable) writeGoTo(state stateNum, sym symbol, nextState stateNum) {
-	pos := state.Int()*t.nonTerminalCount + sym.num().Int()
+func (t *ParsingTable) writeGoTo(state stateNum, sym symbol.Symbol, nextState stateNum) {
+	pos := state.Int()*t.nonTerminalCount + sym.Num().Int()
 	t.goToTable[pos] = newGoToEntry(nextState)
 }
 
@@ -151,7 +152,7 @@ type lrTableBuilder struct {
 	prods        *productionSet
 	termCount    int
 	nonTermCount int
-	symTab       *symbolTableReader
+	symTab       *symbol.SymbolTableReader
 	precAndAssoc *precAndAssoc
 
 	conflicts []conflict
@@ -179,7 +180,7 @@ func (b *lrTableBuilder) build() (*ParsingTable, error) {
 
 		for sym, kID := range state.next {
 			nextState := b.automaton.states[kID]
-			if sym.isTerminal() {
+			if sym.IsTerminal() {
 				b.writeShiftAction(ptab, state.num, sym, nextState.num)
 			} else {
 				ptab.writeGoTo(state.num, sym, nextState.num)
@@ -226,12 +227,12 @@ func (b *lrTableBuilder) build() (*ParsingTable, error) {
 
 // writeShiftAction writes a shift action to the parsing table. When a shift/reduce conflict occurred,
 // we prioritize the shift action.
-func (b *lrTableBuilder) writeShiftAction(tab *ParsingTable, state stateNum, sym symbol, nextState stateNum) {
-	act := tab.readAction(state.Int(), sym.num().Int())
+func (b *lrTableBuilder) writeShiftAction(tab *ParsingTable, state stateNum, sym symbol.Symbol, nextState stateNum) {
+	act := tab.readAction(state.Int(), sym.Num().Int())
 	if !act.isEmpty() {
 		ty, _, p := act.describe()
 		if ty == ActionTypeReduce {
-			act, method := b.resolveSRConflict(sym.num(), p)
+			act, method := b.resolveSRConflict(sym.Num(), p)
 			b.conflicts = append(b.conflicts, &shiftReduceConflict{
 				state:      state,
 				sym:        sym,
@@ -240,19 +241,19 @@ func (b *lrTableBuilder) writeShiftAction(tab *ParsingTable, state stateNum, sym
 				resolvedBy: method,
 			})
 			if act == ActionTypeShift {
-				tab.writeAction(state.Int(), sym.num().Int(), newShiftActionEntry(nextState))
+				tab.writeAction(state.Int(), sym.Num().Int(), newShiftActionEntry(nextState))
 			}
 			return
 		}
 	}
-	tab.writeAction(state.Int(), sym.num().Int(), newShiftActionEntry(nextState))
+	tab.writeAction(state.Int(), sym.Num().Int(), newShiftActionEntry(nextState))
 }
 
 // writeReduceAction writes a reduce action to the parsing table. When a shift/reduce conflict occurred,
 // we prioritize the shift action, and when a reduce/reduce conflict we prioritize the action that reduces
 // the production with higher priority. Productions defined earlier in the grammar file have a higher priority.
-func (b *lrTableBuilder) writeReduceAction(tab *ParsingTable, state stateNum, sym symbol, prod productionNum) {
-	act := tab.readAction(state.Int(), sym.num().Int())
+func (b *lrTableBuilder) writeReduceAction(tab *ParsingTable, state stateNum, sym symbol.Symbol, prod productionNum) {
+	act := tab.readAction(state.Int(), sym.Num().Int())
 	if !act.isEmpty() {
 		ty, s, p := act.describe()
 		switch ty {
@@ -269,12 +270,12 @@ func (b *lrTableBuilder) writeReduceAction(tab *ParsingTable, state stateNum, sy
 				resolvedBy: ResolvedByProdOrder,
 			})
 			if p < prod {
-				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(p))
+				tab.writeAction(state.Int(), sym.Num().Int(), newReduceActionEntry(p))
 			} else {
-				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
+				tab.writeAction(state.Int(), sym.Num().Int(), newReduceActionEntry(prod))
 			}
 		case ActionTypeShift:
-			act, method := b.resolveSRConflict(sym.num(), prod)
+			act, method := b.resolveSRConflict(sym.Num(), prod)
 			b.conflicts = append(b.conflicts, &shiftReduceConflict{
 				state:      state,
 				sym:        sym,
@@ -283,15 +284,15 @@ func (b *lrTableBuilder) writeReduceAction(tab *ParsingTable, state stateNum, sy
 				resolvedBy: method,
 			})
 			if act == ActionTypeReduce {
-				tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
+				tab.writeAction(state.Int(), sym.Num().Int(), newReduceActionEntry(prod))
 			}
 		}
 		return
 	}
-	tab.writeAction(state.Int(), sym.num().Int(), newReduceActionEntry(prod))
+	tab.writeAction(state.Int(), sym.Num().Int(), newReduceActionEntry(prod))
 }
 
-func (b *lrTableBuilder) resolveSRConflict(sym symbolNum, prod productionNum) (ActionType, conflictResolutionMethod) {
+func (b *lrTableBuilder) resolveSRConflict(sym symbol.SymbolNum, prod productionNum) (ActionType, conflictResolutionMethod) {
 	symPrec := b.precAndAssoc.terminalPrecedence(sym)
 	prodPrec := b.precAndAssoc.productionPredence(prod)
 	if symPrec == 0 || prodPrec == 0 {
@@ -313,26 +314,26 @@ func (b *lrTableBuilder) resolveSRConflict(sym symbolNum, prod productionNum) (A
 func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Report, error) {
 	var terms []*spec.Terminal
 	{
-		termSyms := b.symTab.terminalSymbols()
+		termSyms := b.symTab.TerminalSymbols()
 		terms = make([]*spec.Terminal, len(termSyms)+1)
 
 		for _, sym := range termSyms {
-			name, ok := b.symTab.toText(sym)
+			name, ok := b.symTab.ToText(sym)
 			if !ok {
 				return nil, fmt.Errorf("failed to generate terminals: symbol not found: %v", sym)
 			}
 
 			term := &spec.Terminal{
-				Number: sym.num().Int(),
+				Number: sym.Num().Int(),
 				Name:   name,
 			}
 
-			prec := b.precAndAssoc.terminalPrecedence(sym.num())
+			prec := b.precAndAssoc.terminalPrecedence(sym.Num())
 			if prec != precNil {
 				term.Precedence = prec
 			}
 
-			assoc := b.precAndAssoc.terminalAssociativity(sym.num())
+			assoc := b.precAndAssoc.terminalAssociativity(sym.Num())
 			switch assoc {
 			case assocTypeLeft:
 				term.Associativity = "l"
@@ -340,22 +341,22 @@ func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Repo
 				term.Associativity = "r"
 			}
 
-			terms[sym.num()] = term
+			terms[sym.Num()] = term
 		}
 	}
 
 	var nonTerms []*spec.NonTerminal
 	{
-		nonTermSyms := b.symTab.nonTerminalSymbols()
+		nonTermSyms := b.symTab.NonTerminalSymbols()
 		nonTerms = make([]*spec.NonTerminal, len(nonTermSyms)+1)
 		for _, sym := range nonTermSyms {
-			name, ok := b.symTab.toText(sym)
+			name, ok := b.symTab.ToText(sym)
 			if !ok {
 				return nil, fmt.Errorf("failed to generate non-terminals: symbol not found: %v", sym)
 			}
 
-			nonTerms[sym.num()] = &spec.NonTerminal{
-				Number: sym.num().Int(),
+			nonTerms[sym.Num()] = &spec.NonTerminal{
+				Number: sym.Num().Int(),
 				Name:   name,
 			}
 		}
@@ -368,16 +369,16 @@ func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Repo
 		for _, p := range ps {
 			rhs := make([]int, len(p.rhs))
 			for i, e := range p.rhs {
-				if e.isTerminal() {
-					rhs[i] = e.num().Int()
+				if e.IsTerminal() {
+					rhs[i] = e.Num().Int()
 				} else {
-					rhs[i] = e.num().Int() * -1
+					rhs[i] = e.Num().Int() * -1
 				}
 			}
 
 			prod := &spec.Production{
 				Number: p.num.Int(),
-				LHS:    p.lhs.num().Int(),
+				LHS:    p.lhs.Num().Int(),
 				RHS:    rhs,
 			}
 
@@ -441,33 +442,33 @@ func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Repo
 			var goTo []*spec.Transition
 			{
 			TERMINALS_LOOP:
-				for _, t := range b.symTab.terminalSymbols() {
-					act, next, prod := tab.getAction(s.num, t.num())
+				for _, t := range b.symTab.TerminalSymbols() {
+					act, next, prod := tab.getAction(s.num, t.Num())
 					switch act {
 					case ActionTypeShift:
 						shift = append(shift, &spec.Transition{
-							Symbol: t.num().Int(),
+							Symbol: t.Num().Int(),
 							State:  next.Int(),
 						})
 					case ActionTypeReduce:
 						for _, r := range reduce {
 							if r.Production == prod.Int() {
-								r.LookAhead = append(r.LookAhead, t.num().Int())
+								r.LookAhead = append(r.LookAhead, t.Num().Int())
 								continue TERMINALS_LOOP
 							}
 						}
 						reduce = append(reduce, &spec.Reduce{
-							LookAhead:  []int{t.num().Int()},
+							LookAhead:  []int{t.Num().Int()},
 							Production: prod.Int(),
 						})
 					}
 				}
 
-				for _, n := range b.symTab.nonTerminalSymbols() {
-					ty, next := tab.getGoTo(s.num, n.num())
+				for _, n := range b.symTab.NonTerminalSymbols() {
+					ty, next := tab.getGoTo(s.num, n.Num())
 					if ty == GoToTypeRegistered {
 						goTo = append(goTo, &spec.Transition{
-							Symbol: n.num().Int(),
+							Symbol: n.Num().Int(),
 							State:  next.Int(),
 						})
 					}
@@ -489,13 +490,13 @@ func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Repo
 			{
 				for _, c := range srConflicts[s.num] {
 					conflict := &spec.SRConflict{
-						Symbol:     c.sym.num().Int(),
+						Symbol:     c.sym.Num().Int(),
 						State:      c.nextState.Int(),
 						Production: c.prodNum.Int(),
 						ResolvedBy: c.resolvedBy.Int(),
 					}
 
-					ty, s, p := tab.getAction(s.num, c.sym.num())
+					ty, s, p := tab.getAction(s.num, c.sym.Num())
 					switch ty {
 					case ActionTypeShift:
 						n := s.Int()
@@ -514,13 +515,13 @@ func (b *lrTableBuilder) genReport(tab *ParsingTable, gram *Grammar) (*spec.Repo
 
 				for _, c := range rrConflicts[s.num] {
 					conflict := &spec.RRConflict{
-						Symbol:      c.sym.num().Int(),
+						Symbol:      c.sym.Num().Int(),
 						Production1: c.prodNum1.Int(),
 						Production2: c.prodNum2.Int(),
 						ResolvedBy:  c.resolvedBy.Int(),
 					}
 
-					_, _, p := tab.getAction(s.num, c.sym.num())
+					_, _, p := tab.getAction(s.num, c.sym.Num())
 					conflict.AdoptedProduction = p.Int()
 
 					rr = append(rr, conflict)

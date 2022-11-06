@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/nihei9/vartan/driver"
+	driver "github.com/nihei9/vartan/driver/parser"
 	gspec "github.com/nihei9/vartan/spec/grammar"
 	tspec "github.com/nihei9/vartan/spec/test"
 )

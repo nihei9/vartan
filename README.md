@@ -337,7 +337,7 @@ examples:
 
 #### Pattern
 
-A pattern is a string enclosed with `"` and represents a regular expression. A pattern that appears in production rules is used in lexical analysis. For more information on the syntax of regular expressions, please see [maleeni's documents](https://github.com/nihei9/maleeni/blob/main/README.md). vartan uses [maleeni](https://github.com/nihei9/maleeni) as a lexer.
+A pattern is a string enclosed with `"` and represents a regular expression. A pattern that appears in production rules is used in lexical analysis. For more information on the syntax of regular expressions, please see [Regular Expression](#regular-expression).
 
 examples:
 
@@ -731,3 +731,127 @@ eq_exprs
 1:2: unexpected token: ';' (semi_colon): expected: eq
 1:7: unexpected token: ';' (semi_colon): expected: int
 ```
+
+### Regular Expression
+
+⚠️ vartan doesn't allow you to use some code points. See [Unavailable Code Points](#unavailable-code-points).
+
+#### Composites
+
+Concatenation and alternation allow you to combine multiple characters or multiple patterns into one pattern.
+
+| Pattern    | Matches        |
+|------------|----------------|
+| `abc`      | `abc`          |
+| `abc\|def` | `abc` or `def` |
+
+#### Single Characters
+
+In addition to using ordinary characters, there are other ways to represent a single character:
+
+* dot expression
+* bracket expressions
+* code point expressions
+* character property expressions
+* escape sequences
+
+##### Dot Expression
+
+The dot expression matches any one chracter.
+
+| Pattern | Matches           |
+|---------|-------------------|
+| `.`     | any one character |
+
+##### Bracket Expressions
+
+The bracket expressions are represented by enclosing characters in `[ ]` or `[^ ]`. `[^ ]` is negation of `[ ]`. For instance, `[ab]` matches one of `a` or `b`, and `[^ab]` matches any one character except `a` and `b`.
+
+| Pattern  | Matches                                          |
+|----------|--------------------------------------------------|
+| `[abc]`  | `a`, `b`, or `c`                                 |
+| `[^abc]` | any one character except `a`, `b`, and `c`       |
+| `[a-z]`  | one in the range of `a` to `z`                   |
+| `[a-]`   | `a` or `-`                                       |
+| `[-z]`   | `-` or `z`                                       |
+| `[-]`    | `-`                                              |
+| `[^a-z]` | any one character except the range of `a` to `z` |
+| `[a^]`   | `a` or `^`                                       |
+
+##### Code Point Expressions
+
+The code point expressions match a character that has a specified code point. The code points consists of a four or six digits hex string.
+
+| Pattern      | Matches                     |
+|--------------|-----------------------------|
+| `\u{000A}`   | U+000A (LF)                 |
+| `\u{3042}`   | U+3042 (hiragana `あ`)      |
+| `\u{01F63A}` | U+1F63A (grinning cat `😺`) |
+
+##### Character Property Expressions
+
+The character property expressions match a character that has a specified character property of the Unicode. Currently, vartan supports `General_Category`, `Script`, `Alphabetic`, `Lowercase`, `Uppercase`, and `White_Space`. When you omitted the equal symbol and a right-side value, vartan interprets a symbol in `\p{...}` as the `General_Category` value.
+
+| Pattern                       | Matches                                                |
+|-------------------------------|--------------------------------------------------------|
+| `\p{General_Category=Letter}` | any one character whose `General_Category` is `Letter` |
+| `\p{gc=Letter}`               | the same as `\p{General_Category=Letter}`              |
+| `\p{Letter}`                  | the same as `\p{General_Category=Letter}`              |
+| `\p{l}`                       | the same as `\p{General_Category=Letter}`              |
+| `\p{Script=Latin}`            | any one character whose `Script` is `Latin`            |
+| `\p{Alphabetic=yes}`          | any one character whose `Alphabetic` is `yes`          |
+| `\p{Lowercase=yes}`           | any one character whose `Lowercase` is `yes`           |
+| `\p{Uppercase=yes}`           | any one character whose `Uppercase` is `yes`           |
+| `\p{White_Space=yes}`         | any one character whose `White_Space` is `yes`         |
+
+##### Escape Sequences
+
+As you escape the special character with `\`, you can write a rule that matches the special character itself.
+The following escape sequences are available outside of bracket expressions.
+
+| Pattern | Matches |
+|---------|---------|
+| `\.`    | `.`     |
+| `\?`    | `?`     |
+| `\*`    | `*`     |
+| `\+`    | `+`     |
+| `\(`    | `(`     |
+| `\)`    | `)`     |
+| `\[`    | `[`     |
+| `\\|`   | `\|`    |
+| `\\`    | `\`     |
+
+The following escape sequences are available inside bracket expressions.
+
+| Pattern | Matches |
+|---------|---------|
+| `\^`    | `^`     |
+| `\-`    | `-`     |
+| `\]`    | `]`     |
+
+#### Repetitions
+
+The repetitions match a string that repeats the previous single character or group.
+
+| Pattern | Matches          |
+|---------|------------------|
+| `a*`    | zero or more `a` |
+| `a+`    | one or more `a`  |
+| `a?`    | zero or one `a`  |
+
+#### Grouping
+
+`(` and `)` groups any patterns.
+
+| Pattern     | Matches                                         |
+|-------------|-------------------------------------------------|
+| `a(bc)*d`   | `ad`, `abcd`, `abcbcd`, and so on               |
+| `(ab\|cd)+` | `ab`, `cd`, `abcd`, `cdab`, `abcdab`, and so on |
+
+#### Unavailable Code Points
+
+Lexical specifications and source files to be analyzed cannot contain the following code points.
+
+When you write a pattern that implicitly contains the unavailable code points, vartan will automatically generate a pattern that doesn't contain the unavailable code points and replaces the original pattern. However, when you explicitly use the unavailable code points (like `\u{U+D800}` or `\p{General_Category=Cs}`), vartan will occur an error.
+
+* surrogate code points: U+D800..U+DFFF

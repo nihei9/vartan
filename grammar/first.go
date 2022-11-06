@@ -1,20 +1,24 @@
 package grammar
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/nihei9/vartan/grammar/symbol"
+)
 
 type firstEntry struct {
-	symbols map[symbol]struct{}
+	symbols map[symbol.Symbol]struct{}
 	empty   bool
 }
 
 func newFirstEntry() *firstEntry {
 	return &firstEntry{
-		symbols: map[symbol]struct{}{},
+		symbols: map[symbol.Symbol]struct{}{},
 		empty:   false,
 	}
 }
 
-func (e *firstEntry) add(sym symbol) bool {
+func (e *firstEntry) add(sym symbol.Symbol) bool {
 	if _, ok := e.symbols[sym]; ok {
 		return false
 	}
@@ -45,12 +49,12 @@ func (e *firstEntry) mergeExceptEmpty(target *firstEntry) bool {
 }
 
 type firstSet struct {
-	set map[symbol]*firstEntry
+	set map[symbol.Symbol]*firstEntry
 }
 
 func newFirstSet(prods *productionSet) *firstSet {
 	fst := &firstSet{
-		set: map[symbol]*firstEntry{},
+		set: map[symbol.Symbol]*firstEntry{},
 	}
 	for _, prod := range prods.getAllProductions() {
 		if _, ok := fst.set[prod.lhs]; ok {
@@ -69,7 +73,7 @@ func (fst *firstSet) find(prod *production, head int) (*firstEntry, error) {
 		return entry, nil
 	}
 	for _, sym := range prod.rhs[head:] {
-		if sym.isTerminal() {
+		if sym.IsTerminal() {
 			entry.add(sym)
 			return entry, nil
 		}
@@ -89,7 +93,7 @@ func (fst *firstSet) find(prod *production, head int) (*firstEntry, error) {
 	return entry, nil
 }
 
-func (fst *firstSet) findBySymbol(sym symbol) *firstEntry {
+func (fst *firstSet) findBySymbol(sym symbol.Symbol) *firstEntry {
 	return fst.set[sym]
 }
 
@@ -130,7 +134,7 @@ func genProdFirstEntry(cc *firstComContext, acc *firstEntry, prod *production) (
 	}
 
 	for _, sym := range prod.rhs {
-		if sym.isTerminal() {
+		if sym.IsTerminal() {
 			return acc.add(sym), nil
 		}
 

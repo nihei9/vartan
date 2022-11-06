@@ -5,12 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	spec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/grammar/symbol"
+	"github.com/nihei9/vartan/spec/grammar/parser"
 )
 
 type expectedLRState struct {
 	kernelItems    []*lrItem
-	nextStates     map[symbol][]*lrItem
+	nextStates     map[symbol.Symbol][]*lrItem
 	reducibleProds []*production
 	emptyProdItems []*lrItem
 }
@@ -41,15 +42,14 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 	var gram *Grammar
 	var automaton *lr0Automaton
 	{
-		ast, err := spec.Parse(strings.NewReader(src))
+		ast, err := parser.Parse(strings.NewReader(src))
 		if err != nil {
 			t.Fatal(err)
 		}
 		b := GrammarBuilder{
 			AST: ast,
 		}
-
-		gram, err = b.Build()
+		gram, err = b.build()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -118,7 +118,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 	expectedStates := []*expectedLRState{
 		{
 			kernelItems: expectedKernels[0],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("expr"):    expectedKernels[1],
 				genSym("term"):    expectedKernels[2],
 				genSym("factor"):  expectedKernels[3],
@@ -129,7 +129,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[1],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("add"): expectedKernels[6],
 			},
 			reducibleProds: []*production{
@@ -138,7 +138,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[2],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("mul"): expectedKernels[7],
 			},
 			reducibleProds: []*production{
@@ -147,14 +147,14 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[3],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("term", "factor"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[4],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("expr"):    expectedKernels[8],
 				genSym("term"):    expectedKernels[2],
 				genSym("factor"):  expectedKernels[3],
@@ -165,14 +165,14 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[5],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("factor", "id"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[6],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("term"):    expectedKernels[9],
 				genSym("factor"):  expectedKernels[3],
 				genSym("l_paren"): expectedKernels[4],
@@ -182,7 +182,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[7],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("factor"):  expectedKernels[10],
 				genSym("l_paren"): expectedKernels[4],
 				genSym("id"):      expectedKernels[5],
@@ -191,7 +191,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[8],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("add"):     expectedKernels[6],
 				genSym("r_paren"): expectedKernels[11],
 			},
@@ -199,7 +199,7 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[9],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("mul"): expectedKernels[7],
 			},
 			reducibleProds: []*production{
@@ -208,14 +208,14 @@ id: "[A-Za-z_][0-9A-Za-z_]*";
 		},
 		{
 			kernelItems: expectedKernels[10],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("term", "term", "mul", "factor"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[11],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("factor", "l_paren", "expr", "r_paren"),
 			},
@@ -246,7 +246,7 @@ b: "bar";
 	var gram *Grammar
 	var automaton *lr0Automaton
 	{
-		ast, err := spec.Parse(strings.NewReader(src))
+		ast, err := parser.Parse(strings.NewReader(src))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -254,7 +254,7 @@ b: "bar";
 		b := GrammarBuilder{
 			AST: ast,
 		}
-		gram, err = b.Build()
+		gram, err = b.build()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -298,7 +298,7 @@ b: "bar";
 	expectedStates := []*expectedLRState{
 		{
 			kernelItems: expectedKernels[0],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("s"):   expectedKernels[1],
 				genSym("foo"): expectedKernels[2],
 			},
@@ -311,14 +311,14 @@ b: "bar";
 		},
 		{
 			kernelItems: expectedKernels[1],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("s'", "s"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[2],
-			nextStates: map[symbol][]*lrItem{
+			nextStates: map[symbol.Symbol][]*lrItem{
 				genSym("bar"): expectedKernels[3],
 				genSym("b"):   expectedKernels[4],
 			},
@@ -331,14 +331,14 @@ b: "bar";
 		},
 		{
 			kernelItems: expectedKernels[3],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("s", "foo", "bar"),
 			},
 		},
 		{
 			kernelItems: expectedKernels[4],
-			nextStates:  map[symbol][]*lrItem{},
+			nextStates:  map[symbol.Symbol][]*lrItem{},
 			reducibleProds: []*production{
 				genProd("bar", "b"),
 			},

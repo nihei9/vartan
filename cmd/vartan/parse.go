@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nihei9/vartan/driver"
+	driver "github.com/nihei9/vartan/driver/parser"
 	spec "github.com/nihei9/vartan/spec/grammar"
 	"github.com/nihei9/vartan/tester"
 	"github.com/spf13/cobra"
@@ -172,7 +172,7 @@ func writeSyntaxErrorMessage(b *strings.Builder, cgram *spec.CompiledGrammar, sy
 	case tok.Invalid():
 		fmt.Fprintf(b, "'%v' (<invalid>)", string(tok.Lexeme()))
 	default:
-		if kind := cgram.ParsingTable.Terminals[tok.TerminalID()]; kind != "" {
+		if kind := cgram.Syntactic.Terminals[tok.TerminalID()]; kind != "" {
 			fmt.Fprintf(b, "'%v' (%v)", string(tok.Lexeme()), kind)
 		} else {
 			fmt.Fprintf(b, "'%v'", string(tok.Lexeme()))

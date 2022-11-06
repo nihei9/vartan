@@ -5,10 +5,11 @@ import (
 	"io"
 	"strings"
 
-	mlcompiler "github.com/nihei9/maleeni/compiler"
-	mlspec "github.com/nihei9/maleeni/spec"
 	verr "github.com/nihei9/vartan/error"
+	"github.com/nihei9/vartan/grammar/lexical"
+	"github.com/nihei9/vartan/grammar/symbol"
 	spec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/spec/grammar/parser"
 )
 
 type astActionEntry struct {
@@ -33,8 +34,8 @@ const (
 // We use the priority of the production to resolve shift/reduce conflicts.
 type precAndAssoc struct {
 	// termPrec and termAssoc represent the precedence of the terminal symbols.
-	termPrec  map[symbolNum]int
-	termAssoc map[symbolNum]assocType
+	termPrec  map[symbol.SymbolNum]int
+	termAssoc map[symbol.SymbolNum]assocType
 
 	// prodPrec and prodAssoc represent the precedence and the associativities of the production.
 	// These values are inherited from the right-most terminal symbols in the RHS of the productions.
@@ -42,7 +43,7 @@ type precAndAssoc struct {
 	prodAssoc map[productionNum]assocType
 }
 
-func (pa *precAndAssoc) terminalPrecedence(sym symbolNum) int {
+func (pa *precAndAssoc) terminalPrecedence(sym symbol.SymbolNum) int {
 	prec, ok := pa.termPrec[sym]
 	if !ok {
 		return precNil
@@ -51,7 +52,7 @@ func (pa *precAndAssoc) terminalPrecedence(sym symbolNum) int {
 	return prec
 }
 
-func (pa *precAndAssoc) terminalAssociativity(sym symbolNum) assocType {
+func (pa *precAndAssoc) terminalAssociativity(sym symbol.SymbolNum) assocType {
 	assoc, ok := pa.termAssoc[sym]
 	if !ok {
 		return assocTypeNil
@@ -82,12 +83,12 @@ const reservedSymbolNameError = "error"
 
 type Grammar struct {
 	name                 string
-	lexSpec              *mlspec.LexSpec
-	skipLexKinds         []mlspec.LexKindName
+	lexSpec              *lexical.LexSpec
+	skipSymbols          []symbol.Symbol
 	productionSet        *productionSet
-	augmentedStartSymbol symbol
-	errorSymbol          symbol
-	symbolTable          *symbolTableReader
+	augmentedStartSymbol symbol.Symbol
+	errorSymbol          symbol.Symbol
+	symbolTable          *symbol.SymbolTableReader
 	astActions           map[productionID][]*astActionEntry
 	precAndAssoc         *precAndAssoc
 
@@ -95,13 +96,34 @@ type Grammar struct {
 	recoverProductions map[productionID]struct{}
 }
 
+type buildConfig struct {
+	isReportingEnabled bool
+}
+
+type BuildOption func(config *buildConfig)
+
+func EnableReporting() BuildOption {
+	return func(config *buildConfig) {
+		config.isReportingEnabled = true
+	}
+}
+
 type GrammarBuilder struct {
-	AST *spec.RootNode
+	AST *parser.RootNode
 
 	errs verr.SpecErrors
 }
 
-func (b *GrammarBuilder) Build() (*Grammar, error) {
+func (b *GrammarBuilder) Build(opts ...BuildOption) (*spec.CompiledGrammar, *spec.Report, error) {
+	gram, err := b.build()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return compile(gram, opts...)
+}
+
+func (b *GrammarBuilder) build() (*Grammar, error) {
 	var specName string
 	{
 		errOccurred := false
@@ -143,12 +165,12 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, err
 	}
 
-	lexSpec, err := b.genLexSpec(b.AST)
+	lexSpec, skip, err := b.genLexSpecAndSkipSymbols(symTab.Reader(), b.AST)
 	if err != nil {
 		return nil, err
 	}
 
-	prodsAndActs, err := b.genProductionsAndActions(b.AST, symTab.reader(), ss.errSym, ss.augStartSym, ss.startSym)
+	prodsAndActs, err := b.genProductionsAndActions(b.AST, symTab.Reader(), ss.errSym, ss.augStartSym, ss.startSym)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +178,7 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
-	pa, err := b.genPrecAndAssoc(symTab.reader(), ss.errSym, prodsAndActs)
+	pa, err := b.genPrecAndAssoc(symTab.Reader(), ss.errSym, prodsAndActs)
 	if err != nil {
 		return nil, err
 	}
@@ -171,20 +193,23 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 
 	// When a terminal symbol that cannot be reached from the start symbol has the skip directive,
 	// the compiler treats its terminal as a used symbol, not unused.
-	for _, sym := range lexSpec.skip {
-		s := sym.String()
-		if _, ok := syms.unusedTerminals[s]; !ok {
-			prod := syms.usedTerminals[s]
-			b.errs = append(b.errs, &verr.SpecError{
-				Cause:  semErrTermCannotBeSkipped,
-				Detail: s,
-				Row:    prod.Pos.Row,
-				Col:    prod.Pos.Col,
-			})
-			continue
-		}
+	{
+		r := symTab.Reader()
+		for _, sym := range skip {
+			s, _ := r.ToText(sym)
+			if _, ok := syms.unusedTerminals[s]; !ok {
+				prod := syms.usedTerminals[s]
+				b.errs = append(b.errs, &verr.SpecError{
+					Cause:  semErrTermCannotBeSkipped,
+					Detail: s,
+					Row:    prod.Pos.Row,
+					Col:    prod.Pos.Col,
+				})
+				continue
+			}
 
-		delete(syms.unusedTerminals, s)
+			delete(syms.unusedTerminals, s)
+		}
 	}
 
 	for sym, prod := range syms.unusedProductions {
@@ -209,16 +234,14 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 		return nil, b.errs
 	}
 
-	lexSpec.lexSpec.Name = specName
-
 	return &Grammar{
 		name:                 specName,
-		lexSpec:              lexSpec.lexSpec,
-		skipLexKinds:         lexSpec.skip,
+		lexSpec:              lexSpec,
+		skipSymbols:          skip,
 		productionSet:        prodsAndActs.prods,
 		augmentedStartSymbol: prodsAndActs.augStartSym,
 		errorSymbol:          ss.errSym,
-		symbolTable:          symTab.reader(),
+		symbolTable:          symTab.Reader(),
 		astActions:           prodsAndActs.astActs,
 		recoverProductions:   prodsAndActs.recoverProds,
 		precAndAssoc:         pa,
@@ -226,14 +249,14 @@ func (b *GrammarBuilder) Build() (*Grammar, error) {
 }
 
 type usedAndUnusedSymbols struct {
-	unusedProductions map[string]*spec.ProductionNode
-	unusedTerminals   map[string]*spec.ProductionNode
-	usedTerminals     map[string]*spec.ProductionNode
+	unusedProductions map[string]*parser.ProductionNode
+	unusedTerminals   map[string]*parser.ProductionNode
+	usedTerminals     map[string]*parser.ProductionNode
 }
 
-func findUsedAndUnusedSymbols(root *spec.RootNode) *usedAndUnusedSymbols {
-	prods := map[string]*spec.ProductionNode{}
-	lexProds := map[string]*spec.ProductionNode{}
+func findUsedAndUnusedSymbols(root *parser.RootNode) *usedAndUnusedSymbols {
+	prods := map[string]*parser.ProductionNode{}
+	lexProds := map[string]*parser.ProductionNode{}
 	mark := map[string]bool{}
 	{
 		for _, p := range root.Productions {
@@ -262,9 +285,9 @@ func findUsedAndUnusedSymbols(root *spec.RootNode) *usedAndUnusedSymbols {
 		delete(mark, reservedSymbolNameError)
 	}
 
-	usedTerms := make(map[string]*spec.ProductionNode, len(lexProds))
-	unusedProds := map[string]*spec.ProductionNode{}
-	unusedTerms := map[string]*spec.ProductionNode{}
+	usedTerms := make(map[string]*parser.ProductionNode, len(lexProds))
+	unusedProds := map[string]*parser.ProductionNode{}
+	unusedTerms := map[string]*parser.ProductionNode{}
 	for sym, used := range mark {
 		if p, ok := prods[sym]; ok {
 			if used {
@@ -294,7 +317,7 @@ func findUsedAndUnusedSymbols(root *spec.RootNode) *usedAndUnusedSymbols {
 	}
 }
 
-func markUsedSymbols(mark map[string]bool, marked map[string]bool, prods map[string]*spec.ProductionNode, prod *spec.ProductionNode) {
+func markUsedSymbols(mark map[string]bool, marked map[string]bool, prods map[string]*parser.ProductionNode, prod *parser.ProductionNode) {
 	if marked[prod.LHS] {
 		return
 	}
@@ -320,7 +343,7 @@ func markUsedSymbols(mark map[string]bool, marked map[string]bool, prods map[str
 	}
 }
 
-func (b *GrammarBuilder) checkSpellingInconsistenciesOfUserDefinedIDs(root *spec.RootNode) {
+func (b *GrammarBuilder) checkSpellingInconsistenciesOfUserDefinedIDs(root *parser.RootNode) {
 	var ids []string
 	{
 		for _, prod := range root.Productions {
@@ -344,7 +367,7 @@ func (b *GrammarBuilder) checkSpellingInconsistenciesOfUserDefinedIDs(root *spec
 		}
 	}
 
-	duplicated := mlspec.FindSpellingInconsistencies(ids)
+	duplicated := lexical.FindSpellingInconsistencies(ids)
 	if len(duplicated) == 0 {
 		return
 	}
@@ -367,7 +390,7 @@ func (b *GrammarBuilder) checkSpellingInconsistenciesOfUserDefinedIDs(root *spec
 	}
 }
 
-func collectUserDefinedIDsFromDirective(dir *spec.DirectiveNode) []string {
+func collectUserDefinedIDsFromDirective(dir *parser.DirectiveNode) []string {
 	var ids []string
 	for _, param := range dir.Parameters {
 		if param.Group != nil {
@@ -386,20 +409,20 @@ func collectUserDefinedIDsFromDirective(dir *spec.DirectiveNode) []string {
 }
 
 type symbols struct {
-	errSym      symbol
-	augStartSym symbol
-	startSym    symbol
+	errSym      symbol.Symbol
+	augStartSym symbol.Symbol
+	startSym    symbol.Symbol
 }
 
-func (b *GrammarBuilder) genSymbolTable(root *spec.RootNode) (*symbolTable, *symbols, error) {
-	symTab := newSymbolTable()
-	w := symTab.writer()
-	r := symTab.reader()
+func (b *GrammarBuilder) genSymbolTable(root *parser.RootNode) (*symbol.SymbolTable, *symbols, error) {
+	symTab := symbol.NewSymbolTable()
+	w := symTab.Writer()
+	r := symTab.Reader()
 
 	// We need to register the reserved symbol before registering others.
-	var errSym symbol
+	var errSym symbol.Symbol
 	{
-		sym, err := w.registerTerminalSymbol(reservedSymbolNameError)
+		sym, err := w.RegisterTerminalSymbol(reservedSymbolNameError)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -407,7 +430,7 @@ func (b *GrammarBuilder) genSymbolTable(root *spec.RootNode) (*symbolTable, *sym
 	}
 
 	for _, prod := range root.LexProductions {
-		if sym, exist := r.toSymbol(prod.LHS); exist {
+		if sym, exist := r.ToSymbol(prod.LHS); exist {
 			if sym == errSym {
 				b.errs = append(b.errs, &verr.SpecError{
 					Cause: semErrErrSymIsReserved,
@@ -426,7 +449,7 @@ func (b *GrammarBuilder) genSymbolTable(root *spec.RootNode) (*symbolTable, *sym
 			continue
 		}
 
-		_, err := w.registerTerminalSymbol(prod.LHS)
+		_, err := w.RegisterTerminalSymbol(prod.LHS)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -435,7 +458,7 @@ func (b *GrammarBuilder) genSymbolTable(root *spec.RootNode) (*symbolTable, *sym
 	startProd := root.Productions[0]
 	augStartText := fmt.Sprintf("%s'", startProd.LHS)
 	var err error
-	augStartSym, err := w.registerStartSymbol(augStartText)
+	augStartSym, err := w.RegisterStartSymbol(augStartText)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -447,7 +470,7 @@ func (b *GrammarBuilder) genSymbolTable(root *spec.RootNode) (*symbolTable, *sym
 		})
 	}
 
-	startSym, err := w.registerNonTerminalSymbol(startProd.LHS)
+	startSym, err := w.RegisterNonTerminalSymbol(startProd.LHS)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -460,11 +483,11 @@ func (b *GrammarBuilder) genSymbolTable(root *spec.RootNode) (*symbolTable, *sym
 	}
 
 	for _, prod := range root.Productions {
-		sym, err := w.registerNonTerminalSymbol(prod.LHS)
+		sym, err := w.RegisterNonTerminalSymbol(prod.LHS)
 		if err != nil {
 			return nil, nil, err
 		}
-		if sym.isTerminal() {
+		if sym.IsTerminal() {
 			b.errs = append(b.errs, &verr.SpecError{
 				Cause:  semErrDuplicateName,
 				Detail: prod.LHS,
@@ -488,25 +511,21 @@ func (b *GrammarBuilder) genSymbolTable(root *spec.RootNode) (*symbolTable, *sym
 	}, nil
 }
 
-type lexSpec struct {
-	lexSpec *mlspec.LexSpec
-	skip    []mlspec.LexKindName
-}
-
-func (b *GrammarBuilder) genLexSpec(root *spec.RootNode) (*lexSpec, error) {
-	entries := []*mlspec.LexEntry{}
-	skipKinds := []mlspec.LexKindName{}
+func (b *GrammarBuilder) genLexSpecAndSkipSymbols(symTab *symbol.SymbolTableReader, root *parser.RootNode) (*lexical.LexSpec, []symbol.Symbol, error) {
+	entries := []*lexical.LexEntry{}
+	skipSyms := []symbol.Symbol{}
 	for _, prod := range root.LexProductions {
 		entry, skip, specErr, err := genLexEntry(prod)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if specErr != nil {
 			b.errs = append(b.errs, specErr)
 			continue
 		}
 		if skip {
-			skipKinds = append(skipKinds, mlspec.LexKindName(prod.LHS))
+			sym, _ := symTab.ToSymbol(prod.LHS)
+			skipSyms = append(skipSyms, sym)
 		}
 		entries = append(entries, entry)
 	}
@@ -524,35 +543,32 @@ func (b *GrammarBuilder) genLexSpec(root *spec.RootNode) (*lexSpec, error) {
 		}
 		checkedFragments[fragment.LHS] = struct{}{}
 
-		entries = append(entries, &mlspec.LexEntry{
+		entries = append(entries, &lexical.LexEntry{
 			Fragment: true,
-			Kind:     mlspec.LexKindName(fragment.LHS),
-			Pattern:  mlspec.LexPattern(fragment.RHS),
+			Kind:     spec.LexKindName(fragment.LHS),
+			Pattern:  fragment.RHS,
 		})
 	}
 
-	return &lexSpec{
-		lexSpec: &mlspec.LexSpec{
-			Entries: entries,
-		},
-		skip: skipKinds,
-	}, nil
+	return &lexical.LexSpec{
+		Entries: entries,
+	}, skipSyms, nil
 }
 
-func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecError, error) {
+func genLexEntry(prod *parser.ProductionNode) (*lexical.LexEntry, bool, *verr.SpecError, error) {
 	alt := prod.RHS[0]
 	elem := alt.Elements[0]
 
 	var pattern string
 	if elem.Literally {
-		pattern = mlspec.EscapePattern(elem.Pattern)
+		pattern = spec.EscapePattern(elem.Pattern)
 	} else {
 		pattern = elem.Pattern
 	}
 
-	var modes []mlspec.LexModeName
+	var modes []spec.LexModeName
 	var skip bool
-	var push mlspec.LexModeName
+	var push spec.LexModeName
 	var pop bool
 	dirConsumed := map[string]struct{}{}
 	for _, dir := range prod.Directives {
@@ -585,7 +601,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 						Col:    param.Pos.Col,
 					}, nil
 				}
-				modes = append(modes, mlspec.LexModeName(param.ID))
+				modes = append(modes, spec.LexModeName(param.ID))
 			}
 		case "skip":
 			if len(dir.Parameters) > 0 {
@@ -606,7 +622,7 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 					Col:    dir.Pos.Col,
 				}, nil
 			}
-			push = mlspec.LexModeName(dir.Parameters[0].ID)
+			push = spec.LexModeName(dir.Parameters[0].ID)
 		case "pop":
 			if len(dir.Parameters) > 0 {
 				return nil, false, &verr.SpecError{
@@ -636,10 +652,10 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 		}, nil
 	}
 
-	return &mlspec.LexEntry{
+	return &lexical.LexEntry{
 		Modes:   modes,
-		Kind:    mlspec.LexKindName(prod.LHS),
-		Pattern: mlspec.LexPattern(pattern),
+		Kind:    spec.LexKindName(prod.LHS),
+		Pattern: pattern,
 		Push:    push,
 		Pop:     pop,
 	}, skip, nil, nil
@@ -647,15 +663,15 @@ func genLexEntry(prod *spec.ProductionNode) (*mlspec.LexEntry, bool, *verr.SpecE
 
 type productionsAndActions struct {
 	prods           *productionSet
-	augStartSym     symbol
+	augStartSym     symbol.Symbol
 	astActs         map[productionID][]*astActionEntry
-	prodPrecsTerm   map[productionID]symbol
+	prodPrecsTerm   map[productionID]symbol.Symbol
 	prodPrecsOrdSym map[productionID]string
-	prodPrecPoss    map[productionID]*spec.Position
+	prodPrecPoss    map[productionID]*parser.Position
 	recoverProds    map[productionID]struct{}
 }
 
-func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *symbolTableReader, errSym symbol, augStartSym symbol, startSym symbol) (*productionsAndActions, error) {
+func (b *GrammarBuilder) genProductionsAndActions(root *parser.RootNode, symTab *symbol.SymbolTableReader, errSym symbol.Symbol, augStartSym symbol.Symbol, startSym symbol.Symbol) (*productionsAndActions, error) {
 	if len(root.Productions) == 0 {
 		b.errs = append(b.errs, &verr.SpecError{
 			Cause: semErrNoProduction,
@@ -665,12 +681,12 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *s
 
 	prods := newProductionSet()
 	astActs := map[productionID][]*astActionEntry{}
-	prodPrecsTerm := map[productionID]symbol{}
+	prodPrecsTerm := map[productionID]symbol.Symbol{}
 	prodPrecsOrdSym := map[productionID]string{}
-	prodPrecPoss := map[productionID]*spec.Position{}
+	prodPrecPoss := map[productionID]*parser.Position{}
 	recoverProds := map[productionID]struct{}{}
 
-	p, err := newProduction(augStartSym, []symbol{
+	p, err := newProduction(augStartSym, []symbol.Symbol{
 		startSym,
 	})
 	if err != nil {
@@ -680,7 +696,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *s
 	prods.append(p)
 
 	for _, prod := range root.Productions {
-		lhsSym, ok := symTab.toSymbol(prod.LHS)
+		lhsSym, ok := symTab.ToSymbol(prod.LHS)
 		if !ok {
 			// All symbols are assumed to be pre-detected, so it's a bug if we cannot find them here.
 			return nil, fmt.Errorf("symbol '%v' is undefined", prod.LHS)
@@ -698,11 +714,11 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *s
 
 	LOOP_RHS:
 		for _, alt := range prod.RHS {
-			altSyms := make([]symbol, len(alt.Elements))
+			altSyms := make([]symbol.Symbol, len(alt.Elements))
 			offsets := map[string]int{}
 			ambiguousIDOffsets := map[string]struct{}{}
 			for i, elem := range alt.Elements {
-				sym, ok := symTab.toSymbol(elem.ID)
+				sym, ok := symTab.ToSymbol(elem.ID)
 				if !ok {
 					b.errs = append(b.errs, &verr.SpecError{
 						Cause:  semErrUndefinedSym,
@@ -724,7 +740,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *s
 						})
 						continue LOOP_RHS
 					}
-					if _, found := symTab.toSymbol(elem.Label.Name); found {
+					if _, found := symTab.ToSymbol(elem.Label.Name); found {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrInvalidLabel,
 							Detail: elem.Label.Name,
@@ -877,12 +893,12 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *s
 								})
 								continue LOOP_RHS
 							}
-							elemSym, ok := symTab.toSymbol(elem.ID)
+							elemSym, ok := symTab.ToSymbol(elem.ID)
 							if !ok {
 								// If the symbol was not found, it's a bug.
 								return nil, fmt.Errorf("a symbol corresponding to an ID (%v) was not found", elem.ID)
 							}
-							if elemSym.isTerminal() {
+							if elemSym.IsTerminal() {
 								b.errs = append(b.errs, &verr.SpecError{
 									Cause:  semErrDirInvalidParam,
 									Detail: fmt.Sprintf("the expansion symbol cannot be applied to a terminal symbol (%v: %v)", param.ID, elem.ID),
@@ -912,7 +928,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *s
 					param := dir.Parameters[0]
 					switch {
 					case param.ID != "":
-						sym, ok := symTab.toSymbol(param.ID)
+						sym, ok := symTab.ToSymbol(param.ID)
 						if !ok {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDirInvalidParam,
@@ -930,7 +946,7 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *s
 								Col:    param.Pos.Col,
 							})
 						}
-						if !sym.isTerminal() {
+						if !sym.IsTerminal() {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDirInvalidParam,
 								Detail: fmt.Sprintf("the symbol must be a terminal: %v", param.ID),
@@ -980,12 +996,12 @@ func (b *GrammarBuilder) genProductionsAndActions(root *spec.RootNode, symTab *s
 	}, nil
 }
 
-func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbol, prodsAndActs *productionsAndActions) (*precAndAssoc, error) {
-	termPrec := map[symbolNum]int{}
-	termAssoc := map[symbolNum]assocType{}
+func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbol.SymbolTableReader, errSym symbol.Symbol, prodsAndActs *productionsAndActions) (*precAndAssoc, error) {
+	termPrec := map[symbol.SymbolNum]int{}
+	termAssoc := map[symbol.SymbolNum]assocType{}
 	ordSymPrec := map[string]int{}
 	{
-		var precGroup []*spec.DirectiveNode
+		var precGroup []*parser.DirectiveNode
 		for _, dir := range b.AST.Directives {
 			if dir.Name == "prec" {
 				if dir.Parameters == nil || len(dir.Parameters) != 1 || dir.Parameters[0].Group == nil {
@@ -1045,7 +1061,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbo
 			for _, p := range dir.Parameters {
 				switch {
 				case p.ID != "":
-					sym, ok := symTab.toSymbol(p.ID)
+					sym, ok := symTab.ToSymbol(p.ID)
 					if !ok {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
@@ -1064,7 +1080,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbo
 						})
 						return nil, nil
 					}
-					if !sym.isTerminal() {
+					if !sym.IsTerminal() {
 						b.errs = append(b.errs, &verr.SpecError{
 							Cause:  semErrDirInvalidParam,
 							Detail: fmt.Sprintf("associativity can take only terminal symbol ('%v' is a non-terminal)", p.ID),
@@ -1073,7 +1089,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbo
 						})
 						return nil, nil
 					}
-					if prec, alreadySet := termPrec[sym.num()]; alreadySet {
+					if prec, alreadySet := termPrec[sym.Num()]; alreadySet {
 						if prec == precN {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDuplicateAssoc,
@@ -1081,7 +1097,7 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbo
 								Row:    p.Pos.Row,
 								Col:    p.Pos.Col,
 							})
-						} else if assoc := termAssoc[sym.num()]; assoc == assocTy {
+						} else if assoc := termAssoc[sym.Num()]; assoc == assocTy {
 							b.errs = append(b.errs, &verr.SpecError{
 								Cause:  semErrDuplicateAssoc,
 								Detail: fmt.Sprintf("'%v' already has different precedence", p.ID),
@@ -1099,8 +1115,8 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbo
 						break ASSOC_PARAM_LOOP
 					}
 
-					termPrec[sym.num()] = precN
-					termAssoc[sym.num()] = assocTy
+					termPrec[sym.Num()] = precN
+					termAssoc[sym.Num()] = assocTy
 				case p.OrderedSymbol != "":
 					if prec, alreadySet := ordSymPrec[p.OrderedSymbol]; alreadySet {
 						if prec == precN {
@@ -1145,11 +1161,11 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbo
 	for _, prod := range prodsAndActs.prods.getAllProductions() {
 		// A #prec directive changes only precedence, not associativity.
 		if term, ok := prodsAndActs.prodPrecsTerm[prod.id]; ok {
-			if prec, ok := termPrec[term.num()]; ok {
+			if prec, ok := termPrec[term.Num()]; ok {
 				prodPrec[prod.num] = prec
 				prodAssoc[prod.num] = assocTypeNil
 			} else {
-				text, _ := symTab.toText(term)
+				text, _ := symTab.ToText(term)
 				b.errs = append(b.errs, &verr.SpecError{
 					Cause:  semErrUndefinedPrec,
 					Detail: text,
@@ -1171,16 +1187,16 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbo
 			}
 		} else {
 			// A production inherits precedence and associativity from the right-most terminal symbol.
-			mostrightTerm := symbolNil
+			mostrightTerm := symbol.SymbolNil
 			for _, sym := range prod.rhs {
-				if !sym.isTerminal() {
+				if !sym.IsTerminal() {
 					continue
 				}
 				mostrightTerm = sym
 			}
-			if !mostrightTerm.isNil() {
-				prodPrec[prod.num] = termPrec[mostrightTerm.num()]
-				prodAssoc[prod.num] = termAssoc[mostrightTerm.num()]
+			if !mostrightTerm.IsNil() {
+				prodPrec[prod.num] = termPrec[mostrightTerm.Num()]
+				prodAssoc[prod.num] = termAssoc[mostrightTerm.Num()]
 			}
 		}
 	}
@@ -1196,25 +1212,13 @@ func (b *GrammarBuilder) genPrecAndAssoc(symTab *symbolTableReader, errSym symbo
 	}, nil
 }
 
-type compileConfig struct {
-	isReportingEnabled bool
-}
-
-type CompileOption func(config *compileConfig)
-
-func EnableReporting() CompileOption {
-	return func(config *compileConfig) {
-		config.isReportingEnabled = true
-	}
-}
-
-func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec.Report, error) {
-	config := &compileConfig{}
+func compile(gram *Grammar, opts ...BuildOption) (*spec.CompiledGrammar, *spec.Report, error) {
+	config := &buildConfig{}
 	for _, opt := range opts {
 		opt(config)
 	}
 
-	lexSpec, err, cErrs := mlcompiler.Compile(gram.lexSpec, mlcompiler.CompressionLevel(mlcompiler.CompressionLevelMax))
+	lexSpec, err, cErrs := lexical.Compile(gram.lexSpec, lexical.CompressionLevelMax)
 	if err != nil {
 		if len(cErrs) > 0 {
 			var b strings.Builder
@@ -1230,35 +1234,44 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 
 	kind2Term := make([]int, len(lexSpec.KindNames))
 	for i, k := range lexSpec.KindNames {
-		if k == mlspec.LexKindNameNil {
-			kind2Term[mlspec.LexKindIDNil] = symbolNil.num().Int()
+		if k == spec.LexKindNameNil {
+			kind2Term[spec.LexKindIDNil] = symbol.SymbolNil.Num().Int()
 			continue
 		}
 
-		sym, ok := gram.symbolTable.toSymbol(k.String())
+		sym, ok := gram.symbolTable.ToSymbol(k.String())
 		if !ok {
 			return nil, nil, fmt.Errorf("terminal symbol '%v' was not found in a symbol table", k)
 		}
-		kind2Term[i] = sym.num().Int()
+		kind2Term[i] = sym.Num().Int()
 	}
 
-	termTexts, err := gram.symbolTable.terminalTexts()
+	termTexts, err := gram.symbolTable.TerminalTexts()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	termSkip := make([]int, len(termTexts))
-	for i, k := range lexSpec.KindNames {
-		for _, sk := range gram.skipLexKinds {
-			if k != sk {
-				continue
+	var termSkip []int
+	{
+		r := gram.symbolTable.Reader()
+		// I want to use gram.symbolTable.terminalSymbols() here instead of gram.symbolTable.terminalTexts(),
+		// but gram.symbolTable.terminalSymbols() is different in length from terminalTexts
+		// because it does not contain a predefined symbol, like EOF.
+		// Therefore, we use terminalTexts, although it takes more time to lookup for symbols.
+		termSkip = make([]int, len(termTexts))
+		for _, t := range termTexts {
+			s, _ := r.ToSymbol(t)
+			for _, sk := range gram.skipSymbols {
+				if s != sk {
+					continue
+				}
+				termSkip[s.Num()] = 1
+				break
 			}
-			termSkip[kind2Term[i]] = 1
-			break
 		}
 	}
 
-	nonTerms, err := gram.symbolTable.nonTerminalTexts()
+	nonTerms, err := gram.symbolTable.NonTerminalTexts()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1316,7 +1329,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 	recoverProds := make([]int, len(gram.productionSet.getAllProductions())+1)
 	astActEnties := make([][]int, len(gram.productionSet.getAllProductions())+1)
 	for _, p := range gram.productionSet.getAllProductions() {
-		lhsSyms[p.num] = p.lhs.num().Int()
+		lhsSyms[p.num] = p.lhs.Num().Int()
 		altSymCounts[p.num] = p.rhsLen
 
 		if _, ok := gram.recoverProductions[p.id]; ok {
@@ -1339,15 +1352,9 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 	}
 
 	return &spec.CompiledGrammar{
-		Name: gram.name,
-		LexicalSpecification: &spec.LexicalSpecification{
-			Lexer: "maleeni",
-			Maleeni: &spec.Maleeni{
-				Spec:           lexSpec,
-				KindToTerminal: kind2Term,
-			},
-		},
-		ParsingTable: &spec.ParsingTable{
+		Name:    gram.name,
+		Lexical: lexSpec,
+		Syntactic: &spec.SyntacticSpec{
 			Action:                  action,
 			GoTo:                    goTo,
 			StateCount:              tab.stateCount,
@@ -1358,10 +1365,11 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 			Terminals:               termTexts,
 			TerminalCount:           tab.terminalCount,
 			TerminalSkip:            termSkip,
+			KindToTerminal:          kind2Term,
 			NonTerminals:            nonTerms,
 			NonTerminalCount:        tab.nonTerminalCount,
-			EOFSymbol:               symbolEOF.num().Int(),
-			ErrorSymbol:             gram.errorSymbol.num().Int(),
+			EOFSymbol:               symbol.SymbolEOF.Num().Int(),
+			ErrorSymbol:             gram.errorSymbol.Num().Int(),
 			ErrorTrapperStates:      tab.errorTrapperStates,
 			RecoverProductions:      recoverProds,
 		},
@@ -1371,7 +1379,7 @@ func Compile(gram *Grammar, opts ...CompileOption) (*spec.CompiledGrammar, *spec
 	}, report, nil
 }
 
-func writeCompileError(w io.Writer, cErr *mlcompiler.CompileError) {
+func writeCompileError(w io.Writer, cErr *lexical.CompileError) {
 	if cErr.Fragment {
 		fmt.Fprintf(w, "fragment ")
 	}

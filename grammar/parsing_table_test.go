@@ -5,13 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	spec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/grammar/symbol"
+	"github.com/nihei9/vartan/spec/grammar/parser"
 )
 
 type expectedState struct {
 	kernelItems []*lrItem
-	acts        map[symbol]testActionEntry
-	goTos       map[symbol][]*lrItem
+	acts        map[symbol.Symbol]testActionEntry
+	goTos       map[symbol.Symbol][]*lrItem
 }
 
 func TestGenLALRParsingTable(t *testing.T) {
@@ -32,14 +33,14 @@ id: "[A-Za-z0-9_]+";
 	var nonTermCount int
 	var termCount int
 	{
-		ast, err := spec.Parse(strings.NewReader(src))
+		ast, err := parser.Parse(strings.NewReader(src))
 		if err != nil {
 			t.Fatal(err)
 		}
 		b := GrammarBuilder{
 			AST: ast,
 		}
-		gram, err = b.Build()
+		gram, err = b.build()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,11 +57,11 @@ id: "[A-Za-z0-9_]+";
 			t.Fatal(err)
 		}
 
-		nonTermTexts, err := gram.symbolTable.nonTerminalTexts()
+		nonTermTexts, err := gram.symbolTable.NonTerminalTexts()
 		if err != nil {
 			t.Fatal(err)
 		}
-		termTexts, err := gram.symbolTable.terminalTexts()
+		termTexts, err := gram.symbolTable.TerminalTexts()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -89,42 +90,42 @@ id: "[A-Za-z0-9_]+";
 
 	expectedKernels := map[int][]*lrItem{
 		0: {
-			withLookAhead(genLR0Item("s'", 0, "s"), symbolEOF),
+			withLookAhead(genLR0Item("s'", 0, "s"), symbol.SymbolEOF),
 		},
 		1: {
-			withLookAhead(genLR0Item("s'", 1, "s"), symbolEOF),
+			withLookAhead(genLR0Item("s'", 1, "s"), symbol.SymbolEOF),
 		},
 		2: {
-			withLookAhead(genLR0Item("s", 1, "l", "eq", "r"), symbolEOF),
-			withLookAhead(genLR0Item("r", 1, "l"), symbolEOF),
+			withLookAhead(genLR0Item("s", 1, "l", "eq", "r"), symbol.SymbolEOF),
+			withLookAhead(genLR0Item("r", 1, "l"), symbol.SymbolEOF),
 		},
 		3: {
-			withLookAhead(genLR0Item("s", 1, "r"), symbolEOF),
+			withLookAhead(genLR0Item("s", 1, "r"), symbol.SymbolEOF),
 		},
 		4: {
-			withLookAhead(genLR0Item("l", 1, "ref", "r"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("l", 1, "ref", "r"), genSym("eq"), symbol.SymbolEOF),
 		},
 		5: {
-			withLookAhead(genLR0Item("l", 1, "id"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("l", 1, "id"), genSym("eq"), symbol.SymbolEOF),
 		},
 		6: {
-			withLookAhead(genLR0Item("s", 2, "l", "eq", "r"), symbolEOF),
+			withLookAhead(genLR0Item("s", 2, "l", "eq", "r"), symbol.SymbolEOF),
 		},
 		7: {
-			withLookAhead(genLR0Item("l", 2, "ref", "r"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("l", 2, "ref", "r"), genSym("eq"), symbol.SymbolEOF),
 		},
 		8: {
-			withLookAhead(genLR0Item("r", 1, "l"), genSym("eq"), symbolEOF),
+			withLookAhead(genLR0Item("r", 1, "l"), genSym("eq"), symbol.SymbolEOF),
 		},
 		9: {
-			withLookAhead(genLR0Item("s", 3, "l", "eq", "r"), symbolEOF),
+			withLookAhead(genLR0Item("s", 3, "l", "eq", "r"), symbol.SymbolEOF),
 		},
 	}
 
 	expectedStates := []expectedState{
 		{
 			kernelItems: expectedKernels[0],
-			acts: map[symbol]testActionEntry{
+			acts: map[symbol.Symbol]testActionEntry{
 				genSym("ref"): {
 					ty:        ActionTypeShift,
 					nextState: expectedKernels[4],
@@ -134,7 +135,7 @@ id: "[A-Za-z0-9_]+";
 					nextState: expectedKernels[5],
 				},
 			},
-			goTos: map[symbol][]*lrItem{
+			goTos: map[symbol.Symbol][]*lrItem{
 				genSym("s"): expectedKernels[1],
 				genSym("l"): expectedKernels[2],
 				genSym("r"): expectedKernels[3],
@@ -142,8 +143,8 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[1],
-			acts: map[symbol]testActionEntry{
-				symbolEOF: {
+			acts: map[symbol.Symbol]testActionEntry{
+				symbol.SymbolEOF: {
 					ty:         ActionTypeReduce,
 					production: genProd("s'", "s"),
 				},
@@ -151,12 +152,12 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[2],
-			acts: map[symbol]testActionEntry{
+			acts: map[symbol.Symbol]testActionEntry{
 				genSym("eq"): {
 					ty:        ActionTypeShift,
 					nextState: expectedKernels[6],
 				},
-				symbolEOF: {
+				symbol.SymbolEOF: {
 					ty:         ActionTypeReduce,
 					production: genProd("r", "l"),
 				},
@@ -164,8 +165,8 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[3],
-			acts: map[symbol]testActionEntry{
-				symbolEOF: {
+			acts: map[symbol.Symbol]testActionEntry{
+				symbol.SymbolEOF: {
 					ty:         ActionTypeReduce,
 					production: genProd("s", "r"),
 				},
@@ -173,7 +174,7 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[4],
-			acts: map[symbol]testActionEntry{
+			acts: map[symbol.Symbol]testActionEntry{
 				genSym("ref"): {
 					ty:        ActionTypeShift,
 					nextState: expectedKernels[4],
@@ -183,19 +184,19 @@ id: "[A-Za-z0-9_]+";
 					nextState: expectedKernels[5],
 				},
 			},
-			goTos: map[symbol][]*lrItem{
+			goTos: map[symbol.Symbol][]*lrItem{
 				genSym("r"): expectedKernels[7],
 				genSym("l"): expectedKernels[8],
 			},
 		},
 		{
 			kernelItems: expectedKernels[5],
-			acts: map[symbol]testActionEntry{
+			acts: map[symbol.Symbol]testActionEntry{
 				genSym("eq"): {
 					ty:         ActionTypeReduce,
 					production: genProd("l", "id"),
 				},
-				symbolEOF: {
+				symbol.SymbolEOF: {
 					ty:         ActionTypeReduce,
 					production: genProd("l", "id"),
 				},
@@ -203,7 +204,7 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[6],
-			acts: map[symbol]testActionEntry{
+			acts: map[symbol.Symbol]testActionEntry{
 				genSym("ref"): {
 					ty:        ActionTypeShift,
 					nextState: expectedKernels[4],
@@ -213,19 +214,19 @@ id: "[A-Za-z0-9_]+";
 					nextState: expectedKernels[5],
 				},
 			},
-			goTos: map[symbol][]*lrItem{
+			goTos: map[symbol.Symbol][]*lrItem{
 				genSym("l"): expectedKernels[8],
 				genSym("r"): expectedKernels[9],
 			},
 		},
 		{
 			kernelItems: expectedKernels[7],
-			acts: map[symbol]testActionEntry{
+			acts: map[symbol.Symbol]testActionEntry{
 				genSym("eq"): {
 					ty:         ActionTypeReduce,
 					production: genProd("l", "ref", "r"),
 				},
-				symbolEOF: {
+				symbol.SymbolEOF: {
 					ty:         ActionTypeReduce,
 					production: genProd("l", "ref", "r"),
 				},
@@ -233,12 +234,12 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[8],
-			acts: map[symbol]testActionEntry{
+			acts: map[symbol.Symbol]testActionEntry{
 				genSym("eq"): {
 					ty:         ActionTypeReduce,
 					production: genProd("r", "l"),
 				},
-				symbolEOF: {
+				symbol.SymbolEOF: {
 					ty:         ActionTypeReduce,
 					production: genProd("r", "l"),
 				},
@@ -246,8 +247,8 @@ id: "[A-Za-z0-9_]+";
 		},
 		{
 			kernelItems: expectedKernels[9],
-			acts: map[symbol]testActionEntry{
-				symbolEOF: {
+			acts: map[symbol.Symbol]testActionEntry{
+				symbol.SymbolEOF: {
 					ty:         ActionTypeReduce,
 					production: genProd("s", "l", "eq", "r"),
 				},
@@ -287,11 +288,11 @@ id: "[A-Za-z0-9_]+";
 }
 
 func testAction(t *testing.T, expectedState *expectedState, state *lrState, ptab *ParsingTable, automaton *lr0Automaton, gram *Grammar, termCount int) {
-	nonEmptyEntries := map[symbolNum]struct{}{}
+	nonEmptyEntries := map[symbol.SymbolNum]struct{}{}
 	for eSym, eAct := range expectedState.acts {
-		nonEmptyEntries[eSym.num()] = struct{}{}
+		nonEmptyEntries[eSym.Num()] = struct{}{}
 
-		ty, stateNum, prodNum := ptab.getAction(state.num, eSym.num())
+		ty, stateNum, prodNum := ptab.getAction(state.num, eSym.Num())
 		if ty != eAct.ty {
 			t.Fatalf("action type is mismatched; want: %v, got: %v", eAct.ty, ty)
 		}
@@ -319,10 +320,10 @@ func testAction(t *testing.T, expectedState *expectedState, state *lrState, ptab
 		}
 	}
 	for symNum := 0; symNum < termCount; symNum++ {
-		if _, checked := nonEmptyEntries[symbolNum(symNum)]; checked {
+		if _, checked := nonEmptyEntries[symbol.SymbolNum(symNum)]; checked {
 			continue
 		}
-		ty, stateNum, prodNum := ptab.getAction(state.num, symbolNum(symNum))
+		ty, stateNum, prodNum := ptab.getAction(state.num, symbol.SymbolNum(symNum))
 		if ty != ActionTypeError {
 			t.Errorf("unexpected ACTION entry; state: #%v, symbol: #%v, action type: %v, next state: #%v, prodction: #%v", state.num, symNum, ty, stateNum, prodNum)
 		}
@@ -330,15 +331,15 @@ func testAction(t *testing.T, expectedState *expectedState, state *lrState, ptab
 }
 
 func testGoTo(t *testing.T, expectedState *expectedState, state *lrState, ptab *ParsingTable, automaton *lr0Automaton, nonTermCount int) {
-	nonEmptyEntries := map[symbolNum]struct{}{}
+	nonEmptyEntries := map[symbol.SymbolNum]struct{}{}
 	for eSym, eGoTo := range expectedState.goTos {
-		nonEmptyEntries[eSym.num()] = struct{}{}
+		nonEmptyEntries[eSym.Num()] = struct{}{}
 
 		eNextState, err := newKernel(eGoTo)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ty, stateNum := ptab.getGoTo(state.num, eSym.num())
+		ty, stateNum := ptab.getGoTo(state.num, eSym.Num())
 		if ty != GoToTypeRegistered {
 			t.Fatalf("GOTO entry was not found; state: #%v, symbol: #%v", state.num, eSym)
 		}
@@ -351,10 +352,10 @@ func testGoTo(t *testing.T, expectedState *expectedState, state *lrState, ptab *
 		}
 	}
 	for symNum := 0; symNum < nonTermCount; symNum++ {
-		if _, checked := nonEmptyEntries[symbolNum(symNum)]; checked {
+		if _, checked := nonEmptyEntries[symbol.SymbolNum(symNum)]; checked {
 			continue
 		}
-		ty, _ := ptab.getGoTo(state.num, symbolNum(symNum))
+		ty, _ := ptab.getGoTo(state.num, symbol.SymbolNum(symNum))
 		if ty != GoToTypeError {
 			t.Errorf("unexpected GOTO entry; state: #%v, symbol: #%v", state.num, symNum)
 		}

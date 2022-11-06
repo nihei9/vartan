@@ -10,6 +10,7 @@ import (
 	verr "github.com/nihei9/vartan/error"
 	"github.com/nihei9/vartan/grammar"
 	spec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/spec/grammar/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -78,17 +79,12 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		}
 	}
 
-	gram, err := readGrammar(grmPath)
+	gram, report, err := readGrammar(grmPath)
 	if err != nil {
 		return err
 	}
 
-	cgram, report, err := grammar.Compile(gram, grammar.EnableReporting())
-	if err != nil {
-		return err
-	}
-
-	err = writeCompiledGrammarAndReport(cgram, report, *compileFlags.output)
+	err = writeCompiledGrammarAndReport(gram, report, *compileFlags.output)
 	if err != nil {
 		return fmt.Errorf("Cannot write an output files: %w", err)
 	}
@@ -113,22 +109,22 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 	return nil
 }
 
-func readGrammar(path string) (grm *grammar.Grammar, retErr error) {
+func readGrammar(path string) (*spec.CompiledGrammar, *spec.Report, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot open the grammar file %s: %w", path, err)
+		return nil, nil, fmt.Errorf("Cannot open the grammar file %s: %w", path, err)
 	}
 	defer f.Close()
 
-	ast, err := spec.Parse(f)
+	ast, err := parser.Parse(f)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	b := grammar.GrammarBuilder{
 		AST: ast,
 	}
-	return b.Build()
+	return b.Build(grammar.EnableReporting())
 }
 
 // writeCompiledGrammarAndReport writes a compiled grammar and a report to a files located at a specified path.

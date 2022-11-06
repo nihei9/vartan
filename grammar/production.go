@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/nihei9/vartan/grammar/symbol"
 )
 
 type productionID [32]byte
@@ -12,10 +14,10 @@ func (id productionID) String() string {
 	return hex.EncodeToString(id[:])
 }
 
-func genProductionID(lhs symbol, rhs []symbol) productionID {
-	seq := lhs.byte()
+func genProductionID(lhs symbol.Symbol, rhs []symbol.Symbol) productionID {
+	seq := lhs.Byte()
 	for _, sym := range rhs {
-		seq = append(seq, sym.byte()...)
+		seq = append(seq, sym.Byte()...)
 	}
 	return productionID(sha256.Sum256(seq))
 }
@@ -35,17 +37,17 @@ func (n productionNum) Int() int {
 type production struct {
 	id     productionID
 	num    productionNum
-	lhs    symbol
-	rhs    []symbol
+	lhs    symbol.Symbol
+	rhs    []symbol.Symbol
 	rhsLen int
 }
 
-func newProduction(lhs symbol, rhs []symbol) (*production, error) {
-	if lhs.isNil() {
+func newProduction(lhs symbol.Symbol, rhs []symbol.Symbol) (*production, error) {
+	if lhs.IsNil() {
 		return nil, fmt.Errorf("LHS must be a non-nil symbol; LHS: %v, RHS: %v", lhs, rhs)
 	}
 	for _, sym := range rhs {
-		if sym.isNil() {
+		if sym.IsNil() {
 			return nil, fmt.Errorf("a symbol of RHS must be a non-nil symbol; LHS: %v, RHS: %v", lhs, rhs)
 		}
 	}
@@ -63,14 +65,14 @@ func (p *production) isEmpty() bool {
 }
 
 type productionSet struct {
-	lhs2Prods map[symbol][]*production
+	lhs2Prods map[symbol.Symbol][]*production
 	id2Prod   map[productionID]*production
 	num       productionNum
 }
 
 func newProductionSet() *productionSet {
 	return &productionSet{
-		lhs2Prods: map[symbol][]*production{},
+		lhs2Prods: map[symbol.Symbol][]*production{},
 		id2Prod:   map[productionID]*production{},
 		num:       productionNumMin,
 	}
@@ -81,7 +83,7 @@ func (ps *productionSet) append(prod *production) {
 		return
 	}
 
-	if prod.lhs.isStart() {
+	if prod.lhs.IsStart() {
 		prod.num = productionNumStart
 	} else {
 		prod.num = ps.num
@@ -101,8 +103,8 @@ func (ps *productionSet) findByID(id productionID) (*production, bool) {
 	return prod, ok
 }
 
-func (ps *productionSet) findByLHS(lhs symbol) ([]*production, bool) {
-	if lhs.isNil() {
+func (ps *productionSet) findByLHS(lhs symbol.Symbol) ([]*production, bool) {
+	if lhs.IsNil() {
 		return nil, false
 	}
 

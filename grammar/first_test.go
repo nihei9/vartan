@@ -4,7 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	spec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/grammar/symbol"
+	"github.com/nihei9/vartan/spec/grammar/parser"
 )
 
 type first struct {
@@ -137,7 +138,7 @@ bar: "bar";
 			fst, gram := genActualFirst(t, tt.src)
 
 			for _, ttFirst := range tt.first {
-				lhsSym, ok := gram.symbolTable.toSymbol(ttFirst.lhs)
+				lhsSym, ok := gram.symbolTable.ToSymbol(ttFirst.lhs)
 				if !ok {
 					t.Fatalf("a symbol was not found; symbol: %v", ttFirst.lhs)
 				}
@@ -161,14 +162,14 @@ bar: "bar";
 }
 
 func genActualFirst(t *testing.T, src string) (*firstSet, *Grammar) {
-	ast, err := spec.Parse(strings.NewReader(src))
+	ast, err := parser.Parse(strings.NewReader(src))
 	if err != nil {
 		t.Fatal(err)
 	}
 	b := GrammarBuilder{
 		AST: ast,
 	}
-	gram, err := b.Build()
+	gram, err := b.build()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +184,7 @@ func genActualFirst(t *testing.T, src string) (*firstSet, *Grammar) {
 	return fst, gram
 }
 
-func genExpectedFirstEntry(t *testing.T, symbols []string, empty bool, symTab *symbolTableReader) *firstEntry {
+func genExpectedFirstEntry(t *testing.T, symbols []string, empty bool, symTab *symbol.SymbolTableReader) *firstEntry {
 	t.Helper()
 
 	entry := newFirstEntry()
@@ -191,7 +192,7 @@ func genExpectedFirstEntry(t *testing.T, symbols []string, empty bool, symTab *s
 		entry.addEmpty()
 	}
 	for _, sym := range symbols {
-		symSym, ok := symTab.toSymbol(sym)
+		symSym, ok := symTab.ToSymbol(sym)
 		if !ok {
 			t.Fatalf("a symbol was not found; symbol: %v", sym)
 		}

@@ -3,6 +3,8 @@ package grammar
 import (
 	"fmt"
 	"sort"
+
+	"github.com/nihei9/vartan/grammar/symbol"
 )
 
 type lr0Automaton struct {
@@ -10,8 +12,8 @@ type lr0Automaton struct {
 	states       map[kernelID]*lrState
 }
 
-func genLR0Automaton(prods *productionSet, startSym symbol, errSym symbol) (*lr0Automaton, error) {
-	if !startSym.isStart() {
+func genLR0Automaton(prods *productionSet, startSym symbol.Symbol, errSym symbol.Symbol) (*lr0Automaton, error) {
+	if !startSym.IsStart() {
 		return nil, fmt.Errorf("passed symbold is not a start symbol")
 	}
 
@@ -67,7 +69,7 @@ func genLR0Automaton(prods *productionSet, startSym symbol, errSym symbol) (*lr0
 	return automaton, nil
 }
 
-func genStateAndNeighbourKernels(k *kernel, prods *productionSet, errSym symbol) (*lrState, []*kernel, error) {
+func genStateAndNeighbourKernels(k *kernel, prods *productionSet, errSym symbol.Symbol) (*lrState, []*kernel, error) {
 	items, err := genLR0Closure(k, prods)
 	if err != nil {
 		return nil, nil, err
@@ -77,7 +79,7 @@ func genStateAndNeighbourKernels(k *kernel, prods *productionSet, errSym symbol)
 		return nil, nil, err
 	}
 
-	next := map[symbol]kernelID{}
+	next := map[symbol.Symbol]kernelID{}
 	kernels := []*kernel{}
 	for _, n := range neighbours {
 		next[n.symbol] = n.kernel.id
@@ -125,7 +127,7 @@ func genLR0Closure(k *kernel, prods *productionSet) ([]*lrItem, error) {
 	for len(uncheckedItems) > 0 {
 		nextUncheckedItems := []*lrItem{}
 		for _, item := range uncheckedItems {
-			if item.dottedSymbol.isTerminal() {
+			if item.dottedSymbol.IsTerminal() {
 				continue
 			}
 
@@ -150,14 +152,14 @@ func genLR0Closure(k *kernel, prods *productionSet) ([]*lrItem, error) {
 }
 
 type neighbourKernel struct {
-	symbol symbol
+	symbol symbol.Symbol
 	kernel *kernel
 }
 
 func genNeighbourKernels(items []*lrItem, prods *productionSet) ([]*neighbourKernel, error) {
-	kItemMap := map[symbol][]*lrItem{}
+	kItemMap := map[symbol.Symbol][]*lrItem{}
 	for _, item := range items {
-		if item.dottedSymbol.isNil() {
+		if item.dottedSymbol.IsNil() {
 			continue
 		}
 		prod, ok := prods.findByID(item.prod)
@@ -171,7 +173,7 @@ func genNeighbourKernels(items []*lrItem, prods *productionSet) ([]*neighbourKer
 		kItemMap[item.dottedSymbol] = append(kItemMap[item.dottedSymbol], kItem)
 	}
 
-	nextSyms := []symbol{}
+	nextSyms := []symbol.Symbol{}
 	for sym := range kItemMap {
 		nextSyms = append(nextSyms, sym)
 	}

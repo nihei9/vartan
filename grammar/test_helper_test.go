@@ -1,14 +1,18 @@
 package grammar
 
-import "testing"
+import (
+	"testing"
 
-type testSymbolGenerator func(text string) symbol
+	"github.com/nihei9/vartan/grammar/symbol"
+)
 
-func newTestSymbolGenerator(t *testing.T, symTab *symbolTableReader) testSymbolGenerator {
-	return func(text string) symbol {
+type testSymbolGenerator func(text string) symbol.Symbol
+
+func newTestSymbolGenerator(t *testing.T, symTab *symbol.SymbolTableReader) testSymbolGenerator {
+	return func(text string) symbol.Symbol {
 		t.Helper()
 
-		sym, ok := symTab.toSymbol(text)
+		sym, ok := symTab.ToSymbol(text)
 		if !ok {
 			t.Fatalf("symbol was not found: %v", text)
 		}
@@ -22,7 +26,7 @@ func newTestProductionGenerator(t *testing.T, genSym testSymbolGenerator) testPr
 	return func(lhs string, rhs ...string) *production {
 		t.Helper()
 
-		rhsSym := []symbol{}
+		rhsSym := []symbol.Symbol{}
 		for _, text := range rhs {
 			rhsSym = append(rhsSym, genSym(text))
 		}
@@ -51,9 +55,9 @@ func newTestLR0ItemGenerator(t *testing.T, genProd testProductionGenerator) test
 	}
 }
 
-func withLookAhead(item *lrItem, lookAhead ...symbol) *lrItem {
+func withLookAhead(item *lrItem, lookAhead ...symbol.Symbol) *lrItem {
 	if item.lookAhead.symbols == nil {
-		item.lookAhead.symbols = map[symbol]struct{}{}
+		item.lookAhead.symbols = map[symbol.Symbol]struct{}{}
 	}
 
 	for _, a := range lookAhead {

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/nihei9/vartan/grammar"
-	gspec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/spec/grammar/parser"
 	tspec "github.com/nihei9/vartan/spec/test"
 )
 
@@ -123,18 +123,14 @@ foo foo foo
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
-			ast, err := gspec.Parse(strings.NewReader(tt.grammarSrc))
+			ast, err := parser.Parse(strings.NewReader(tt.grammarSrc))
 			if err != nil {
 				t.Fatal(err)
 			}
 			b := grammar.GrammarBuilder{
 				AST: ast,
 			}
-			g, err := b.Build()
-			if err != nil {
-				t.Fatal(err)
-			}
-			cg, _, err := grammar.Compile(g)
+			cg, _, err := b.Build()
 			if err != nil {
 				t.Fatal(err)
 			}

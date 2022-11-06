@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 
-	mldriver "github.com/nihei9/maleeni/driver"
-	"github.com/nihei9/vartan/driver"
+	"github.com/nihei9/vartan/driver/lexer"
+	"github.com/nihei9/vartan/driver/parser"
 	spec "github.com/nihei9/vartan/spec/grammar"
 	"github.com/spf13/cobra"
 )
@@ -42,7 +42,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	{
-		b, err := mldriver.GenLexer(cgram.LexicalSpecification.Maleeni.Spec, *generateFlags.pkgName)
+		b, err := lexer.GenLexer(cgram.Lexical, *generateFlags.pkgName)
 		if err != nil {
 			return fmt.Errorf("Failed to generate a lexer: %w", err)
 		}
@@ -62,7 +62,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	{
-		b, err := driver.GenParser(cgram, *generateFlags.pkgName)
+		b, err := parser.GenParser(cgram, *generateFlags.pkgName)
 		if err != nil {
 			return fmt.Errorf("Failed to generate a parser: %w", err)
 		}
@@ -82,7 +82,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	{
-		b, err := driver.GenSemanticAction(*generateFlags.pkgName)
+		b, err := parser.GenSemanticAction(*generateFlags.pkgName)
 		if err != nil {
 			return fmt.Errorf("Failed to generate a semantic action set: %w", err)
 		}

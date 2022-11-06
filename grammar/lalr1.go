@@ -1,6 +1,10 @@
 package grammar
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/nihei9/vartan/grammar/symbol"
+)
 
 type stateAndLRItem struct {
 	kernelID kernelID
@@ -19,8 +23,8 @@ type lalr1Automaton struct {
 func genLALR1Automaton(lr0 *lr0Automaton, prods *productionSet, first *firstSet) (*lalr1Automaton, error) {
 	// Set the look-ahead symbol <EOF> to the initial item: [S' → ・S, $]
 	iniState := lr0.states[lr0.initialState]
-	iniState.items[0].lookAhead.symbols = map[symbol]struct{}{
-		symbolEOF: {},
+	iniState.items[0].lookAhead.symbols = map[symbol.Symbol]struct{}{
+		symbol.SymbolEOF: {},
 	}
 
 	var props []*propagation
@@ -55,7 +59,7 @@ func genLALR1Automaton(lr0 *lr0Automaton, prods *productionSet, first *firstSet)
 							return nil, fmt.Errorf("reducible item not found: %v", item.id)
 						}
 						if reducibleItem.lookAhead.symbols == nil {
-							reducibleItem.lookAhead.symbols = map[symbol]struct{}{}
+							reducibleItem.lookAhead.symbols = map[symbol.Symbol]struct{}{}
 						}
 						for a := range item.lookAhead.symbols {
 							reducibleItem.lookAhead.symbols[a] = struct{}{}
@@ -104,7 +108,7 @@ func genLALR1Automaton(lr0 *lr0Automaton, prods *productionSet, first *firstSet)
 					}
 
 					if nextItem.lookAhead.symbols == nil {
-						nextItem.lookAhead.symbols = map[symbol]struct{}{}
+						nextItem.lookAhead.symbols = map[symbol.Symbol]struct{}{}
 					}
 
 					for a := range item.lookAhead.symbols {
@@ -138,7 +142,7 @@ func genLALR1Automaton(lr0 *lr0Automaton, prods *productionSet, first *firstSet)
 
 func genLALR1Closure(srcItem *lrItem, prods *productionSet, first *firstSet) ([]*lrItem, error) {
 	items := []*lrItem{}
-	knownItems := map[lrItemID]map[symbol]struct{}{}
+	knownItems := map[lrItemID]map[symbol.Symbol]struct{}{}
 	knownItemsProp := map[lrItemID]struct{}{}
 	uncheckedItems := []*lrItem{}
 	items = append(items, srcItem)
@@ -146,7 +150,7 @@ func genLALR1Closure(srcItem *lrItem, prods *productionSet, first *firstSet) ([]
 	for len(uncheckedItems) > 0 {
 		nextUncheckedItems := []*lrItem{}
 		for _, item := range uncheckedItems {
-			if item.dottedSymbol.isTerminal() {
+			if item.dottedSymbol.IsTerminal() {
 				continue
 			}
 
@@ -155,7 +159,7 @@ func genLALR1Closure(srcItem *lrItem, prods *productionSet, first *firstSet) ([]
 				return nil, fmt.Errorf("production not found: %v", item.prod)
 			}
 
-			var fstSyms []symbol
+			var fstSyms []symbol.Symbol
 			var isFstNullable bool
 			{
 				fst, err := first.find(p, item.dot+1)
@@ -163,7 +167,7 @@ func genLALR1Closure(srcItem *lrItem, prods *productionSet, first *firstSet) ([]
 					return nil, err
 				}
 
-				fstSyms = make([]symbol, len(fst.symbols))
+				fstSyms = make([]symbol.Symbol, len(fst.symbols))
 				i := 0
 				for s := range fst.symbols {
 					fstSyms[i] = s
@@ -176,7 +180,7 @@ func genLALR1Closure(srcItem *lrItem, prods *productionSet, first *firstSet) ([]
 
 			ps, _ := prods.findByLHS(item.dottedSymbol)
 			for _, prod := range ps {
-				var lookAhead []symbol
+				var lookAhead []symbol.Symbol
 				{
 					var lookAheadCount int
 					if isFstNullable {
@@ -185,7 +189,7 @@ func genLALR1Closure(srcItem *lrItem, prods *productionSet, first *firstSet) ([]
 						lookAheadCount = len(fstSyms)
 					}
 
-					lookAhead = make([]symbol, lookAheadCount)
+					lookAhead = make([]symbol.Symbol, lookAheadCount)
 					i := 0
 					for _, s := range fstSyms {
 						lookAhead[i] = s
@@ -210,13 +214,13 @@ func genLALR1Closure(srcItem *lrItem, prods *productionSet, first *firstSet) ([]
 						}
 					}
 
-					newItem.lookAhead.symbols = map[symbol]struct{}{
+					newItem.lookAhead.symbols = map[symbol.Symbol]struct{}{
 						a: {},
 					}
 
 					items = append(items, newItem)
 					if knownItems[newItem.id] == nil {
-						knownItems[newItem.id] = map[symbol]struct{}{}
+						knownItems[newItem.id] = map[symbol.Symbol]struct{}{}
 					}
 					knownItems[newItem.id][a] = struct{}{}
 					nextUncheckedItems = append(nextUncheckedItems, newItem)
@@ -297,7 +301,7 @@ func propagateLookAhead(lr0 *lr0Automaton, props []*propagation) error {
 					}
 
 					if destItem.lookAhead.symbols == nil {
-						destItem.lookAhead.symbols = map[symbol]struct{}{}
+						destItem.lookAhead.symbols = map[symbol.Symbol]struct{}{}
 					}
 
 					destItem.lookAhead.symbols[a] = struct{}{}

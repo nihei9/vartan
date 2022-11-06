@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+
+	"github.com/nihei9/vartan/grammar/symbol"
 )
 
 type lrItemID [32]byte
@@ -19,7 +21,7 @@ func (id lrItemID) num() uint32 {
 }
 
 type lookAhead struct {
-	symbols map[symbol]struct{}
+	symbols map[symbol.Symbol]struct{}
 
 	// When propagation is true, an item propagates look-ahead symbols to other items.
 	propagation bool
@@ -38,7 +40,7 @@ type lrItem struct {
 	// 2   | T             | E → E +・T
 	// 3   | Nil           | E → E + T・
 	dot          int
-	dottedSymbol symbol
+	dottedSymbol symbol.Symbol
 
 	// When initial is true, the LHS of the production is the augmented start symbol and dot is 0.
 	// It looks like S' →・S.
@@ -74,13 +76,13 @@ func newLR0Item(prod *production, dot int) (*lrItem, error) {
 		id = sha256.Sum256(b)
 	}
 
-	dottedSymbol := symbolNil
+	dottedSymbol := symbol.SymbolNil
 	if dot < prod.rhsLen {
 		dottedSymbol = prod.rhs[dot]
 	}
 
 	initial := false
-	if prod.lhs.isStart() && dot == 0 {
+	if prod.lhs.IsStart() && dot == 0 {
 		initial = true
 	}
 
@@ -176,7 +178,7 @@ func (n stateNum) next() stateNum {
 type lrState struct {
 	*kernel
 	num       stateNum
-	next      map[symbol]kernelID
+	next      map[symbol.Symbol]kernelID
 	reducible map[productionID]struct{}
 
 	// emptyProdItems stores items that have an empty production like `p → ε` and is reducible.

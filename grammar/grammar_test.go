@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	verr "github.com/nihei9/vartan/error"
-	spec "github.com/nihei9/vartan/spec/grammar"
+	"github.com/nihei9/vartan/spec/grammar/parser"
 )
 
 func TestGrammarBuilderOK(t *testing.T) {
@@ -243,9 +243,9 @@ baz
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if fooPrec != 1 || fooAssoc != assocTypeLeft {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, fooPrec, fooAssoc)
@@ -253,9 +253,9 @@ baz
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if barPrec != 1 || barAssoc != assocTypeLeft {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, barPrec, barAssoc)
@@ -263,9 +263,9 @@ baz
 				var bazPrec int
 				var bazAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("baz")
-					bazPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					bazAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("baz")
+					bazPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					bazAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if bazPrec != precNil || bazAssoc != assocTypeNil {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, bazPrec, bazAssoc)
@@ -296,9 +296,9 @@ baz
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if fooPrec != 1 || fooAssoc != assocTypeRight {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeRight, fooPrec, fooAssoc)
@@ -306,9 +306,9 @@ baz
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if barPrec != 1 || barAssoc != assocTypeRight {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeRight, barPrec, barAssoc)
@@ -316,9 +316,9 @@ baz
 				var bazPrec int
 				var bazAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("baz")
-					bazPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					bazAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("baz")
+					bazPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					bazAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if bazPrec != precNil || bazAssoc != assocTypeNil {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, bazPrec, bazAssoc)
@@ -349,9 +349,9 @@ baz
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if fooPrec != 1 || fooAssoc != assocTypeNil {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeNil, fooPrec, fooAssoc)
@@ -359,9 +359,9 @@ baz
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if barPrec != 1 || barAssoc != assocTypeNil {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeNil, barPrec, barAssoc)
@@ -369,9 +369,9 @@ baz
 				var bazPrec int
 				var bazAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("baz")
-					bazPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					bazAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("baz")
+					bazPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					bazAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if bazPrec != precNil || bazAssoc != assocTypeNil {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", precNil, assocTypeNil, bazPrec, bazAssoc)
@@ -400,14 +400,14 @@ bar
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var sPrec int
 				var sAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
 					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -443,14 +443,14 @@ bar
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var sPrec int
 				var sAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
 					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -489,21 +489,21 @@ bar
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var aPrec int
 				var aAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("a")
+					s, _ := g.symbolTable.ToSymbol("a")
 					ps, _ := g.productionSet.findByLHS(s)
 					aPrec = g.precAndAssoc.productionPredence(ps[0].num)
 					aAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -511,7 +511,7 @@ bar
 				var sPrec int
 				var sAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
 					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -567,7 +567,7 @@ bra
 				var alt4Prec int
 				var alt4Assoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
 					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -615,14 +615,14 @@ foo
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var aPrec int
 				var aAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("a")
+					s, _ := g.symbolTable.ToSymbol("a")
 					ps, _ := g.productionSet.findByLHS(s)
 					aPrec = g.precAndAssoc.productionPredence(ps[0].num)
 					aAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -630,7 +630,7 @@ foo
 				var sPrec int
 				var sAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
 					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -668,14 +668,14 @@ bar
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var sPrec int
 				var sAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
 					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -711,21 +711,21 @@ bar
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var sPrec int
 				var sAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					sPrec = g.precAndAssoc.productionPredence(ps[0].num)
 					sAssoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -766,9 +766,9 @@ bar
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if fooPrec != 2 || fooAssoc != assocTypeRight {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, fooPrec, fooAssoc)
@@ -776,9 +776,9 @@ bar
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if barPrec != 2 || barAssoc != assocTypeRight {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeRight, barPrec, barAssoc)
@@ -788,7 +788,7 @@ bar
 				var alt2Prec int
 				var alt2Assoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
 					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -828,9 +828,9 @@ bar
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if fooPrec != 2 || fooAssoc != assocTypeLeft {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeLeft, fooPrec, fooAssoc)
@@ -838,9 +838,9 @@ bar
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if barPrec != 2 || barAssoc != assocTypeLeft {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeLeft, barPrec, barAssoc)
@@ -850,7 +850,7 @@ bar
 				var alt2Prec int
 				var alt2Assoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
 					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -891,9 +891,9 @@ bar
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if fooPrec != 2 || fooAssoc != assocTypeLeft {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 2, assocTypeLeft, fooPrec, fooAssoc)
@@ -901,9 +901,9 @@ bar
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if barPrec != 3 || barAssoc != assocTypeRight {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 3, assocTypeRight, barPrec, barAssoc)
@@ -913,7 +913,7 @@ bar
 				var alt2Prec int
 				var alt2Assoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
 					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -952,16 +952,16 @@ bar
 				var fooPrec int
 				var fooAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("foo")
-					fooPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					fooAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("foo")
+					fooPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					fooAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if fooPrec != 1 || fooAssoc != assocTypeLeft {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, fooPrec, fooAssoc)
@@ -974,7 +974,7 @@ bar
 				var alt2Prec int
 				var alt2Assoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
 					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -1016,9 +1016,9 @@ bar
 				var barPrec int
 				var barAssoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("bar")
-					barPrec = g.precAndAssoc.terminalPrecedence(s.num())
-					barAssoc = g.precAndAssoc.terminalAssociativity(s.num())
+					s, _ := g.symbolTable.ToSymbol("bar")
+					barPrec = g.precAndAssoc.terminalPrecedence(s.Num())
+					barAssoc = g.precAndAssoc.terminalAssociativity(s.Num())
 				}
 				if barPrec != 1 || barAssoc != assocTypeLeft {
 					t.Fatalf("unexpected terminal precedence and associativity: want: (prec: %v, assoc: %v), got: (prec: %v, assoc: %v)", 1, assocTypeLeft, barPrec, barAssoc)
@@ -1028,7 +1028,7 @@ bar
 				var alt2Prec int
 				var alt2Assoc assocType
 				{
-					s, _ := g.symbolTable.toSymbol("s")
+					s, _ := g.symbolTable.ToSymbol("s")
 					ps, _ := g.productionSet.findByLHS(s)
 					alt1Prec = g.precAndAssoc.productionPredence(ps[0].num)
 					alt1Assoc = g.precAndAssoc.productionAssociativity(ps[0].num)
@@ -1052,7 +1052,7 @@ bar
 
 	for _, test := range tests {
 		t.Run(test.caption, func(t *testing.T) {
-			ast, err := spec.Parse(strings.NewReader(test.specSrc))
+			ast, err := parser.Parse(strings.NewReader(test.specSrc))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1060,7 +1060,7 @@ bar
 			b := GrammarBuilder{
 				AST: ast,
 			}
-			g, err := b.Build()
+			g, err := b.build()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -1075,7 +1075,7 @@ func TestGrammarBuilderSpecError(t *testing.T) {
 	type specErrTest struct {
 		caption string
 		specSrc string
-		errs    []*SemanticError
+		errs    []error
 	}
 
 	spellingInconsistenciesTests := []*specErrTest{
@@ -1094,7 +1094,7 @@ a_1
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrSpellingInconsistency},
+			errs: []error{semErrSpellingInconsistency},
 		},
 		{
 			caption: "a spelling inconsistency appears among terminal symbols",
@@ -1110,7 +1110,7 @@ foo1
 foo_1
     : 'foo_1';
 `,
-			errs: []*SemanticError{semErrSpellingInconsistency},
+			errs: []error{semErrSpellingInconsistency},
 		},
 		{
 			caption: "a spelling inconsistency appears among non-terminal and terminal symbols",
@@ -1124,7 +1124,7 @@ a1
 a_1
     : 'a_1';
 `,
-			errs: []*SemanticError{semErrSpellingInconsistency},
+			errs: []error{semErrSpellingInconsistency},
 		},
 		{
 			caption: "a spelling inconsistency appears among ordered symbols whose precedence is the same",
@@ -1145,7 +1145,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrSpellingInconsistency},
+			errs: []error{semErrSpellingInconsistency},
 		},
 		{
 			caption: "a spelling inconsistency appears among ordered symbols whose precedence is not the same",
@@ -1167,7 +1167,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrSpellingInconsistency},
+			errs: []error{semErrSpellingInconsistency},
 		},
 		{
 			caption: "a spelling inconsistency appears among labels the same alternative contains",
@@ -1181,7 +1181,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrSpellingInconsistency},
+			errs: []error{semErrSpellingInconsistency},
 		},
 		{
 			caption: "a spelling inconsistency appears among labels the same production contains",
@@ -1198,7 +1198,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrSpellingInconsistency},
+			errs: []error{semErrSpellingInconsistency},
 		},
 		{
 			caption: "a spelling inconsistency appears among labels different productions contain",
@@ -1217,7 +1217,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrSpellingInconsistency},
+			errs: []error{semErrSpellingInconsistency},
 		},
 	}
 
@@ -1237,7 +1237,7 @@ b
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrUnusedProduction},
+			errs: []error{semErrUnusedProduction},
 		},
 		{
 			caption: "a terminal symbol `bar` is unused",
@@ -1253,7 +1253,7 @@ foo
 bar
     : "bar";
 `,
-			errs: []*SemanticError{semErrUnusedTerminal},
+			errs: []error{semErrUnusedTerminal},
 		},
 		{
 			caption: "a production `b` and terminal symbol `bar` is unused",
@@ -1272,7 +1272,7 @@ foo
 bar
     : "bar";
 `,
-			errs: []*SemanticError{
+			errs: []error{
 				semErrUnusedProduction,
 				semErrUnusedTerminal,
 			},
@@ -1289,7 +1289,7 @@ s #prec foo
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrInvalidProdDir},
+			errs: []error{semErrInvalidProdDir},
 		},
 		{
 			caption: "a lexical production cannot have alternative directives",
@@ -1303,7 +1303,7 @@ s
 foo
     : 'foo' #skip;
 `,
-			errs: []*SemanticError{semErrInvalidAltDir},
+			errs: []error{semErrInvalidAltDir},
 		},
 		{
 			caption: "a production directive must not be duplicated",
@@ -1317,7 +1317,7 @@ s
 foo #skip #skip
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateDir},
+			errs: []error{semErrDuplicateDir},
 		},
 		{
 			caption: "an alternative directive must not be duplicated",
@@ -1333,7 +1333,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDuplicateDir},
+			errs: []error{semErrDuplicateDir},
 		},
 		{
 			caption: "a production must not have a duplicate alternative (non-empty alternatives)",
@@ -1348,7 +1348,7 @@ s
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDuplicateProduction},
+			errs: []error{semErrDuplicateProduction},
 		},
 		{
 			caption: "a production must not have a duplicate alternative (non-empty and split alternatives)",
@@ -1371,7 +1371,7 @@ foo
 bar
     : "bar";
 `,
-			errs: []*SemanticError{semErrDuplicateProduction},
+			errs: []error{semErrDuplicateProduction},
 		},
 		{
 			caption: "a production must not have a duplicate alternative (empty alternatives)",
@@ -1390,7 +1390,7 @@ a
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDuplicateProduction},
+			errs: []error{semErrDuplicateProduction},
 		},
 		{
 			caption: "a production must not have a duplicate alternative (empty and split alternatives)",
@@ -1412,7 +1412,7 @@ a
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDuplicateProduction},
+			errs: []error{semErrDuplicateProduction},
 		},
 		{
 			caption: "a terminal symbol and a non-terminal symbol (start symbol) are duplicates",
@@ -1428,7 +1428,7 @@ foo
 s
     : "a";
 `,
-			errs: []*SemanticError{semErrDuplicateName},
+			errs: []error{semErrDuplicateName},
 		},
 		{
 			caption: "a terminal symbol and a non-terminal symbol (not start symbol) are duplicates",
@@ -1450,7 +1450,7 @@ bar
 a
     : "a";
 `,
-			errs: []*SemanticError{semErrDuplicateName},
+			errs: []error{semErrDuplicateName},
 		},
 		{
 			caption: "an invalid top-level directive",
@@ -1466,7 +1466,7 @@ s
 a
     : 'a';
 `,
-			errs: []*SemanticError{semErrDirInvalidName},
+			errs: []error{semErrDirInvalidName},
 		},
 		{
 			caption: "a label must be unique in an alternative",
@@ -1482,7 +1482,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDuplicateLabel},
+			errs: []error{semErrDuplicateLabel},
 		},
 		{
 			caption: "a label cannot be the same name as terminal symbols",
@@ -1498,7 +1498,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDuplicateLabel},
+			errs: []error{semErrDuplicateLabel},
 		},
 		{
 			caption: "a label cannot be the same name as non-terminal symbols",
@@ -1518,7 +1518,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{
+			errs: []error{
 				semErrInvalidLabel,
 			},
 		},
@@ -1535,7 +1535,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrNoGrammarName},
+			errs: []error{semErrNoGrammarName},
 		},
 		{
 			caption: "the `#name` directive needs an ID parameter",
@@ -1549,7 +1549,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#name` directive cannot take a pattern parameter",
@@ -1563,7 +1563,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#name` directive cannot take a string parameter",
@@ -1577,7 +1577,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#name` directive takes just one parameter",
@@ -1591,7 +1591,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 	}
 
@@ -1610,7 +1610,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take an ID parameter",
@@ -1626,7 +1626,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take an ordered symbol parameter",
@@ -1642,7 +1642,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take a pattern parameter",
@@ -1658,7 +1658,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take a string parameter",
@@ -1674,7 +1674,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive takes just one directive group parameter",
@@ -1690,7 +1690,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 	}
 
@@ -1711,7 +1711,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#left` directive cannot be applied to an error symbol",
@@ -1732,7 +1732,7 @@ foo
 semi_colon
     : ';';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#left` directive cannot take an undefined symbol",
@@ -1750,7 +1750,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#left` directive cannot take a non-terminal symbol",
@@ -1768,7 +1768,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#left` directive cannot take a pattern parameter",
@@ -1786,7 +1786,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#left` directive cannot take a string parameter",
@@ -1804,7 +1804,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#left` directive cannot take a directive parameter",
@@ -1822,7 +1822,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#left` dirctive cannot be specified multiple times for a terminal symbol",
@@ -1840,7 +1840,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "the `#left` dirctive cannot be specified multiple times for an ordered symbol",
@@ -1858,7 +1858,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "a terminal symbol cannot have different precedence",
@@ -1877,7 +1877,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "an ordered symbol cannot have different precedence",
@@ -1896,7 +1896,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "a terminal symbol cannot have different associativity",
@@ -1915,7 +1915,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "an ordered symbol cannot have different associativity",
@@ -1934,7 +1934,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 	}
 
@@ -1955,7 +1955,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#right` directive cannot be applied to an error symbol",
@@ -1976,7 +1976,7 @@ foo
 semi_colon
     : ';';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#right` directive cannot take an undefined symbol",
@@ -1994,7 +1994,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#right` directive cannot take a non-terminal symbol",
@@ -2012,7 +2012,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#right` directive cannot take a pattern parameter",
@@ -2030,7 +2030,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#right` directive cannot take a string parameter",
@@ -2048,7 +2048,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#right` directive cannot take a directive group parameter",
@@ -2066,7 +2066,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#right` directive cannot be specified multiple times for a terminal symbol",
@@ -2084,7 +2084,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "the `#right` directive cannot be specified multiple times for an ordered symbol",
@@ -2102,7 +2102,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "a terminal symbol cannot have different precedence",
@@ -2121,7 +2121,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "an ordered symbol cannot have different precedence",
@@ -2140,7 +2140,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "a terminal symbol cannot have different associativity",
@@ -2159,7 +2159,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "an ordered symbol cannot have different associativity",
@@ -2178,7 +2178,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 	}
 
@@ -2199,7 +2199,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#assign` directive cannot be applied to an error symbol",
@@ -2220,7 +2220,7 @@ foo
 semi_colon
     : ';';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#assign` directive cannot take an undefined symbol",
@@ -2238,7 +2238,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#assign` directive cannot take a non-terminal symbol",
@@ -2256,7 +2256,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#assign` directive cannot take a pattern parameter",
@@ -2274,7 +2274,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#assign` directive cannot take a string parameter",
@@ -2292,7 +2292,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#assign` directive cannot take a directive parameter",
@@ -2310,7 +2310,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#assign` dirctive cannot be specified multiple times for a terminal symbol",
@@ -2328,7 +2328,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "the `#assign` dirctive cannot be specified multiple times for an ordered symbol",
@@ -2346,7 +2346,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "a terminal symbol cannot have different precedence",
@@ -2365,7 +2365,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "an ordered symbol cannot have different precedence",
@@ -2384,7 +2384,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "a terminal symbol cannot have different associativity",
@@ -2403,7 +2403,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 		{
 			caption: "an ordered symbol cannot have different associativity",
@@ -2422,7 +2422,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateAssoc},
+			errs: []error{semErrDuplicateAssoc},
 		},
 	}
 
@@ -2441,7 +2441,7 @@ error
 
 foo: 'foo';
 `,
-			errs: []*SemanticError{
+			errs: []error{
 				semErrErrSymIsReserved,
 				semErrDuplicateName,
 			},
@@ -2457,7 +2457,7 @@ s
 
 error: 'error';
 `,
-			errs: []*SemanticError{semErrErrSymIsReserved},
+			errs: []error{semErrErrSymIsReserved},
 		},
 		{
 			caption: "cannot use the error symbol as a terminal symbol, even if given the skip directive",
@@ -2473,7 +2473,7 @@ foo
 error #skip
     : 'error';
 `,
-			errs: []*SemanticError{semErrErrSymIsReserved},
+			errs: []error{semErrErrSymIsReserved},
 		},
 	}
 
@@ -2490,7 +2490,7 @@ s
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#ast` directive cannot take an ordered symbol parameter",
@@ -2508,7 +2508,7 @@ s
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#ast` directive cannot take a pattern parameter",
@@ -2522,7 +2522,7 @@ s
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#ast` directive cannot take a string parameter",
@@ -2536,7 +2536,7 @@ s
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#ast` directive cannot take a directive group parameter",
@@ -2550,7 +2550,7 @@ s
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "a parameter of the `#ast` directive must be either a symbol or a label in an alternative",
@@ -2566,7 +2566,7 @@ foo
 bar
     : "bar";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "a symbol in a different alternative cannot be a parameter of the `#ast` directive",
@@ -2583,7 +2583,7 @@ foo
 bar
     : "bar";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "a label in a different alternative cannot be a parameter of the `#ast` directive",
@@ -2600,7 +2600,7 @@ foo
 bar
     : "bar";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "a symbol can appear in the `#ast` directive only once",
@@ -2614,7 +2614,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateElem},
+			errs: []error{semErrDuplicateElem},
 		},
 		{
 			caption: "a label can appear in the `#ast` directive only once",
@@ -2628,7 +2628,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateElem},
+			errs: []error{semErrDuplicateElem},
 		},
 		{
 			caption: "a symbol can appear in the `#ast` directive only once, even if the symbol has a label",
@@ -2642,7 +2642,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDuplicateElem},
+			errs: []error{semErrDuplicateElem},
 		},
 		{
 			caption: "symbol `foo` is ambiguous because it appears in an alternative twice",
@@ -2656,7 +2656,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrAmbiguousElem},
+			errs: []error{semErrAmbiguousElem},
 		},
 		{
 			caption: "symbol `foo` is ambiguous because it appears in an alternative twice, even if one of them has a label",
@@ -2670,7 +2670,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrAmbiguousElem},
+			errs: []error{semErrAmbiguousElem},
 		},
 		{
 			caption: "the expansion operator cannot be applied to a terminal symbol",
@@ -2684,7 +2684,7 @@ s
 foo
     : "foo";
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 	}
 
@@ -2701,7 +2701,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot be applied to an error symbol",
@@ -2715,7 +2715,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take an undefined symbol",
@@ -2729,7 +2729,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take a non-terminal symbol",
@@ -2752,7 +2752,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take an undefined ordered symbol parameter",
@@ -2766,7 +2766,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrUndefinedOrdSym},
+			errs: []error{semErrUndefinedOrdSym},
 		},
 		{
 			caption: "the `#prec` directive cannot take a pattern parameter",
@@ -2780,7 +2780,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take a string parameter",
@@ -2794,7 +2794,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#prec` directive cannot take a directive parameter",
@@ -2808,7 +2808,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "a symbol the `#prec` directive takes must be given precedence explicitly",
@@ -2824,7 +2824,7 @@ foo
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrUndefinedPrec},
+			errs: []error{semErrUndefinedPrec},
 		},
 	}
 
@@ -2841,7 +2841,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#recover` directive cannot take an ordered symbol parameter",
@@ -2859,7 +2859,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#recover` directive cannot take a pattern parameter",
@@ -2873,7 +2873,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#recover` directive cannot take a string parameter",
@@ -2887,7 +2887,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#recover` directive cannot take a directive group parameter",
@@ -2901,7 +2901,7 @@ s
 foo
     : 'foo';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 	}
 
@@ -2918,7 +2918,7 @@ s
 fragment f
     : 'fragment';
 `,
-			errs: []*SemanticError{semErrUndefinedSym},
+			errs: []error{semErrUndefinedSym},
 		},
 		{
 			caption: "fragments cannot be duplicated",
@@ -2936,7 +2936,7 @@ fragment f
 fragment f
     : 'fragment 2';
 `,
-			errs: []*SemanticError{semErrDuplicateFragment},
+			errs: []error{semErrDuplicateFragment},
 		},
 	}
 
@@ -2955,7 +2955,7 @@ foo #push mode_1
 bar #mode
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#mode` directive cannot take an ordered symbol parameter",
@@ -2975,7 +2975,7 @@ foo
 bar #mode $x
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#mode` directive cannot take a pattern parameter",
@@ -2991,7 +2991,7 @@ foo #push mode_1
 bar #mode "mode_1"
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#mode` directive cannot take a string parameter",
@@ -3007,7 +3007,7 @@ foo #push mode_1
 bar #mode 'mode_1'
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#mode` directive cannot take a directive group parameter",
@@ -3023,7 +3023,7 @@ foo #push mode_1
 bar #mode ()
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 	}
 
@@ -3042,7 +3042,7 @@ foo #push
 bar #mode mode_1
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#push` directive takes just one ID parameter",
@@ -3058,7 +3058,7 @@ foo #push mode_1 mode_2
 bar #mode mode_1
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#push` directive cannot take an ordered symbol parameter",
@@ -3078,7 +3078,7 @@ foo #push $x
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#push` directive cannot take a pattern parameter",
@@ -3094,7 +3094,7 @@ foo #push "mode_1"
 bar #mode mode_1
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#push` directive cannot take a string parameter",
@@ -3110,7 +3110,7 @@ foo #push 'mode_1'
 bar #mode mode_1
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#push` directive cannot take a directive group parameter",
@@ -3126,7 +3126,7 @@ foo #push ()
 bar #mode mode_1
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 	}
 
@@ -3147,7 +3147,7 @@ bar #mode mode_1
 baz #pop mode_1
     : 'baz';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#pop` directive cannot take an ordered symbol parameter",
@@ -3169,7 +3169,7 @@ bar #mode mode_1
 baz #pop $x
     : 'baz';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#pop` directive cannot take a pattern parameter",
@@ -3187,7 +3187,7 @@ bar #mode mode_1
 baz #pop "mode_1"
     : 'baz';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#pop` directive cannot take a string parameter",
@@ -3205,7 +3205,7 @@ bar #mode mode_1
 baz #pop 'mode_1'
     : 'baz';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#pop` directive cannot take a directive parameter",
@@ -3223,7 +3223,7 @@ bar #mode mode_1
 baz #pop ()
     : 'baz';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 	}
 
@@ -3242,7 +3242,7 @@ foo #skip bar
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#skip` directive cannot take an ordered symbol parameter",
@@ -3262,7 +3262,7 @@ foo #skip $x
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#skip` directive cannot take a pattern parameter",
@@ -3278,7 +3278,7 @@ foo #skip "bar"
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#skip` directive cannot take a string parameter",
@@ -3294,7 +3294,7 @@ foo #skip 'bar'
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "the `#skip` directive cannot take a directive group parameter",
@@ -3310,7 +3310,7 @@ foo #skip ()
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrDirInvalidParam},
+			errs: []error{semErrDirInvalidParam},
 		},
 		{
 			caption: "a terminal symbol used in productions cannot have the skip directive",
@@ -3326,7 +3326,7 @@ foo #skip
 bar
     : 'bar';
 `,
-			errs: []*SemanticError{semErrTermCannotBeSkipped},
+			errs: []error{semErrTermCannotBeSkipped},
 		},
 	}
 
@@ -3349,7 +3349,7 @@ bar
 	tests = append(tests, skipDirTests...)
 	for _, test := range tests {
 		t.Run(test.caption, func(t *testing.T) {
-			ast, err := spec.Parse(strings.NewReader(test.specSrc))
+			ast, err := parser.Parse(strings.NewReader(test.specSrc))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3357,7 +3357,7 @@ bar
 			b := GrammarBuilder{
 				AST: ast,
 			}
-			_, err = b.Build()
+			_, err = b.build()
 			if err == nil {
 				t.Fatal("an expected error didn't occur")
 			}
