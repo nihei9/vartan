@@ -151,7 +151,7 @@ type lrTableBuilder struct {
 	prods        *productionSet
 	termCount    int
 	nonTermCount int
-	symTab       *symbolTable
+	symTab       *symbolTableReader
 	precAndAssoc *precAndAssoc
 
 	conflicts []conflict

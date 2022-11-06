@@ -183,7 +183,7 @@ func genActualFirst(t *testing.T, src string) (*firstSet, *Grammar) {
 	return fst, gram
 }
 
-func genExpectedFirstEntry(t *testing.T, symbols []string, empty bool, symTab *symbolTable) *firstEntry {
+func genExpectedFirstEntry(t *testing.T, symbols []string, empty bool, symTab *symbolTableReader) *firstEntry {
 	t.Helper()
 
 	entry := newFirstEntry()

@@ -4,7 +4,7 @@ import "testing"
 
 type testSymbolGenerator func(text string) symbol
 
-func newTestSymbolGenerator(t *testing.T, symTab *symbolTable) testSymbolGenerator {
+func newTestSymbolGenerator(t *testing.T, symTab *symbolTableReader) testSymbolGenerator {
 	return func(text string) symbol {
 		t.Helper()
 

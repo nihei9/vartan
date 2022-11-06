@@ -162,6 +162,14 @@ type symbolTable struct {
 	termNum      symbolNum
 }
 
+type symbolTableWriter struct {
+	*symbolTable
+}
+
+type symbolTableReader struct {
+	*symbolTable
+}
+
 func newSymbolTable() *symbolTable {
 	return &symbolTable{
 		text2Sym: map[string]symbol{
@@ -183,58 +191,70 @@ func newSymbolTable() *symbolTable {
 	}
 }
 
-func (t *symbolTable) registerStartSymbol(text string) (symbol, error) {
-	t.text2Sym[text] = symbolStart
-	t.sym2Text[symbolStart] = text
-	t.nonTermTexts[symbolStart.num().Int()] = text
+func (t *symbolTable) writer() *symbolTableWriter {
+	return &symbolTableWriter{
+		symbolTable: t,
+	}
+}
+
+func (t *symbolTable) reader() *symbolTableReader {
+	return &symbolTableReader{
+		symbolTable: t,
+	}
+}
+
+func (w *symbolTableWriter) registerStartSymbol(text string) (symbol, error) {
+	w.text2Sym[text] = symbolStart
+	w.sym2Text[symbolStart] = text
+	w.nonTermTexts[symbolStart.num().Int()] = text
 	return symbolStart, nil
 }
 
-func (t *symbolTable) registerNonTerminalSymbol(text string) (symbol, error) {
-	if sym, ok := t.text2Sym[text]; ok {
+func (w *symbolTableWriter) registerNonTerminalSymbol(text string) (symbol, error) {
+	if sym, ok := w.text2Sym[text]; ok {
 		return sym, nil
 	}
-	sym, err := newSymbol(symbolKindNonTerminal, false, t.nonTermNum)
+	sym, err := newSymbol(symbolKindNonTerminal, false, w.nonTermNum)
 	if err != nil {
 		return symbolNil, err
 	}
-	t.nonTermNum++
-	t.text2Sym[text] = sym
-	t.sym2Text[sym] = text
-	t.nonTermTexts = append(t.nonTermTexts, text)
+	w.nonTermNum++
+	w.text2Sym[text] = sym
+	w.sym2Text[sym] = text
+	w.nonTermTexts = append(w.nonTermTexts, text)
 	return sym, nil
 }
 
-func (t *symbolTable) registerTerminalSymbol(text string) (symbol, error) {
-	if sym, ok := t.text2Sym[text]; ok {
+func (w *symbolTableWriter) registerTerminalSymbol(text string) (symbol, error) {
+	if sym, ok := w.text2Sym[text]; ok {
 		return sym, nil
 	}
-	sym, err := newSymbol(symbolKindTerminal, false, t.termNum)
+	sym, err := newSymbol(symbolKindTerminal, false, w.termNum)
 	if err != nil {
 		return symbolNil, err
 	}
-	t.termNum++
-	t.text2Sym[text] = sym
-	t.sym2Text[sym] = text
-	t.termTexts = append(t.termTexts, text)
+	w.termNum++
+	w.text2Sym[text] = sym
+	w.sym2Text[sym] = text
+	w.termTexts = append(w.termTexts, text)
 	return sym, nil
 }
 
-func (t *symbolTable) toSymbol(text string) (symbol, bool) {
-	if sym, ok := t.text2Sym[text]; ok {
+func (r *symbolTableReader) toSymbol(text string) (symbol, bool) {
+	if sym, ok := r.text2Sym[text]; ok {
 		return sym, true
 	}
 	return symbolNil, false
 }
 
-func (t *symbolTable) toText(sym symbol) (string, bool) {
-	text, ok := t.sym2Text[sym]
+func (r *symbolTableReader) toText(sym symbol) (string, bool) {
+	text, ok := r.sym2Text[sym]
 	return text, ok
 }
 
-func (t *symbolTable) terminalSymbols() []symbol {
-	syms := make([]symbol, 0, t.termNum.Int()-terminalNumMin.Int())
-	for sym := range t.sym2Text {
+func (r *symbolTableReader) terminalSymbols() []symbol {
+	syms := make([]symbol, 0, r.termNum.Int()-terminalNumMin.Int())
+	for sym := range r.sym2Text {
 		if !sym.isTerminal() || sym.isNil() {
 			continue
 		}
@@ -246,16 +266,16 @@ func (t *symbolTable) terminalSymbols() []symbol {
 	return syms
 }
 
-func (t *symbolTable) terminalTexts() ([]string, error) {
-	if t.termNum == terminalNumMin {
+func (r *symbolTableReader) terminalTexts() ([]string, error) {
+	if r.termNum == terminalNumMin {
 		return nil, fmt.Errorf("symbol table has no terminals")
 	}
-	return t.termTexts, nil
+	return r.termTexts, nil
 }
 
-func (t *symbolTable) nonTerminalSymbols() []symbol {
-	syms := make([]symbol, 0, t.nonTermNum.Int()-nonTerminalNumMin.Int())
-	for sym := range t.sym2Text {
+func (r *symbolTableReader) nonTerminalSymbols() []symbol {
+	syms := make([]symbol, 0, r.nonTermNum.Int()-nonTerminalNumMin.Int())
+	for sym := range r.sym2Text {
 		if !sym.isNonTerminal() || sym.isNil() {
 			continue
 		}
@@ -267,9 +287,9 @@ func (t *symbolTable) nonTerminalSymbols() []symbol {
 	return syms
 }
 
-func (t *symbolTable) nonTerminalTexts() ([]string, error) {
-	if t.nonTermNum == nonTerminalNumMin || t.nonTermTexts[symbolStart.num().Int()] == "" {
+func (r *symbolTableReader) nonTerminalTexts() ([]string, error) {
+	if r.nonTermNum == nonTerminalNumMin || r.nonTermTexts[symbolStart.num().Int()] == "" {
 		return nil, fmt.Errorf("symbol table has no terminals or no start symbol")
 	}
-	return t.nonTermTexts, nil
+	return r.nonTermTexts, nil
 }

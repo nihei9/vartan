@@ -4,15 +4,16 @@ import "testing"
 
 func TestSymbol(t *testing.T) {
 	tab := newSymbolTable()
-	_, _ = tab.registerStartSymbol("expr'")
-	_, _ = tab.registerNonTerminalSymbol("expr")
-	_, _ = tab.registerNonTerminalSymbol("term")
-	_, _ = tab.registerNonTerminalSymbol("factor")
-	_, _ = tab.registerTerminalSymbol("id")
-	_, _ = tab.registerTerminalSymbol("add")
-	_, _ = tab.registerTerminalSymbol("mul")
-	_, _ = tab.registerTerminalSymbol("l_paren")
-	_, _ = tab.registerTerminalSymbol("r_paren")
+	w := tab.writer()
+	_, _ = w.registerStartSymbol("expr'")
+	_, _ = w.registerNonTerminalSymbol("expr")
+	_, _ = w.registerNonTerminalSymbol("term")
+	_, _ = w.registerNonTerminalSymbol("factor")
+	_, _ = w.registerTerminalSymbol("id")
+	_, _ = w.registerTerminalSymbol("add")
+	_, _ = w.registerTerminalSymbol("mul")
+	_, _ = w.registerTerminalSymbol("l_paren")
+	_, _ = w.registerTerminalSymbol("r_paren")
 
 	nonTermTexts := []string{
 		"", // Nil
@@ -80,12 +81,13 @@ func TestSymbol(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.text, func(t *testing.T) {
-			sym, ok := tab.toSymbol(tt.text)
+			r := tab.reader()
+			sym, ok := r.toSymbol(tt.text)
 			if !ok {
 				t.Fatalf("symbol was not found")
 			}
 			testSymbolProperty(t, sym, tt.isNil, tt.isStart, tt.isEOF, tt.isNonTerminal, tt.isTerminal)
-			text, ok := tab.toText(sym)
+			text, ok := r.toText(sym)
 			if !ok {
 				t.Fatalf("text was not found")
 			}
@@ -104,7 +106,8 @@ func TestSymbol(t *testing.T) {
 	})
 
 	t.Run("texts of non-terminals", func(t *testing.T) {
-		ts, err := tab.nonTerminalTexts()
+		r := tab.reader()
+		ts, err := r.nonTerminalTexts()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -119,7 +122,8 @@ func TestSymbol(t *testing.T) {
 	})
 
 	t.Run("texts of terminals", func(t *testing.T) {
-		ts, err := tab.terminalTexts()
+		r := tab.reader()
+		ts, err := r.terminalTexts()
 		if err != nil {
 			t.Fatal(err)
 		}
