@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.6.0
+
+* [acc2df9](https://github.com/nihei9/vartan/commit/acc2df9107e6531529460c7a77da07166d2d45bb) - Stop handling panic to print a stack trace.
+* [15ea142](https://github.com/nihei9/vartan/commit/15ea142b25927d6f103ee6ddde4fe8a5e2324831) - Prohibit using escape sequences in string literals.
+* [a443f0a](https://github.com/nihei9/vartan/commit/a443f0a1a4b79faa0b0271b72ea4a8e5f3d03ffd) - Prohibit applying the expansion operator to anything other than identifiers.
+* [24fd805](https://github.com/nihei9/vartan/commit/24fd80555cb35d9fc63cca9e8697bf156f41780b) - Prohibit applying `#left`, `#right`, `#assign`, and #prec to an error symbol. The shift of the error symbol is an operation forced by the driver. Therefore it is impossible to change this behavior by giving precedence to the error symbol. If we desire to change the precedence of a production rule with the error symbol, we can use #prec directive.
+* [b5ad1d3](https://github.com/nihei9/vartan/commit/b5ad1d30df993d68cc64c140bf1005b5490f2605) - Stop supporting SLR(1) and always use LALR(1).
+* [def1459](https://github.com/nihei9/vartan/commit/def1459d58bd7c362c626ca2307d83bf576e9dce) - Allows a directory to be specified as the `--output` option for the `vartan compile` command.
+* [4c0f7eb](https://github.com/nihei9/vartan/commit/4c0f7eb15db566a19eb753e6ffc3a2354078f5fc) - Rename spec package to `spec/grammar` package.
+* [ceb6649](https://github.com/nihei9/vartan/commit/ceb6649d3fb8b85ac8629a65dcfb9533763f4af0) - Add `vartan test` command.
+* [1ebed92](https://github.com/nihei9/vartan/commit/1ebed922b8c642b6ff4cec71820f24ceeb331c18) - Support testable tree output in `vartan parse` command.
+* [7403c18](https://github.com/nihei9/vartan/commit/7403c18fbc04f3045df1e69b63d7ffd5f04d77db) - Remove the kind field from a node corresponding to an anonymous terminal symbol.
+* [52ad315](https://github.com/nihei9/vartan/commit/52ad315a0df8a346953e570e8be472709b81cc6a) - Support the underscore symbol matching any symbols in `vartan test` command.
+* [2dd098d](https://github.com/nihei9/vartan/commit/2dd098d1e16bd0b8786ca97ccc7d3b06fa6bc3d1) - Prohibit using a pattern in an alternative. When a syntax error occurs, the parser must provide a user with the names of expected tokens. However, if a pattern appears directly in an alternative, Vartan cannot assign an appropriate name to the pattern. Therefore, this commit prohibits alternatives from containing patterns.
+* [4b2cf7b](https://github.com/nihei9/vartan/commit/4b2cf7bc03efe6c4fc0b19ca5da071583bdcb900) - Support testing token's texts in `vartan test` command.
+* [017b1b2](https://github.com/nihei9/vartan/commit/017b1b28b3ed67434d1cd58b4cda47bf0a2ed431) - Fix parse error messages for tree parser.
+* [2fcab70](https://github.com/nihei9/vartan/commit/2fcab705ddf787fa0f4edab2f2dc7e579ca982d9) - Prohibit error node having children.
+* [9033157](https://github.com/nihei9/vartan/commit/90331573a642f1e7e6f3758f1eab8628793bb8f4) - Remove underscore syntax matching any symbol.
+  Underscore syntax:
+  For instance, a tree `(expr (id 'a') (add '+') (_))` matches both source codes `a + b * c` and `a - b / c`.
+  This feature is helpful because it allows you to emphasize the main points of the test by ignoring nodes of no interest. However, we will remove the feature for the time being to reconsider the grammar.
+* [d45b860](https://github.com/nihei9/vartan/commit/d45b86063a0e5cdf8cf4efb163637b6d0ee9c5af) - Add tests.
+* [5da3885](https://github.com/nihei9/vartan/commit/5da388521510b839406b6232748bc669cda97dec) - Upgrade Go compiler to v1.19.
+* [ffa153b](https://github.com/nihei9/vartan/commit/ffa153b220bdbb0c502383026f1e694e088cc2bb) - Update README.
+* [b24f61a](https://github.com/nihei9/vartan/commit/b24f61a465d21af404ed647a977160042017e601) - Remove alias system to tidy up the specification.
+* [a6001b3](https://github.com/nihei9/vartan/commit/a6001b32cf805c4e72e05adc37ee60272a600bf1) - Remove anonymous symbol system to tidy up the specification.
+* [a0aa647](https://github.com/nihei9/vartan/commit/a0aa647770ac6458e9b4749c3efa38d56e2fe4fe) - Move the skip table from lexer-related data to parser-related data.
+* [a84350c](https://github.com/nihei9/vartan/commit/a84350cc4a213b74fdd592e8b9eeeb6079d0f5ff) - Split SymbolTable's APIs into reader/writer.
+* [f89d021](https://github.com/nihei9/vartan/commit/f89d021bbe134e3efa0d015a41e9712960cdd009) - Import source code of lexer generator from [maleeni](https://github.com/nihei9/maleeni).
+
+[Changes](https://github.com/nihei9/vartan/compare/v0.5.0...v0.6.0)
+
 ## v0.5.0
 
 * [f7484ef1](https://github.com/nihei9/vartan/commit/f7484ef11af39585989dbbcad701551c561fa67c) - Add `--json` option to `vartan parse` command to print a syntax tree in JSON format.
