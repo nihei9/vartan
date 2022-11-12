@@ -82,17 +82,20 @@ func DisableModeTransition() LexerOption {
 	}
 }
 
+type lexerState struct {
+	srcPtr int
+	row    int
+	col    int
+}
+
 type Lexer struct {
-	spec            LexSpec
-	src             []byte
-	srcPtr          int
-	row             int
-	col             int
-	prevRow         int
-	prevCol         int
-	tokBuf          []*Token
-	modeStack       []ModeID
-	passiveModeTran bool
+	spec              LexSpec
+	src               []byte
+	state             lexerState
+	lastAcceptedState lexerState
+	tokBuf            []*Token
+	modeStack         []ModeID
+	passiveModeTran   bool
 }
 
 // NewLexer returns a new lexer.
@@ -102,11 +105,18 @@ func NewLexer(spec LexSpec, src io.Reader, opts ...LexerOption) (*Lexer, error) 
 		return nil, err
 	}
 	l := &Lexer{
-		spec:   spec,
-		src:    b,
-		srcPtr: 0,
-		row:    0,
-		col:    0,
+		spec: spec,
+		src:  b,
+		state: lexerState{
+			srcPtr: 0,
+			row:    0,
+			col:    0,
+		},
+		lastAcceptedState: lexerState{
+			srcPtr: 0,
+			row:    0,
+			col:    0,
+		},
 		modeStack: []ModeID{
 			spec.InitialMode(),
 		},
@@ -187,15 +197,14 @@ func (l *Lexer) next() (*Token, error) {
 	mode := l.Mode()
 	state := l.spec.InitialState(mode)
 	buf := []byte{}
-	unfixedBufLen := 0
-	row := l.row
-	col := l.col
+	row := l.state.row
+	col := l.state.col
 	var tok *Token
 	for {
 		v, eof := l.read()
 		if eof {
 			if tok != nil {
-				l.unread(unfixedBufLen)
+				l.revert()
 				return tok, nil
 			}
 			// When `buf` has unaccepted data and reads the EOF, the lexer treats the buffered data as an invalid token.
@@ -218,11 +227,10 @@ func (l *Lexer) next() (*Token, error) {
 			}, nil
 		}
 		buf = append(buf, v)
-		unfixedBufLen++
 		nextState, ok := l.spec.NextState(mode, state, int(v))
 		if !ok {
 			if tok != nil {
-				l.unread(unfixedBufLen)
+				l.revert()
 				return tok, nil
 			}
 			return &Token{
@@ -245,7 +253,7 @@ func (l *Lexer) next() (*Token, error) {
 				Row:        row,
 				Col:        col,
 			}
-			unfixedBufLen = 0
+			l.accept()
 		}
 	}
 }
@@ -271,15 +279,12 @@ func (l *Lexer) PopMode() error {
 }
 
 func (l *Lexer) read() (byte, bool) {
-	if l.srcPtr >= len(l.src) {
+	if l.state.srcPtr >= len(l.src) {
 		return 0, true
 	}
 
-	b := l.src[l.srcPtr]
-	l.srcPtr++
-
-	l.prevRow = l.row
-	l.prevCol = l.col
+	b := l.src[l.state.srcPtr]
+	l.state.srcPtr++
 
 	// Count the token positions.
 	// The driver treats LF as the end of lines and counts columns in code points, not bytes.
@@ -290,22 +295,26 @@ func (l *Lexer) read() (byte, bool) {
 	if b < 128 {
 		// 0x0A is LF.
 		if b == 0x0A {
-			l.row++
-			l.col = 0
+			l.state.row++
+			l.state.col = 0
 		} else {
-			l.col++
+			l.state.col++
 		}
 	} else if b>>5 == 6 || b>>4 == 14 || b>>3 == 30 {
-		l.col++
+		l.state.col++
 	}
 
 	return b, false
 }
 
-// We must not call this function consecutively to record the token position correctly.
-func (l *Lexer) unread(n int) {
-	l.srcPtr -= n
+// accept saves the current state.
+func (l *Lexer) accept() {
+	l.lastAcceptedState = l.state
+}
 
-	l.row = l.prevRow
-	l.col = l.prevCol
+// revert reverts the lexer state to the last accepted state.
+//
+// We must not call this function consecutively.
+func (l *Lexer) revert() {
+	l.state = l.lastAcceptedState
 }
