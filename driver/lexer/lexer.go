@@ -221,8 +221,8 @@ func (l *Lexer) next() (*Token, error) {
 			return &Token{
 				ModeID:     mode,
 				ModeKindID: 0,
-				Row:        0,
-				Col:        0,
+				Row:        row,
+				Col:        col,
 				EOF:        true,
 			}, nil
 		}

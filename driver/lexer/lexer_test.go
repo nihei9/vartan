@@ -876,7 +876,7 @@ func TestLexer_Next_WithPosition(t *testing.T) {
 		// the line number where a lexeme first appears.
 		withPos(newTokenDefault(1, 1, []byte{0x0A, 0x0A, 0x0A}), 3, 6),
 
-		withPos(newEOFTokenDefault(), 0, 0),
+		withPos(newEOFTokenDefault(), 6, 0),
 	}
 
 	lexer, err := NewLexer(NewLexSpec(clspec), strings.NewReader(src))
