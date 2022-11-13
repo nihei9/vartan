@@ -49,7 +49,7 @@ var _ SyntaxTreeNode = &Node{}
 // SyntaxTreeBuilder allows you to construct a syntax tree containing arbitrary user-defined node types.
 // The parser uses SyntaxTreeBuilder interface as a part of semantic actions via SyntaxTreeActionSet interface.
 type SyntaxTreeBuilder interface {
-	Shift(kindName string, text string, row, col int) SyntaxTreeNode
+	Shift(kindName string, tok VToken) SyntaxTreeNode
 	ShiftError(kindName string) SyntaxTreeNode
 	Reduce(kindName string, children []SyntaxTreeNode) SyntaxTreeNode
 	Accept(f SyntaxTreeNode)
@@ -68,11 +68,15 @@ func NewDefaultSyntaxTreeBuilder() *DefaultSyntaxTreeBuilder {
 }
 
 // Shift is a implementation of SyntaxTreeBuilder.Shift.
-func (b *DefaultSyntaxTreeBuilder) Shift(kindName string, text string, row, col int) SyntaxTreeNode {
+func (b *DefaultSyntaxTreeBuilder) Shift(kindName string, tok VToken) SyntaxTreeNode {
+	bytePos, byteLen := tok.BytePosition()
+	row, col := tok.Position()
 	return &Node{
 		Type:     NodeTypeTerminal,
 		KindName: kindName,
-		Text:     text,
+		Text:     string(tok.Lexeme()),
+		BytePos:  bytePos,
+		ByteLen:  byteLen,
 		Row:      row,
 		Col:      col,
 	}
@@ -141,8 +145,7 @@ func NewCSTActionSet(gram Grammar, builder SyntaxTreeBuilder) *SyntaxTreeActionS
 // Shift is a implementation of SemanticActionSet.Shift method.
 func (a *SyntaxTreeActionSet) Shift(tok VToken, recovered bool) {
 	term := a.tokenToTerminal(tok)
-	row, col := tok.Position()
-	a.semStack.push(a.builder.Shift(a.gram.Terminal(term), string(tok.Lexeme()), row, col))
+	a.semStack.push(a.builder.Shift(a.gram.Terminal(term), tok))
 }
 
 // Reduce is a implementation of SemanticActionSet.Reduce method.
@@ -255,6 +258,8 @@ type Node struct {
 	Type     NodeType
 	KindName string
 	Text     string
+	BytePos  int
+	ByteLen  int
 	Row      int
 	Col      int
 	Children []*Node

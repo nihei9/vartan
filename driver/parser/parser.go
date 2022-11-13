@@ -64,6 +64,10 @@ type VToken interface {
 	// Invalid returns true when a token is invalid.
 	Invalid() bool
 
+	// BytePosition returns (position, length) pair.
+	// `position` is a byte position where a token appears and `length` is a length in bytes.
+	BytePosition() (int, int)
+
 	// Position returns (row, column) pair.
 	Position() (int, int)
 }

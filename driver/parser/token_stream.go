@@ -28,6 +28,10 @@ func (t *vToken) Invalid() bool {
 	return t.tok.Invalid
 }
 
+func (t *vToken) BytePosition() (int, int) {
+	return t.tok.BytePos, t.tok.ByteLen
+}
+
 func (t *vToken) Position() (int, int) {
 	return t.tok.Row, t.tok.Col
 }
