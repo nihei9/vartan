@@ -52,10 +52,16 @@ type Token struct {
 	// Note that you need to use KindID field if you want to identify a kind across all modes.
 	ModeKindID ModeKindID
 
-	// Row is a row number where a lexeme appears.
+	// BytePos is a byte position where a token appears.
+	BytePos int
+
+	// ByteLen is a length of a token.
+	ByteLen int
+
+	// Row is a row number where a token appears.
 	Row int
 
-	// Col is a column number where a lexeme appears.
+	// Col is a column number where a token appears.
 	// Note that Col is counted in code points, not bytes.
 	Col int
 
@@ -156,6 +162,7 @@ func (l *Lexer) Next() (*Token, error) {
 		if !tok.Invalid {
 			break
 		}
+		errTok.ByteLen += tok.ByteLen
 		errTok.Lexeme = append(errTok.Lexeme, tok.Lexeme...)
 	}
 	l.tokBuf = append(l.tokBuf, tok)
@@ -197,6 +204,7 @@ func (l *Lexer) next() (*Token, error) {
 	mode := l.Mode()
 	state := l.spec.InitialState(mode)
 	buf := []byte{}
+	startPos := l.state.srcPtr
 	row := l.state.row
 	col := l.state.col
 	var tok *Token
@@ -212,6 +220,8 @@ func (l *Lexer) next() (*Token, error) {
 				return &Token{
 					ModeID:     mode,
 					ModeKindID: 0,
+					BytePos:    startPos,
+					ByteLen:    l.state.srcPtr - startPos,
 					Lexeme:     buf,
 					Row:        row,
 					Col:        col,
@@ -221,6 +231,7 @@ func (l *Lexer) next() (*Token, error) {
 			return &Token{
 				ModeID:     mode,
 				ModeKindID: 0,
+				BytePos:    startPos,
 				Row:        row,
 				Col:        col,
 				EOF:        true,
@@ -236,6 +247,8 @@ func (l *Lexer) next() (*Token, error) {
 			return &Token{
 				ModeID:     mode,
 				ModeKindID: 0,
+				BytePos:    startPos,
+				ByteLen:    l.state.srcPtr - startPos,
 				Lexeme:     buf,
 				Row:        row,
 				Col:        col,
@@ -249,6 +262,8 @@ func (l *Lexer) next() (*Token, error) {
 				ModeID:     mode,
 				KindID:     kindID,
 				ModeKindID: modeKindID,
+				BytePos:    startPos,
+				ByteLen:    l.state.srcPtr - startPos,
 				Lexeme:     buf,
 				Row:        row,
 				Col:        col,

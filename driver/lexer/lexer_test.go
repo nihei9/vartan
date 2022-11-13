@@ -81,7 +81,9 @@ func newInvalidTokenDefault(lexeme []byte) *Token {
 	}
 }
 
-func withPos(tok *Token, row, col int) *Token {
+func withPos(tok *Token, bytePos int, byteLen int, row int, col int) *Token {
+	tok.BytePos = bytePos
+	tok.ByteLen = byteLen
 	tok.Row = row
 	tok.Col = col
 	return tok
@@ -104,18 +106,18 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "abb aabb aaabb babb bbabb abbbabb",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte("abb")),
-				newTokenDefault(2, 2, []byte(" ")),
-				newTokenDefault(1, 1, []byte("aabb")),
-				newTokenDefault(2, 2, []byte(" ")),
-				newTokenDefault(1, 1, []byte("aaabb")),
-				newTokenDefault(2, 2, []byte(" ")),
-				newTokenDefault(1, 1, []byte("babb")),
-				newTokenDefault(2, 2, []byte(" ")),
-				newTokenDefault(1, 1, []byte("bbabb")),
-				newTokenDefault(2, 2, []byte(" ")),
-				newTokenDefault(1, 1, []byte("abbbabb")),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte("abb")), 0, 3, 0, 0),
+				withPos(newTokenDefault(2, 2, []byte(" ")), 3, 1, 0, 3),
+				withPos(newTokenDefault(1, 1, []byte("aabb")), 4, 4, 0, 4),
+				withPos(newTokenDefault(2, 2, []byte(" ")), 8, 1, 0, 8),
+				withPos(newTokenDefault(1, 1, []byte("aaabb")), 9, 5, 0, 9),
+				withPos(newTokenDefault(2, 2, []byte(" ")), 14, 1, 0, 14),
+				withPos(newTokenDefault(1, 1, []byte("babb")), 15, 4, 0, 15),
+				withPos(newTokenDefault(2, 2, []byte(" ")), 19, 1, 0, 19),
+				withPos(newTokenDefault(1, 1, []byte("bbabb")), 20, 5, 0, 20),
+				withPos(newTokenDefault(2, 2, []byte(" ")), 25, 1, 0, 25),
+				withPos(newTokenDefault(1, 1, []byte("abbbabb")), 26, 7, 0, 26),
+				withPos(newEOFTokenDefault(), 33, 0, 0, 33),
 			},
 		},
 		{
@@ -128,22 +130,22 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "ba baaa a aaa abcd abcdcdcd cd cdcdcd",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte("ba")),
-				newTokenDefault(3, 3, []byte(" ")),
-				newTokenDefault(1, 1, []byte("baaa")),
-				newTokenDefault(3, 3, []byte(" ")),
-				newTokenDefault(1, 1, []byte("a")),
-				newTokenDefault(3, 3, []byte(" ")),
-				newTokenDefault(1, 1, []byte("aaa")),
-				newTokenDefault(3, 3, []byte(" ")),
-				newTokenDefault(2, 2, []byte("abcd")),
-				newTokenDefault(3, 3, []byte(" ")),
-				newTokenDefault(2, 2, []byte("abcdcdcd")),
-				newTokenDefault(3, 3, []byte(" ")),
-				newTokenDefault(2, 2, []byte("cd")),
-				newTokenDefault(3, 3, []byte(" ")),
-				newTokenDefault(2, 2, []byte("cdcdcd")),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte("ba")), 0, 2, 0, 0),
+				withPos(newTokenDefault(3, 3, []byte(" ")), 2, 1, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte("baaa")), 3, 4, 0, 3),
+				withPos(newTokenDefault(3, 3, []byte(" ")), 7, 1, 0, 7),
+				withPos(newTokenDefault(1, 1, []byte("a")), 8, 1, 0, 8),
+				withPos(newTokenDefault(3, 3, []byte(" ")), 9, 1, 0, 9),
+				withPos(newTokenDefault(1, 1, []byte("aaa")), 10, 3, 0, 10),
+				withPos(newTokenDefault(3, 3, []byte(" ")), 13, 1, 0, 13),
+				withPos(newTokenDefault(2, 2, []byte("abcd")), 14, 4, 0, 14),
+				withPos(newTokenDefault(3, 3, []byte(" ")), 18, 1, 0, 18),
+				withPos(newTokenDefault(2, 2, []byte("abcdcdcd")), 19, 8, 0, 19),
+				withPos(newTokenDefault(3, 3, []byte(" ")), 27, 1, 0, 27),
+				withPos(newTokenDefault(2, 2, []byte("cd")), 28, 2, 0, 28),
+				withPos(newTokenDefault(3, 3, []byte(" ")), 30, 1, 0, 30),
+				withPos(newTokenDefault(2, 2, []byte("cdcdcd")), 31, 6, 0, 31),
+				withPos(newEOFTokenDefault(), 37, 0, 0, 37),
 			},
 		},
 		{
@@ -171,23 +173,23 @@ func TestLexer_Next(t *testing.T) {
 				0xf4, 0x8f, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0x00}),
-				newTokenDefault(1, 1, []byte{0x7f}),
-				newTokenDefault(1, 1, []byte{0xc2, 0x80}),
-				newTokenDefault(1, 1, []byte{0xdf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xe1, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xec, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xed, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xed, 0x9f, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xee, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xef, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xf1, 0x80, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf3, 0xbf, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xf4, 0x80, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf4, 0x8f, 0xbf, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0x00}), 0, 1, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0x7f}), 1, 1, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xc2, 0x80}), 2, 2, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xdf, 0xbf}), 4, 2, 0, 3),
+				withPos(newTokenDefault(1, 1, []byte{0xe1, 0x80, 0x80}), 6, 3, 0, 4),
+				withPos(newTokenDefault(1, 1, []byte{0xec, 0xbf, 0xbf}), 9, 3, 0, 5),
+				withPos(newTokenDefault(1, 1, []byte{0xed, 0x80, 0x80}), 12, 3, 0, 6),
+				withPos(newTokenDefault(1, 1, []byte{0xed, 0x9f, 0xbf}), 15, 3, 0, 7),
+				withPos(newTokenDefault(1, 1, []byte{0xee, 0x80, 0x80}), 18, 3, 0, 8),
+				withPos(newTokenDefault(1, 1, []byte{0xef, 0xbf, 0xbf}), 21, 3, 0, 9),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}), 24, 4, 0, 10),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbf}), 28, 4, 0, 11),
+				withPos(newTokenDefault(1, 1, []byte{0xf1, 0x80, 0x80, 0x80}), 32, 4, 0, 12),
+				withPos(newTokenDefault(1, 1, []byte{0xf3, 0xbf, 0xbf, 0xbf}), 36, 4, 0, 13),
+				withPos(newTokenDefault(1, 1, []byte{0xf4, 0x80, 0x80, 0x80}), 40, 4, 0, 14),
+				withPos(newTokenDefault(1, 1, []byte{0xf4, 0x8f, 0xbf, 0xbf}), 44, 4, 0, 15),
+				withPos(newEOFTokenDefault(), 48, 0, 0, 16),
 			},
 		},
 		{
@@ -198,18 +200,18 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "ab.*+?|()[]",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte("a")),
-				newTokenDefault(1, 1, []byte("b")),
-				newTokenDefault(1, 1, []byte(".")),
-				newTokenDefault(1, 1, []byte("*")),
-				newTokenDefault(1, 1, []byte("+")),
-				newTokenDefault(1, 1, []byte("?")),
-				newTokenDefault(1, 1, []byte("|")),
-				newTokenDefault(1, 1, []byte("(")),
-				newTokenDefault(1, 1, []byte(")")),
-				newTokenDefault(1, 1, []byte("[")),
-				newTokenDefault(1, 1, []byte("]")),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte("a")), 0, 1, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte("b")), 1, 1, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte(".")), 2, 1, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte("*")), 3, 1, 0, 3),
+				withPos(newTokenDefault(1, 1, []byte("+")), 4, 1, 0, 4),
+				withPos(newTokenDefault(1, 1, []byte("?")), 5, 1, 0, 5),
+				withPos(newTokenDefault(1, 1, []byte("|")), 6, 1, 0, 6),
+				withPos(newTokenDefault(1, 1, []byte("(")), 7, 1, 0, 7),
+				withPos(newTokenDefault(1, 1, []byte(")")), 8, 1, 0, 8),
+				withPos(newTokenDefault(1, 1, []byte("[")), 9, 1, 0, 9),
+				withPos(newTokenDefault(1, 1, []byte("]")), 10, 1, 0, 10),
+				withPos(newEOFTokenDefault(), 11, 0, 0, 11),
 			},
 		},
 		{
@@ -231,11 +233,11 @@ func TestLexer_Next(t *testing.T) {
 				0x7f,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0x01}),
-				newTokenDefault(1, 1, []byte{0x02}),
-				newTokenDefault(1, 1, []byte{0x7e}),
-				newTokenDefault(1, 1, []byte{0x7f}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0x01}), 0, 1, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0x02}), 1, 1, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0x7e}), 2, 1, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0x7f}), 3, 1, 0, 3),
+				withPos(newEOFTokenDefault(), 4, 0, 0, 4),
 			},
 		},
 		{
@@ -252,11 +254,11 @@ func TestLexer_Next(t *testing.T) {
 				0xdf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xc2, 0x80}),
-				newTokenDefault(1, 1, []byte{0xc2, 0x81}),
-				newTokenDefault(1, 1, []byte{0xdf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xdf, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xc2, 0x80}), 0, 2, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xc2, 0x81}), 2, 2, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xdf, 0xbe}), 4, 2, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xdf, 0xbf}), 6, 2, 0, 3),
+				withPos(newEOFTokenDefault(), 8, 0, 0, 4),
 			},
 		},
 		{
@@ -270,8 +272,8 @@ func TestLexer_Next(t *testing.T) {
 				0xe0, 0xa0, 0x80,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x80}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x80}), 0, 3, 0, 0),
+				withPos(newEOFTokenDefault(), 3, 0, 0, 1),
 			},
 		},
 		{
@@ -288,11 +290,11 @@ func TestLexer_Next(t *testing.T) {
 				0xe0, 0xa0, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x80}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x81}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x80}), 0, 3, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x81}), 3, 3, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0xbe}), 6, 3, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0xbf}), 9, 3, 0, 3),
+				withPos(newEOFTokenDefault(), 12, 0, 0, 4),
 			},
 		},
 		{
@@ -309,11 +311,11 @@ func TestLexer_Next(t *testing.T) {
 				0xe0, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x80}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x81}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xbf, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x80}), 0, 3, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x81}), 3, 3, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xbf, 0xbe}), 6, 3, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xbf, 0xbf}), 9, 3, 0, 3),
+				withPos(newEOFTokenDefault(), 12, 0, 0, 4),
 			},
 		},
 		{
@@ -342,23 +344,23 @@ func TestLexer_Next(t *testing.T) {
 				0xef, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x80}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x81}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xe0, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xe1, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xe1, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xec, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xec, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xed, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xed, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xed, 0x9f, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xed, 0x9f, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xee, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xee, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xef, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xef, 0xbf, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x80}), 0, 3, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xa0, 0x81}), 3, 3, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xbf, 0xbe}), 6, 3, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xe0, 0xbf, 0xbf}), 9, 3, 0, 3),
+				withPos(newTokenDefault(1, 1, []byte{0xe1, 0x80, 0x80}), 12, 3, 0, 4),
+				withPos(newTokenDefault(1, 1, []byte{0xe1, 0x80, 0x81}), 15, 3, 0, 5),
+				withPos(newTokenDefault(1, 1, []byte{0xec, 0xbf, 0xbe}), 18, 3, 0, 6),
+				withPos(newTokenDefault(1, 1, []byte{0xec, 0xbf, 0xbf}), 21, 3, 0, 7),
+				withPos(newTokenDefault(1, 1, []byte{0xed, 0x80, 0x80}), 24, 3, 0, 8),
+				withPos(newTokenDefault(1, 1, []byte{0xed, 0x80, 0x81}), 27, 3, 0, 9),
+				withPos(newTokenDefault(1, 1, []byte{0xed, 0x9f, 0xbe}), 30, 3, 0, 10),
+				withPos(newTokenDefault(1, 1, []byte{0xed, 0x9f, 0xbf}), 33, 3, 0, 11),
+				withPos(newTokenDefault(1, 1, []byte{0xee, 0x80, 0x80}), 36, 3, 0, 12),
+				withPos(newTokenDefault(1, 1, []byte{0xee, 0x80, 0x81}), 39, 3, 0, 13),
+				withPos(newTokenDefault(1, 1, []byte{0xef, 0xbf, 0xbe}), 42, 3, 0, 14),
+				withPos(newTokenDefault(1, 1, []byte{0xef, 0xbf, 0xbf}), 45, 3, 0, 15),
+				withPos(newEOFTokenDefault(), 48, 0, 0, 16),
 			},
 		},
 		{
@@ -372,8 +374,8 @@ func TestLexer_Next(t *testing.T) {
 				0xf0, 0x90, 0x80, 0x80,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}), 0, 4, 0, 0),
+				withPos(newEOFTokenDefault(), 4, 0, 0, 1),
 			},
 		},
 		{
@@ -390,11 +392,11 @@ func TestLexer_Next(t *testing.T) {
 				0xf0, 0x90, 0x80, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}), 0, 4, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x81}), 4, 4, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0xbe}), 8, 4, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0xbf}), 12, 4, 0, 3),
+				withPos(newEOFTokenDefault(), 16, 0, 0, 4),
 			},
 		},
 		{
@@ -411,11 +413,11 @@ func TestLexer_Next(t *testing.T) {
 				0xf0, 0x90, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0xbf, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}), 0, 4, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x81}), 4, 4, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0xbf, 0xbe}), 8, 4, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0xbf, 0xbf}), 12, 4, 0, 3),
+				withPos(newEOFTokenDefault(), 16, 0, 0, 4),
 			},
 		},
 		{
@@ -432,11 +434,11 @@ func TestLexer_Next(t *testing.T) {
 				0xf0, 0xbf, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}), 0, 4, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x81}), 4, 4, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbe}), 8, 4, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbf}), 12, 4, 0, 3),
+				withPos(newEOFTokenDefault(), 16, 0, 0, 4),
 			},
 		},
 		{
@@ -461,19 +463,19 @@ func TestLexer_Next(t *testing.T) {
 				0xf4, 0x8f, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xf1, 0x80, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf1, 0x80, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xf3, 0xbf, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xf3, 0xbf, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, []byte{0xf4, 0x80, 0x80, 0x80}),
-				newTokenDefault(1, 1, []byte{0xf4, 0x80, 0x80, 0x81}),
-				newTokenDefault(1, 1, []byte{0xf4, 0x8f, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, []byte{0xf4, 0x8f, 0xbf, 0xbf}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x80}), 0, 4, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0x90, 0x80, 0x81}), 4, 4, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbe}), 8, 4, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xf0, 0xbf, 0xbf, 0xbf}), 12, 4, 0, 3),
+				withPos(newTokenDefault(1, 1, []byte{0xf1, 0x80, 0x80, 0x80}), 16, 4, 0, 4),
+				withPos(newTokenDefault(1, 1, []byte{0xf1, 0x80, 0x80, 0x81}), 20, 4, 0, 5),
+				withPos(newTokenDefault(1, 1, []byte{0xf3, 0xbf, 0xbf, 0xbe}), 24, 4, 0, 6),
+				withPos(newTokenDefault(1, 1, []byte{0xf3, 0xbf, 0xbf, 0xbf}), 28, 4, 0, 7),
+				withPos(newTokenDefault(1, 1, []byte{0xf4, 0x80, 0x80, 0x80}), 32, 4, 0, 8),
+				withPos(newTokenDefault(1, 1, []byte{0xf4, 0x80, 0x80, 0x81}), 36, 4, 0, 9),
+				withPos(newTokenDefault(1, 1, []byte{0xf4, 0x8f, 0xbf, 0xbe}), 40, 4, 0, 10),
+				withPos(newTokenDefault(1, 1, []byte{0xf4, 0x8f, 0xbf, 0xbf}), 44, 4, 0, 11),
+				withPos(newEOFTokenDefault(), 48, 0, 0, 12),
 			},
 		},
 		{
@@ -484,8 +486,8 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "foo9",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte("foo9")),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte("foo9")), 0, 4, 0, 0),
+				withPos(newEOFTokenDefault(), 4, 0, 0, 4),
 			},
 		},
 		{
@@ -499,11 +501,11 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "nνに😸",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0x6E}),
-				newTokenDefault(2, 2, []byte{0xCE, 0xBD}),
-				newTokenDefault(3, 3, []byte{0xE3, 0x81, 0xAB}),
-				newTokenDefault(4, 4, []byte{0xF0, 0x9F, 0x98, 0xB8}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0x6E}), 0, 1, 0, 0),
+				withPos(newTokenDefault(2, 2, []byte{0xCE, 0xBD}), 1, 2, 0, 1),
+				withPos(newTokenDefault(3, 3, []byte{0xE3, 0x81, 0xAB}), 3, 3, 0, 2),
+				withPos(newTokenDefault(4, 4, []byte{0xF0, 0x9F, 0x98, 0xB8}), 6, 4, 0, 3),
+				withPos(newEOFTokenDefault(), 10, 0, 0, 4),
 			},
 		},
 		{
@@ -514,11 +516,11 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "nνに😸",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte{0x6E}),
-				newTokenDefault(1, 1, []byte{0xCE, 0xBD}),
-				newTokenDefault(1, 1, []byte{0xE3, 0x81, 0xAB}),
-				newTokenDefault(1, 1, []byte{0xF0, 0x9F, 0x98, 0xB8}),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte{0x6E}), 0, 1, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte{0xCE, 0xBD}), 1, 2, 0, 1),
+				withPos(newTokenDefault(1, 1, []byte{0xE3, 0x81, 0xAB}), 3, 3, 0, 2),
+				withPos(newTokenDefault(1, 1, []byte{0xF0, 0x9F, 0x98, 0xB8}), 6, 4, 0, 3),
+				withPos(newEOFTokenDefault(), 10, 0, 0, 4),
 			},
 		},
 		{
@@ -531,9 +533,9 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "abcdefdefabcdef",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte("abcdefdef")),
-				newTokenDefault(1, 1, []byte("abcdef")),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte("abcdefdef")), 0, 9, 0, 0),
+				withPos(newTokenDefault(1, 1, []byte("abcdef")), 9, 6, 0, 9),
+				withPos(newEOFTokenDefault(), 15, 0, 0, 15),
 			},
 		},
 		{
@@ -546,8 +548,8 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "abcdefdefabc",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte("abcdefdefabc")),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte("abcdefdefabc")), 0, 12, 0, 0),
+				withPos(newEOFTokenDefault(), 12, 0, 0, 12),
 			},
 		},
 		{
@@ -561,8 +563,8 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: "abcdefdefabc",
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte("abcdefdefabc")),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte("abcdefdefabc")), 0, 12, 0, 0),
+				withPos(newEOFTokenDefault(), 12, 0, 0, 12),
 			},
 		},
 		{
@@ -577,17 +579,17 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: `"" "Hello world.\n\"Hello world.\""`,
 			tokens: []*Token{
-				newToken(1, 2, 2, []byte(`"`)),
-				newToken(2, 5, 3, []byte(`"`)),
-				newToken(1, 1, 1, []byte(` `)),
-				newToken(1, 2, 2, []byte(`"`)),
-				newToken(2, 4, 2, []byte(`Hello world.`)),
-				newToken(2, 3, 1, []byte(`\n`)),
-				newToken(2, 3, 1, []byte(`\"`)),
-				newToken(2, 4, 2, []byte(`Hello world.`)),
-				newToken(2, 3, 1, []byte(`\"`)),
-				newToken(2, 5, 3, []byte(`"`)),
-				newEOFTokenDefault(),
+				withPos(newToken(1, 2, 2, []byte(`"`)), 0, 1, 0, 0),
+				withPos(newToken(2, 5, 3, []byte(`"`)), 1, 1, 0, 1),
+				withPos(newToken(1, 1, 1, []byte(` `)), 2, 1, 0, 2),
+				withPos(newToken(1, 2, 2, []byte(`"`)), 3, 1, 0, 3),
+				withPos(newToken(2, 4, 2, []byte(`Hello world.`)), 4, 12, 0, 4),
+				withPos(newToken(2, 3, 1, []byte(`\n`)), 16, 2, 0, 16),
+				withPos(newToken(2, 3, 1, []byte(`\"`)), 18, 2, 0, 18),
+				withPos(newToken(2, 4, 2, []byte(`Hello world.`)), 20, 12, 0, 20),
+				withPos(newToken(2, 3, 1, []byte(`\"`)), 32, 2, 0, 32),
+				withPos(newToken(2, 5, 3, []byte(`"`)), 34, 1, 0, 34),
+				withPos(newEOFTokenDefault(), 35, 0, 0, 35),
 			},
 		},
 		{
@@ -603,16 +605,16 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: ` a b < < `,
 			tokens: []*Token{
-				newToken(1, 1, 1, []byte(` `)),
-				newToken(1, 2, 2, []byte(`a`)),
-				newToken(2, 1, 1, []byte(` `)),
-				newToken(2, 3, 2, []byte(`b`)),
-				newToken(3, 1, 1, []byte(` `)),
-				newToken(3, 5, 2, []byte(`<`)),
-				newToken(2, 1, 1, []byte(` `)),
-				newToken(2, 4, 3, []byte(`<`)),
-				newToken(1, 1, 1, []byte(` `)),
-				newEOFTokenDefault(),
+				withPos(newToken(1, 1, 1, []byte(` `)), 0, 1, 0, 0),
+				withPos(newToken(1, 2, 2, []byte(`a`)), 1, 1, 0, 1),
+				withPos(newToken(2, 1, 1, []byte(` `)), 2, 1, 0, 2),
+				withPos(newToken(2, 3, 2, []byte(`b`)), 3, 1, 0, 3),
+				withPos(newToken(3, 1, 1, []byte(` `)), 4, 1, 0, 4),
+				withPos(newToken(3, 5, 2, []byte(`<`)), 5, 1, 0, 5),
+				withPos(newToken(2, 1, 1, []byte(` `)), 6, 1, 0, 6),
+				withPos(newToken(2, 4, 3, []byte(`<`)), 7, 1, 0, 7),
+				withPos(newToken(1, 1, 1, []byte(` `)), 8, 1, 0, 8),
+				withPos(newEOFTokenDefault(), 9, 0, 0, 9),
 			},
 		},
 		{
@@ -628,16 +630,16 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: `-> 1 -> 2 <- <- a`,
 			tokens: []*Token{
-				newToken(1, 3, 3, []byte(`-> 1`)),
-				newToken(2, 1, 1, []byte(` `)),
-				newToken(2, 4, 2, []byte(`-> 2`)),
-				newToken(3, 1, 1, []byte(` `)),
-				newToken(3, 6, 2, []byte(`<-`)),
-				newToken(2, 1, 1, []byte(` `)),
-				newToken(2, 5, 3, []byte(`<-`)),
-				newToken(1, 1, 1, []byte(` `)),
-				newToken(1, 2, 2, []byte(`a`)),
-				newEOFTokenDefault(),
+				withPos(newToken(1, 3, 3, []byte(`-> 1`)), 0, 4, 0, 0),
+				withPos(newToken(2, 1, 1, []byte(` `)), 4, 1, 0, 4),
+				withPos(newToken(2, 4, 2, []byte(`-> 2`)), 5, 4, 0, 5),
+				withPos(newToken(3, 1, 1, []byte(` `)), 9, 1, 0, 9),
+				withPos(newToken(3, 6, 2, []byte(`<-`)), 10, 2, 0, 10),
+				withPos(newToken(2, 1, 1, []byte(` `)), 12, 1, 0, 12),
+				withPos(newToken(2, 5, 3, []byte(`<-`)), 13, 2, 0, 13),
+				withPos(newToken(1, 1, 1, []byte(` `)), 15, 1, 0, 15),
+				withPos(newToken(1, 2, 2, []byte(`a`)), 16, 1, 0, 16),
+				withPos(newEOFTokenDefault(), 17, 0, 0, 17),
 			},
 			passiveModeTran: true,
 			tran: func(l *Lexer, tok *Token) error {
@@ -676,16 +678,16 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: `-> 1 -> 2 <- <- a`,
 			tokens: []*Token{
-				newToken(1, 3, 3, []byte(`-> 1`)),
-				newToken(2, 1, 1, []byte(` `)),
-				newToken(2, 4, 2, []byte(`-> 2`)),
-				newToken(3, 1, 1, []byte(` `)),
-				newToken(3, 6, 2, []byte(`<-`)),
-				newToken(2, 1, 1, []byte(` `)),
-				newToken(2, 5, 3, []byte(`<-`)),
-				newToken(1, 1, 1, []byte(` `)),
-				newToken(1, 2, 2, []byte(`a`)),
-				newEOFTokenDefault(),
+				withPos(newToken(1, 3, 3, []byte(`-> 1`)), 0, 4, 0, 0),
+				withPos(newToken(2, 1, 1, []byte(` `)), 4, 1, 0, 4),
+				withPos(newToken(2, 4, 2, []byte(`-> 2`)), 5, 4, 0, 5),
+				withPos(newToken(3, 1, 1, []byte(` `)), 9, 1, 0, 9),
+				withPos(newToken(3, 6, 2, []byte(`<-`)), 10, 2, 0, 10),
+				withPos(newToken(2, 1, 1, []byte(` `)), 12, 1, 0, 12),
+				withPos(newToken(2, 5, 3, []byte(`<-`)), 13, 2, 0, 13),
+				withPos(newToken(1, 1, 1, []byte(` `)), 15, 1, 0, 15),
+				withPos(newToken(1, 2, 2, []byte(`a`)), 16, 1, 0, 16),
+				withPos(newEOFTokenDefault(), 17, 0, 0, 17),
 			},
 			// Active mode transition and an external transition function can be used together.
 			passiveModeTran: false,
@@ -718,16 +720,16 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: `.*+?|()[\`,
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte(`.`)),
-				newTokenDefault(2, 2, []byte(`*`)),
-				newTokenDefault(3, 3, []byte(`+`)),
-				newTokenDefault(4, 4, []byte(`?`)),
-				newTokenDefault(5, 5, []byte(`|`)),
-				newTokenDefault(6, 6, []byte(`(`)),
-				newTokenDefault(7, 7, []byte(`)`)),
-				newTokenDefault(8, 8, []byte(`[`)),
-				newTokenDefault(9, 9, []byte(`\`)),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte(`.`)), 0, 1, 0, 0),
+				withPos(newTokenDefault(2, 2, []byte(`*`)), 1, 1, 0, 1),
+				withPos(newTokenDefault(3, 3, []byte(`+`)), 2, 1, 0, 2),
+				withPos(newTokenDefault(4, 4, []byte(`?`)), 3, 1, 0, 3),
+				withPos(newTokenDefault(5, 5, []byte(`|`)), 4, 1, 0, 4),
+				withPos(newTokenDefault(6, 6, []byte(`(`)), 5, 1, 0, 5),
+				withPos(newTokenDefault(7, 7, []byte(`)`)), 6, 1, 0, 6),
+				withPos(newTokenDefault(8, 8, []byte(`[`)), 7, 1, 0, 7),
+				withPos(newTokenDefault(9, 9, []byte(`\`)), 8, 1, 0, 8),
+				withPos(newEOFTokenDefault(), 9, 0, 0, 9),
 			},
 		},
 		// Character properties are available in a bracket expression.
@@ -740,9 +742,9 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: `foo123`,
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte(`foo`)),
-				newTokenDefault(2, 2, []byte(`123`)),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte(`foo`)), 0, 3, 0, 0),
+				withPos(newTokenDefault(2, 2, []byte(`123`)), 3, 3, 0, 3),
+				withPos(newEOFTokenDefault(), 6, 0, 0, 6),
 			},
 		},
 		// The driver can continue lexical analysis even after it detects an invalid token.
@@ -754,10 +756,24 @@ func TestLexer_Next(t *testing.T) {
 			},
 			src: `foo123bar`,
 			tokens: []*Token{
-				newTokenDefault(1, 1, []byte(`foo`)),
-				newInvalidTokenDefault([]byte(`123`)),
-				newTokenDefault(1, 1, []byte(`bar`)),
-				newEOFTokenDefault(),
+				withPos(newTokenDefault(1, 1, []byte(`foo`)), 0, 3, 0, 0),
+				withPos(newInvalidTokenDefault([]byte(`123`)), 3, 3, 0, 3),
+				withPos(newTokenDefault(1, 1, []byte(`bar`)), 6, 3, 0, 6),
+				withPos(newEOFTokenDefault(), 9, 0, 0, 9),
+			},
+		},
+		// The driver can detect an invalid token immediately preceding an EOF.
+		{
+			lspec: &lexical.LexSpec{
+				Entries: []*lexical.LexEntry{
+					newLexEntryDefaultNOP("lower", `[a-z]+`),
+				},
+			},
+			src: `foo123`,
+			tokens: []*Token{
+				withPos(newTokenDefault(1, 1, []byte(`foo`)), 0, 3, 0, 0),
+				withPos(newInvalidTokenDefault([]byte(`123`)), 3, 3, 0, 3),
+				withPos(newEOFTokenDefault(), 6, 0, 0, 6),
 			},
 		},
 	}
@@ -785,7 +801,7 @@ func TestLexer_Next(t *testing.T) {
 						t.Log(err)
 						break
 					}
-					testToken(t, eTok, tok, false)
+					testToken(t, eTok, tok)
 
 					if tok.EOF {
 						break
@@ -847,36 +863,35 @@ func TestLexer_Next_WithPosition(t *testing.T) {
 	})
 
 	expected := []*Token{
-		withPos(newTokenDefault(2, 2, []byte{0x00}), 0, 0),
-		withPos(newTokenDefault(2, 2, []byte{0x7F}), 0, 1),
-		withPos(newTokenDefault(1, 1, []byte{0x0A}), 0, 2),
+		withPos(newTokenDefault(2, 2, []byte{0x00}), 0, 1, 0, 0),
+		withPos(newTokenDefault(2, 2, []byte{0x7F}), 1, 1, 0, 1),
+		withPos(newTokenDefault(1, 1, []byte{0x0A}), 2, 1, 0, 2),
 
-		withPos(newTokenDefault(2, 2, []byte{0xC2, 0x80}), 1, 0),
-		withPos(newTokenDefault(2, 2, []byte{0xDF, 0xBF}), 1, 1),
-		withPos(newTokenDefault(1, 1, []byte{0x0A}), 1, 2),
+		withPos(newTokenDefault(2, 2, []byte{0xC2, 0x80}), 3, 2, 1, 0),
+		withPos(newTokenDefault(2, 2, []byte{0xDF, 0xBF}), 5, 2, 1, 1),
+		withPos(newTokenDefault(1, 1, []byte{0x0A}), 7, 1, 1, 2),
 
-		withPos(newTokenDefault(2, 2, []byte{0xE0, 0xA0, 0x80}), 2, 0),
-		withPos(newTokenDefault(2, 2, []byte{0xE0, 0xBF, 0xBF}), 2, 1),
-		withPos(newTokenDefault(2, 2, []byte{0xE1, 0x80, 0x80}), 2, 2),
-		withPos(newTokenDefault(2, 2, []byte{0xEC, 0xBF, 0xBF}), 2, 3),
-		withPos(newTokenDefault(2, 2, []byte{0xED, 0x80, 0x80}), 2, 4),
-		withPos(newTokenDefault(2, 2, []byte{0xED, 0x9F, 0xBF}), 2, 5),
-		withPos(newTokenDefault(2, 2, []byte{0xEE, 0x80, 0x80}), 2, 6),
-		withPos(newTokenDefault(2, 2, []byte{0xEF, 0xBF, 0xBF}), 2, 7),
-		withPos(newTokenDefault(1, 1, []byte{0x0A}), 2, 8),
+		withPos(newTokenDefault(2, 2, []byte{0xE0, 0xA0, 0x80}), 8, 3, 2, 0),
+		withPos(newTokenDefault(2, 2, []byte{0xE0, 0xBF, 0xBF}), 11, 3, 2, 1),
+		withPos(newTokenDefault(2, 2, []byte{0xE1, 0x80, 0x80}), 14, 3, 2, 2),
+		withPos(newTokenDefault(2, 2, []byte{0xEC, 0xBF, 0xBF}), 17, 3, 2, 3),
+		withPos(newTokenDefault(2, 2, []byte{0xED, 0x80, 0x80}), 20, 3, 2, 4),
+		withPos(newTokenDefault(2, 2, []byte{0xED, 0x9F, 0xBF}), 23, 3, 2, 5),
+		withPos(newTokenDefault(2, 2, []byte{0xEE, 0x80, 0x80}), 26, 3, 2, 6),
+		withPos(newTokenDefault(2, 2, []byte{0xEF, 0xBF, 0xBF}), 29, 3, 2, 7),
+		withPos(newTokenDefault(1, 1, []byte{0x0A}), 32, 1, 2, 8),
 
-		withPos(newTokenDefault(2, 2, []byte{0xF0, 0x90, 0x80, 0x80}), 3, 0),
-		withPos(newTokenDefault(2, 2, []byte{0xF0, 0xBF, 0xBF, 0xBF}), 3, 1),
-		withPos(newTokenDefault(2, 2, []byte{0xF1, 0x80, 0x80, 0x80}), 3, 2),
-		withPos(newTokenDefault(2, 2, []byte{0xF3, 0xBF, 0xBF, 0xBF}), 3, 3),
-		withPos(newTokenDefault(2, 2, []byte{0xF4, 0x80, 0x80, 0x80}), 3, 4),
-		withPos(newTokenDefault(2, 2, []byte{0xF4, 0x8F, 0xBF, 0xBF}), 3, 5),
-
+		withPos(newTokenDefault(2, 2, []byte{0xF0, 0x90, 0x80, 0x80}), 33, 4, 3, 0),
+		withPos(newTokenDefault(2, 2, []byte{0xF0, 0xBF, 0xBF, 0xBF}), 37, 4, 3, 1),
+		withPos(newTokenDefault(2, 2, []byte{0xF1, 0x80, 0x80, 0x80}), 41, 4, 3, 2),
+		withPos(newTokenDefault(2, 2, []byte{0xF3, 0xBF, 0xBF, 0xBF}), 45, 4, 3, 3),
+		withPos(newTokenDefault(2, 2, []byte{0xF4, 0x80, 0x80, 0x80}), 49, 4, 3, 4),
+		withPos(newTokenDefault(2, 2, []byte{0xF4, 0x8F, 0xBF, 0xBF}), 53, 4, 3, 5),
 		// When a token contains multiple line breaks, the driver sets the token position to
 		// the line number where a lexeme first appears.
-		withPos(newTokenDefault(1, 1, []byte{0x0A, 0x0A, 0x0A}), 3, 6),
+		withPos(newTokenDefault(1, 1, []byte{0x0A, 0x0A, 0x0A}), 57, 3, 3, 6),
 
-		withPos(newEOFTokenDefault(), 6, 0),
+		withPos(newEOFTokenDefault(), 60, 0, 6, 0),
 	}
 
 	lexer, err := NewLexer(NewLexSpec(clspec), strings.NewReader(src))
@@ -890,7 +905,7 @@ func TestLexer_Next_WithPosition(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		testToken(t, eTok, tok, true)
+		testToken(t, eTok, tok)
 
 		if tok.EOF {
 			break
@@ -898,7 +913,7 @@ func TestLexer_Next_WithPosition(t *testing.T) {
 	}
 }
 
-func testToken(t *testing.T, expected, actual *Token, checkPosition bool) {
+func testToken(t *testing.T, expected, actual *Token) {
 	t.Helper()
 
 	if actual.ModeID != expected.ModeID ||
@@ -907,12 +922,11 @@ func testToken(t *testing.T, expected, actual *Token, checkPosition bool) {
 		!bytes.Equal(actual.Lexeme, expected.Lexeme) ||
 		actual.EOF != expected.EOF ||
 		actual.Invalid != expected.Invalid {
-		t.Fatalf(`unexpected token; want: %v ("%#v"), got: %v ("%#v")`, expected, string(expected.Lexeme), actual, string(actual.Lexeme))
+		t.Fatalf(`unexpected token; want: %+v, got: %+v`, expected, actual)
 	}
 
-	if checkPosition {
-		if actual.Row != expected.Row || actual.Col != expected.Col {
-			t.Fatalf(`unexpected token; want: %v ("%#v"), got: %v ("%#v")`, expected, string(expected.Lexeme), actual, string(actual.Lexeme))
-		}
+	if actual.BytePos != expected.BytePos || actual.ByteLen != expected.ByteLen ||
+		actual.Row != expected.Row || actual.Col != expected.Col {
+		t.Fatalf(`unexpected token; want: %+v, got: %+v`, expected, actual)
 	}
 }
