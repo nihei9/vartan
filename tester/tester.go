@@ -108,7 +108,7 @@ func (t *Tester) Run() []*TestResult {
 
 func runTest(g *gspec.CompiledGrammar, c *TestCaseWithMetadata) *TestResult {
 	var p *driver.Parser
-	var tb *driver.DefaulSyntaxTreeBuilder
+	var tb *driver.DefaultSyntaxTreeBuilder
 	{
 		gram := driver.NewGrammar(g)
 		toks, err := driver.NewTokenStream(g, bytes.NewReader(c.TestCase.Source))

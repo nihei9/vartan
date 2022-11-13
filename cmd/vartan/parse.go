@@ -60,7 +60,7 @@ func runParse(cmd *cobra.Command, args []string) error {
 
 	var p *driver.Parser
 	var treeAct *driver.SyntaxTreeActionSet
-	var tb *driver.DefaulSyntaxTreeBuilder
+	var tb *driver.DefaultSyntaxTreeBuilder
 	{
 		src := os.Stdin
 		if *parseFlags.source != "" {
