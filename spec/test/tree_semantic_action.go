@@ -56,20 +56,20 @@ type SyntaxTreeBuilder interface {
 	Accept(f SyntaxTreeNode)
 }
 
-var _ SyntaxTreeBuilder = &DefaulSyntaxTreeBuilder{}
+var _ SyntaxTreeBuilder = &DefaultSyntaxTreeBuilder{}
 
-// DefaulSyntaxTreeBuilder is a implementation of SyntaxTreeBuilder.
-type DefaulSyntaxTreeBuilder struct {
+// DefaultSyntaxTreeBuilder is a implementation of SyntaxTreeBuilder.
+type DefaultSyntaxTreeBuilder struct {
 	tree *Node
 }
 
 // NewDefaultSyntaxTreeBuilder returns a new DefaultSyntaxTreeBuilder.
-func NewDefaultSyntaxTreeBuilder() *DefaulSyntaxTreeBuilder {
-	return &DefaulSyntaxTreeBuilder{}
+func NewDefaultSyntaxTreeBuilder() *DefaultSyntaxTreeBuilder {
+	return &DefaultSyntaxTreeBuilder{}
 }
 
 // Shift is a implementation of SyntaxTreeBuilder.Shift.
-func (b *DefaulSyntaxTreeBuilder) Shift(kindName string, text string, row, col int) SyntaxTreeNode {
+func (b *DefaultSyntaxTreeBuilder) Shift(kindName string, text string, row, col int) SyntaxTreeNode {
 	return &Node{
 		Type:     NodeTypeTerminal,
 		KindName: kindName,
@@ -80,7 +80,7 @@ func (b *DefaulSyntaxTreeBuilder) Shift(kindName string, text string, row, col i
 }
 
 // ShiftError is a implementation of SyntaxTreeBuilder.ShiftError.
-func (b *DefaulSyntaxTreeBuilder) ShiftError(kindName string) SyntaxTreeNode {
+func (b *DefaultSyntaxTreeBuilder) ShiftError(kindName string) SyntaxTreeNode {
 	return &Node{
 		Type:     NodeTypeError,
 		KindName: kindName,
@@ -88,7 +88,7 @@ func (b *DefaulSyntaxTreeBuilder) ShiftError(kindName string) SyntaxTreeNode {
 }
 
 // Reduce is a implementation of SyntaxTreeBuilder.Reduce.
-func (b *DefaulSyntaxTreeBuilder) Reduce(kindName string, children []SyntaxTreeNode) SyntaxTreeNode {
+func (b *DefaultSyntaxTreeBuilder) Reduce(kindName string, children []SyntaxTreeNode) SyntaxTreeNode {
 	cNodes := make([]*Node, len(children))
 	for i, c := range children {
 		cNodes[i] = c.(*Node)
@@ -101,12 +101,12 @@ func (b *DefaulSyntaxTreeBuilder) Reduce(kindName string, children []SyntaxTreeN
 }
 
 // Accept is a implementation of SyntaxTreeBuilder.Accept.
-func (b *DefaulSyntaxTreeBuilder) Accept(f SyntaxTreeNode) {
+func (b *DefaultSyntaxTreeBuilder) Accept(f SyntaxTreeNode) {
 	b.tree = f.(*Node)
 }
 
 // Tree returns a syntax tree when the parser has accepted an input. If a syntax error occurs, the return value is nil.
-func (b *DefaulSyntaxTreeBuilder) Tree() *Node {
+func (b *DefaultSyntaxTreeBuilder) Tree() *Node {
 	return b.tree
 }
 
